@@ -1,53 +1,192 @@
 @extends("layouts.app")
 @section("style")
 <link href="{{asset('assets/plugins/datatable/css/dataTables.bootstrap5.min.css')}}" rel="stylesheet" />
-<!-- Flatpickr CSS for Date Range Picker -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <style>
-    .date-range-container {
-        display: flex;
-        gap: 15px;
-        align-items: center;
+    .shopora-date-filter {
+        background: #fff;
+        border: 1px solid #e4e4e4;
+        border-radius: 12px;
+        padding: 16px 18px;
         margin-bottom: 20px;
+        display: flex;
         flex-wrap: wrap;
+        align-items: flex-end;
+        gap: 14px 16px;
     }
-    .date-input-group {
+
+    .shopora-date-filter .date-field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        min-width: 180px;
+    }
+
+    .shopora-date-filter .date-field label {
+        margin: 0;
+        font-size: 13px;
+        font-weight: 600;
+        color: #4b5563;
+    }
+
+    .shopora-date-filter .date-input-wrap {
+        position: relative;
+    }
+
+    .shopora-date-filter .date-input-wrap input {
+        width: 100%;
+        height: 42px;
+        padding: 8px 40px 8px 12px;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        font-size: 14px;
+        color: #1f2937;
+        background: #fff;
+    }
+
+    .shopora-date-filter .date-input-wrap input:focus {
+        outline: none;
+        border-color: #008cff;
+        box-shadow: 0 0 0 3px rgba(0, 140, 255, 0.12);
+    }
+
+    .shopora-date-filter .date-input-wrap .cal-icon {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #9ca3af;
+        font-size: 18px;
+        pointer-events: none;
+    }
+
+    .shopora-date-filter .btn-clear-filter {
+        height: 42px;
+        padding: 0 18px;
+        border: 0;
+        border-radius: 8px;
+        background: #008cff;
+        color: #fff;
+        font-weight: 600;
+        font-size: 14px;
+        line-height: 1;
+    }
+
+    .shopora-date-filter .btn-clear-filter:hover {
+        background: #0077db;
+        color: #fff;
+    }
+
+    .shopora-date-filter .range-tabs {
         display: flex;
         align-items: center;
         gap: 8px;
+        margin-left: auto;
+        flex-wrap: wrap;
     }
-    .date-input-group label {
+
+    .shopora-date-filter .range-tab {
+        height: 36px;
+        padding: 0 14px;
+        border: 1px solid #dbe3ef;
+        border-radius: 999px;
+        background: #fff;
+        color: #4b5563;
+        font-size: 13px;
         font-weight: 600;
-        color: #333;
-        margin-bottom: 0;
-        white-space: nowrap;
+        cursor: pointer;
+        transition: all 0.2s ease;
     }
-    .date-input-group input {
-        padding: 8px 12px;
-        border: 1px solid #dee2e6;
-        border-radius: 4px;
-        font-size: 14px;
+
+    .shopora-date-filter .range-tab:hover {
+        border-color: #008cff;
+        color: #008cff;
+    }
+
+    .shopora-date-filter .range-tab.active {
+        background: #e8f1ff;
+        border-color: #008cff;
+        color: #008cff;
+    }
+
+    @media (max-width: 768px) {
+        .shopora-date-filter .range-tabs {
+            margin-left: 0;
+            width: 100%;
+        }
+    }
+
+    .page-content.shopora-dash-page {
+        position: relative;
+    }
+
+    .shopora-dash-loader {
+        position: absolute;
+        inset: 0;
+        z-index: 40;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.55);
+        backdrop-filter: blur(2px);
+        -webkit-backdrop-filter: blur(2px);
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transition: opacity 0.2s ease, visibility 0.2s ease;
+        min-height: 220px;
+    }
+
+    .shopora-dash-loader.is-visible {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: all;
+    }
+
+    .shopora-spin {
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        border: 3px solid rgba(0, 140, 255, 0.18);
+        border-top-color: #008cff;
+        animation: shopora-spin 0.7s linear infinite;
+    }
+
+    @keyframes shopora-spin {
+        to { transform: rotate(360deg); }
     }
 </style>
 @endsection
 @section("wrapper")
 <div class="page-wrapper">
-    <div class="page-content">
-        <!-- Title and Date Range Filter -->
-        <div style="margin-bottom: 10px;">
-            <div class="dashboard-filter">
-                <div class="date-range-container">
-                    <div class="date-input-group">
-                        <label for="fromDate">From Date:</label>
-                        <input type="text" id="fromDate" class="form-control date-picker" placeholder="Select From Date" />
-                    </div>
-                    <div class="date-input-group">
-                        <label for="toDate">To Date:</label>
-                        <input type="text" id="toDate" class="form-control date-picker" placeholder="Select To Date" />
-                    </div>
+    <div class="page-content shopora-dash-page">
+        <div id="shoporaDashLoader" class="shopora-dash-loader" aria-hidden="true">
+            <div class="shopora-spin" role="status" aria-label="Loading"></div>
+        </div>
+        <!-- Date Range Filter (Figma) -->
+        <div class="shopora-date-filter">
+            <div class="date-field">
+                <label for="fromDate">From Date</label>
+                <div class="date-input-wrap">
+                    <input type="text" id="fromDate" class="date-picker" placeholder="Select From Date" readonly />
+                    <i class='bx bx-calendar cal-icon'></i>
                 </div>
             </div>
+            <div class="date-field">
+                <label for="toDate">To Date</label>
+                <div class="date-input-wrap">
+                    <input type="text" id="toDate" class="date-picker" placeholder="Select To Date" readonly />
+                    <i class='bx bx-calendar cal-icon'></i>
+                </div>
+            </div>
+            <button type="button" class="btn-clear-filter" id="clearDateFilter">Clear</button>
+            <div class="range-tabs" role="tablist">
+                <button type="button" class="range-tab active" data-range="today">Today</button>
+                <button type="button" class="range-tab" data-range="7days">7 days</button>
+                <button type="button" class="range-tab" data-range="1month">1 Month</button>
+            </div>
         </div>
+
         <!-- Stats Cards -->
         <div class="row row-cols-1 row-cols-md-2 row-cols-xl-4">
             <div class="col">
@@ -177,42 +316,107 @@
     
     let currentInvoice = null;
     let currentDetails = [];
-    
-    // Get today's date in YYYY-MM-DD format
-    function getTodayDate() {
-        const today = new Date();
-        return today.toISOString().split('T')[0];
+    let fromPicker = null;
+    let toPicker = null;
+    let applyingRange = false;
+    let dashLoaderPending = 0;
+    let dashLoaderShownAt = 0;
+    const DASH_LOADER_MIN_MS = 400;
+
+    function startOfDay(date) {
+        const d = new Date(date);
+        d.setHours(0, 0, 0, 0);
+        return d;
+    }
+
+    function getRangeDates(range) {
+        const today = startOfDay(new Date());
+        const to = new Date(today);
+        const from = new Date(today);
+
+        if (range === '7days') {
+            from.setDate(from.getDate() - 6);
+        } else if (range === '1month') {
+            from.setMonth(from.getMonth() - 1);
+        }
+
+        return { from: from, to: to };
+    }
+
+    function setActiveTab(range) {
+        $('.range-tab').removeClass('active');
+        if (range) {
+            $('.range-tab[data-range="' + range + '"]').addClass('active');
+        }
+    }
+
+    function showDashboardLoader() {
+        dashLoaderPending++;
+        if (dashLoaderPending > 1) return;
+
+        dashLoaderShownAt = Date.now();
+        $('#shoporaDashLoader').addClass('is-visible').attr('aria-hidden', 'false');
+    }
+
+    function hideDashboardLoader() {
+        dashLoaderPending = Math.max(0, dashLoaderPending - 1);
+        if (dashLoaderPending > 0) return;
+
+        const elapsed = Date.now() - dashLoaderShownAt;
+        const wait = Math.max(0, DASH_LOADER_MIN_MS - elapsed);
+
+        setTimeout(function() {
+            if (dashLoaderPending === 0) {
+                $('#shoporaDashLoader').removeClass('is-visible').attr('aria-hidden', 'true');
+            }
+        }, wait);
+    }
+
+    function applyDateRange(fromDate, toDate, tab) {
+        applyingRange = true;
+        fromPicker.setDate(fromDate, false);
+        toPicker.setDate(toDate, false);
+        applyingRange = false;
+        setActiveTab(tab);
+        updateDashboard({ loader: true });
     }
     
     $(document).ready(function() {
-        // Initialize date pickers with Flatpickr
-        const today = getTodayDate();
-        
-        flatpickr("#fromDate", {
+        const today = startOfDay(new Date());
+
+        fromPicker = flatpickr("#fromDate", {
             dateFormat: "Y-m-d",
             defaultDate: today,
-            onChange: function(selectedDates, dateStr, instance) {
-                updateDashboard();
+            onChange: function() {
+                if (applyingRange) return;
+                setActiveTab(null);
+                updateDashboard({ loader: true });
             }
         });
-        
-        flatpickr("#toDate", {
+
+        toPicker = flatpickr("#toDate", {
             dateFormat: "Y-m-d",
             defaultDate: today,
-            onChange: function(selectedDates, dateStr, instance) {
-                updateDashboard();
+            onChange: function() {
+                if (applyingRange) return;
+                setActiveTab(null);
+                updateDashboard({ loader: true });
             }
         });
-        
-        // Set initial values
-        document.getElementById('fromDate').value = today;
-        document.getElementById('toDate').value = today;
-        
-        // Initialize DataTable
+
+        $('.range-tab').on('click', function() {
+            const range = $(this).data('range');
+            const dates = getRangeDates(range);
+            applyDateRange(dates.from, dates.to, range);
+        });
+
+        $('#clearDateFilter').on('click', function() {
+            const dates = getRangeDates('today');
+            applyDateRange(dates.from, dates.to, 'today');
+        });
+
         initializeInvoiceTable();
-        
-        // Update dashboard on load
-        updateDashboard();
+        updateDashboard({ loader: false });
     });
     
     function initializeInvoiceTable() {
@@ -346,10 +550,24 @@
         });
     }
     
-    function updateDashboard() {
+    function updateDashboard(options) {
+        options = options || {};
+        const withLoader = options.loader === true;
         const fromDate = $('#fromDate').val();
         const toDate = $('#toDate').val();
-        
+        let pending = 1;
+
+        if (withLoader) {
+            showDashboardLoader();
+        }
+
+        function markDone() {
+            pending--;
+            if (pending <= 0 && withLoader) {
+                hideDashboardLoader();
+            }
+        }
+
         $.ajax({
             url: "{{ route('admin.dashboardStats') }}",
             data: {
@@ -364,11 +582,16 @@
                 }));
                 $('.text-success').text(response.totalSales);
                 $('.text-warning').text(response.totalCustomer);
-            }
+            },
+            complete: markDone
         });
-        
-        // Reload invoice table
-        $('#invoiceTable').DataTable().ajax.reload();
+
+        if ($.fn.DataTable.isDataTable('#invoiceTable')) {
+            pending++;
+            $('#invoiceTable').DataTable().ajax.reload(function() {
+                markDone();
+            }, false);
+        }
     }
 </script>
 

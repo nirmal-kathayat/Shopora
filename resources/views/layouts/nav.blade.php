@@ -1,14 +1,16 @@
 <!--sidebar wrapper -->
 <style>
-    /* Shopora: clean header/sidebar borders */
-    .sidebar-wrapper {
+    /* ===== Shopora sidebar (Figma-inspired) ===== */
+    .sidebar-wrapper.shopora-sidebar {
         box-shadow: none !important;
-        /* line drawn by .wrapper::before so it reaches absolute top */
         border-right: none !important;
         z-index: 12 !important;
+        background: #ffffff !important;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
     }
 
-    /* Full-height vertical divider (same style as header separators) */
     .wrapper::before {
         content: "";
         position: fixed;
@@ -17,7 +19,8 @@
         left: 250px;
         width: 1px;
         background: #e4e4e4;
-        z-index: 20;
+        /* Above topbar so the divider reaches absolute top again */
+        z-index: 1040;
         pointer-events: none;
     }
 
@@ -25,52 +28,289 @@
         left: 70px;
     }
 
-    .sidebar-wrapper .sidebar-header {
-        height: 60px !important;
+    .shopora-sidebar .sidebar-header {
+        height: 64px !important;
         bottom: auto !important;
-        padding: 8px 12px !important;
+        padding: 12px 16px !important;
         gap: 8px;
         align-items: center;
-        border-bottom: 1px solid #e4e4e4;
+        border-bottom: 1px solid #eef0f3;
         z-index: 13 !important;
+        background: #fff;
+        flex-shrink: 0;
     }
 
-    .sidebar-wrapper .sidebar-header .logo-icon {
-        height: 40px !important;
+    .shopora-sidebar .sidebar-header .logo-icon {
+        height: 36px !important;
         width: auto !important;
-        max-width: 160px !important;
+        max-width: 150px !important;
         object-fit: contain;
         display: block;
     }
 
-    .sidebar-wrapper .sidebar-header .toggle-icon {
+    .shopora-sidebar .sidebar-header .toggle-icon {
         flex-shrink: 0;
         margin-left: 4px;
         line-height: 1;
+        color: #008cff !important;
+        font-size: 20px;
     }
 
-    .sidebar-wrapper .metismenu {
-        margin-top: 60px !important;
-        padding: 12px 10px 10px !important;
+    .shopora-sidebar .sidebar-nav-scroll {
+        flex: 1 1 auto;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding: 12px 10px 8px;
+        margin-top: 64px;
     }
 
-    .sidebar-wrapper .metismenu > li:first-child {
+    /* Override old metismenu top margin when using scroll container */
+    .shopora-sidebar .metismenu {
+        margin-top: 0 !important;
+        padding: 0 !important;
+        gap: 4px;
+    }
+
+    .shopora-sidebar .metismenu > li {
+        margin: 0 !important;
+        width: 100%;
+    }
+
+    .shopora-sidebar .metismenu > li:first-child {
         margin-top: 0 !important;
     }
 
-    /* Header: simple bottom line, no shadow */
+    .shopora-sidebar .metismenu > li > a {
+        position: relative;
+        display: flex !important;
+        align-items: center;
+        gap: 10px;
+        padding: 11px 14px 11px 16px !important;
+        margin: 0 !important;
+        border-radius: 10px !important;
+        color: #374151 !important;
+        font-size: 14.5px !important;
+        font-weight: 500;
+        letter-spacing: 0;
+        background: transparent !important;
+        transition: background 0.2s ease, color 0.2s ease;
+    }
+
+    .shopora-sidebar .metismenu > li > a .parent-icon {
+        width: 22px;
+        font-size: 20px !important;
+        line-height: 1;
+        color: #4b5563;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .shopora-sidebar .metismenu > li > a .parent-icon i,
+    .shopora-sidebar .metismenu > li > a .parent-icon svg {
+        color: inherit !important;
+        fill: currentColor !important;
+    }
+
+    .shopora-sidebar .metismenu > li > a .menu-title {
+        margin-left: 0 !important;
+        color: inherit !important;
+    }
+
+    .shopora-sidebar .metismenu > li > a:hover {
+        background: #f3f6fb !important;
+        color: #111827 !important;
+    }
+
+    .shopora-sidebar .metismenu > li > a:hover .parent-icon {
+        color: #111827;
+    }
+
+    /* Active item — Figma: light blue pill + left blue bar */
+    .shopora-sidebar .metismenu > li.active-link > a,
+    .shopora-sidebar .metismenu > li > a.mm-active,
+    .shopora-sidebar .metismenu > li.active-link > a:hover {
+        background: #e8f1ff !important;
+        color: #008cff !important;
+    }
+
+    .shopora-sidebar .metismenu > li.active-link > a .parent-icon,
+    .shopora-sidebar .metismenu > li > a.mm-active .parent-icon {
+        color: #008cff !important;
+    }
+
+    .shopora-sidebar .metismenu > li.active-link > a::before,
+    .shopora-sidebar .metismenu > li.has-submenu.open > a.has-arrow::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 8px;
+        bottom: 8px;
+        width: 3px;
+        border-radius: 0 3px 3px 0;
+        background: #008cff;
+    }
+
+    .shopora-sidebar .metismenu > li.has-submenu.open > a.has-arrow {
+        background: #e8f1ff !important;
+        color: #008cff !important;
+    }
+
+    .shopora-sidebar .metismenu > li.has-submenu.open > a.has-arrow .parent-icon {
+        color: #008cff !important;
+    }
+
+    /* Dropdowns keep working */
+    .shopora-sidebar .metismenu > li.has-submenu {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .shopora-sidebar .metismenu > li.has-submenu > a.has-arrow {
+        position: relative;
+        padding-right: 36px !important;
+    }
+
+    .shopora-sidebar .metismenu .has-arrow::after {
+        display: none !important;
+        content: none !important;
+        border: none !important;
+    }
+
+    .shopora-sidebar .metismenu .shopora-submenu-chevron {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 18px;
+        color: #9ca3af;
+        transition: transform 0.28s ease, color 0.2s ease;
+        line-height: 1;
+    }
+
+    .shopora-sidebar .metismenu > li.has-submenu.open > a.has-arrow .shopora-submenu-chevron {
+        transform: translateY(-50%) rotate(90deg);
+        color: #008cff;
+    }
+
+    .shopora-sidebar .submenu.shopora-submenu {
+        list-style: none;
+        margin: 2px 6px 6px 14px;
+        padding: 0;
+        max-height: 0;
+        overflow: hidden;
+        opacity: 0;
+        transform: translateY(-4px);
+        transition: max-height 0.32s ease, opacity 0.28s ease, transform 0.28s ease;
+        border-left: 2px solid #e8eef5;
+        background: transparent;
+    }
+
+    .shopora-sidebar .submenu.shopora-submenu.active {
+        max-height: 220px;
+        opacity: 1;
+        transform: translateY(0);
+        padding: 4px 0 6px;
+    }
+
+    .shopora-sidebar .submenu.shopora-submenu li {
+        margin: 0 !important;
+        display: block;
+        width: 100%;
+    }
+
+    .shopora-sidebar .submenu.shopora-submenu a {
+        display: flex !important;
+        align-items: center;
+        gap: 8px;
+        margin: 2px 0 2px 8px;
+        padding: 8px 12px !important;
+        border-radius: 8px;
+        color: #4b5563 !important;
+        font-size: 13.5px;
+        font-weight: 500;
+        line-height: 1.3;
+        background: transparent;
+        transition: background 0.2s ease, color 0.2s ease;
+    }
+
+    .shopora-sidebar .submenu.shopora-submenu a i {
+        font-size: 16px;
+        color: #9ca3af;
+    }
+
+    .shopora-sidebar .submenu.shopora-submenu a:hover,
+    .shopora-sidebar .submenu.shopora-submenu a:focus {
+        background: #f0f6ff !important;
+        color: #008cff !important;
+    }
+
+    .shopora-sidebar .submenu.shopora-submenu a:hover i,
+    .shopora-sidebar .submenu.shopora-submenu a:focus i,
+    .shopora-sidebar .submenu.shopora-submenu a.active i {
+        color: #008cff;
+    }
+
+    .shopora-sidebar .submenu.shopora-submenu a.active {
+        background: #e8f1ff !important;
+        color: #008cff !important;
+        font-weight: 600;
+    }
+
+    /* Footer branding (Figma) */
+    .shopora-sidebar .sidebar-footer {
+        flex-shrink: 0;
+        padding: 14px 16px 16px;
+        border-top: 1px solid #eef0f3;
+        background: #fff;
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .shopora-sidebar .sidebar-footer .footer-icon {
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        background: #ecfdf8;
+        color: #0d9488;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        flex-shrink: 0;
+        margin-top: 2px;
+    }
+
+    .shopora-sidebar .sidebar-footer .footer-title {
+        margin: 0;
+        font-size: 13.5px;
+        font-weight: 700;
+        color: #0f766e;
+        line-height: 1.2;
+    }
+
+    .shopora-sidebar .sidebar-footer .footer-sub {
+        margin: 3px 0 0;
+        font-size: 11px;
+        color: #9ca3af;
+        line-height: 1.35;
+    }
+
+    /* Topbar stays aligned */
     .topbar {
         box-shadow: none !important;
         -webkit-box-shadow: none !important;
         border-bottom: 1px solid #e4e4e4 !important;
         left: 250px !important;
-        height: 60px !important;
+        height: 64px !important;
         z-index: 1030 !important;
         overflow: visible !important;
     }
 
     .topbar .navbar {
-        height: 60px !important;
+        height: 64px !important;
         overflow: visible !important;
     }
 
@@ -78,7 +318,6 @@
         left: 70px !important;
     }
 
-    /* Profile dropdown must be clickable and visible */
     .topbar .user-box {
         border-left: none !important;
         border-right: none !important;
@@ -92,7 +331,7 @@
         padding: 0;
         cursor: pointer;
         color: inherit;
-        height: 60px;
+        height: 64px;
     }
 
     .topbar .shopora-profile-btn .shopora-profile-caret {
@@ -102,7 +341,7 @@
 
     .topbar .shopora-profile-btn[aria-expanded="true"] .shopora-profile-caret {
         transform: rotate(180deg);
-        color: #0d6efd;
+        color: #008cff;
     }
 
     .topbar .user-box .dropdown-menu {
@@ -119,115 +358,36 @@
         display: block !important;
     }
 
-    /* no bootstrap double caret */
     .topbar .shopora-profile-btn::after {
         display: none !important;
         content: none !important;
     }
 
-    /* Smooth Reports dropdown */
-    .sidebar-wrapper .metismenu > li.has-submenu {
-        flex-direction: column;
-        align-items: stretch;
-    }
-
-    .sidebar-wrapper .metismenu > li.has-submenu > a.has-arrow {
-        position: relative;
-        padding-right: 36px !important;
-    }
-
-    /* Hide broken/default arrow; use real chevron icon instead */
-    .sidebar-wrapper .metismenu .has-arrow::after {
-        display: none !important;
-        content: none !important;
-        border: none !important;
-    }
-
-    .sidebar-wrapper .metismenu .shopora-submenu-chevron {
-        position: absolute;
-        right: 12px;
-        top: 50%;
-        transform: translateY(-50%);
-        font-size: 20px;
-        color: #6c757d;
-        transition: transform 0.28s ease, color 0.2s ease;
-        line-height: 1;
-    }
-
-    .sidebar-wrapper .metismenu > li.has-submenu.open > a.has-arrow .shopora-submenu-chevron {
-        transform: translateY(-50%) rotate(90deg);
-        color: #0d6efd;
-    }
-
-    .sidebar-wrapper .submenu.shopora-submenu {
-        list-style: none;
-        margin: 0 8px 4px 12px;
-        padding: 0;
-        max-height: 0;
-        overflow: hidden;
-        opacity: 0;
-        transform: translateY(-4px);
-        transition: max-height 0.32s ease, opacity 0.28s ease, transform 0.28s ease;
-        border-left: 2px solid #e9ecef;
-        background: transparent;
-    }
-
-    .sidebar-wrapper .submenu.shopora-submenu.active {
-        max-height: 220px;
-        opacity: 1;
-        transform: translateY(0);
-        padding: 6px 0 8px;
-    }
-
-    .sidebar-wrapper .submenu.shopora-submenu li {
-        margin: 0 !important;
-        display: block;
-        width: 100%;
-    }
-
-    .sidebar-wrapper .submenu.shopora-submenu a {
-        display: flex !important;
-        align-items: center;
-        gap: 8px;
-        margin: 3px 0 3px 10px;
-        padding: 8px 12px !important;
-        border-radius: 8px;
-        color: #5f6368 !important;
-        font-size: 13.5px;
-        line-height: 1.3;
-        background: transparent;
-        transition: background 0.2s ease, color 0.2s ease, padding-left 0.2s ease;
-    }
-
-    .sidebar-wrapper .submenu.shopora-submenu a i {
-        font-size: 16px;
-        color: #98a2b3;
-        transition: color 0.2s ease;
-    }
-
-    .sidebar-wrapper .submenu.shopora-submenu a:hover,
-    .sidebar-wrapper .submenu.shopora-submenu a:focus {
-        background: #f0f6ff !important;
-        color: #0d6efd !important;
-        padding-left: 16px !important;
-    }
-
-    .sidebar-wrapper .submenu.shopora-submenu a:hover i,
-    .sidebar-wrapper .submenu.shopora-submenu a:focus i {
-        color: #0d6efd;
-    }
-
-    .sidebar-wrapper .submenu.shopora-submenu a.active {
-        background: #e8f1ff !important;
-        color: #0d6efd !important;
-        font-weight: 500;
-    }
-
-    .sidebar-wrapper .submenu.shopora-submenu a.active i {
-        color: #0d6efd;
+    .page-wrapper {
+        margin-top: 64px !important;
     }
 </style>
-<div class="sidebar-wrapper" data-simplebar="true">
+
+@php
+    $isDashboard = request()->routeIs('admin.dashboard*');
+    $isReportsSection = request()->routeIs('admin.reports*');
+    $isInventoryItems = request()->routeIs('admin.inventoryItem*');
+    $isPurchase = request()->routeIs('admin.purchaseInventory')
+        || request()->routeIs('admin.purchaseInventory.create')
+        || request()->routeIs('admin.purchaseInventory.store')
+        || request()->routeIs('admin.purchaseInventory.edit')
+        || request()->routeIs('admin.purchaseInventory.update')
+        || request()->routeIs('admin.purchaseInventory.delete')
+        || request()->routeIs('admin.purchaseInventory.view');
+    $isInventoryRecords = request()->routeIs('admin.purchaseInventory.storeRecords')
+        || request()->routeIs('admin.purchaseInventory.viewRecord');
+    $isSales = request()->routeIs('admin.sales*');
+    $isInvoice = request()->routeIs('admin.invoice*');
+    $isCustomers = request()->routeIs('admin.customer*');
+    $isSettingsSection = request()->routeIs('admin.permission*', 'admin.role*', 'admin.user*');
+@endphp
+
+<div class="sidebar-wrapper shopora-sidebar">
     <div class="sidebar-header">
         <div class="d-flex align-items-center flex-grow-1" style="min-width: 0;">
             <a href="{{ route('admin.dashboard') }}" class="d-flex align-items-center text-decoration-none">
@@ -236,133 +396,118 @@
                      alt="Shopora">
             </a>
         </div>
+        <div class="toggle-icon"><i class='bx bx-arrow-to-left'></i></div>
+    </div>
 
-        <div class="toggle-icon"><i class='bx bx-arrow-to-left'></i>
+    <div class="sidebar-nav-scroll">
+        <ul class="metismenu" id="menu">
+            <li class="{{ $isDashboard ? 'active-link' : '' }}">
+                <a href="{{ route('admin.dashboard') }}">
+                    <div class="parent-icon"><i class='bx bx-tachometer'></i></div>
+                    <div class="menu-title">Dashboard</div>
+                </a>
+            </li>
+
+            <li class="has-submenu {{ $isReportsSection ? 'open' : '' }}">
+                <a href="javascript:;" class="has-arrow {{ $isReportsSection ? 'mm-active' : '' }}" onclick="toggleDropdown(this)">
+                    <div class="parent-icon"><i class='bx bx-bar-chart-alt-2'></i></div>
+                    <div class="menu-title">Reports</div>
+                    <i class="bx bx-chevron-right shopora-submenu-chevron"></i>
+                </a>
+                <ul class="submenu shopora-submenu {{ $isReportsSection ? 'active' : '' }}">
+                    <li>
+                        <a href="{{ route('admin.reports') }}" class="{{ request()->routeIs('admin.reports') && !request()->routeIs('admin.reports.*') ? 'active' : '' }}">
+                            <i class="bx bx-right-arrow-alt"></i>Purchase Report
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ route('admin.reports.salesReport') }}" class="{{ request()->routeIs('admin.reports.salesReport') ? 'active' : '' }}">
+                            <i class="bx bx-right-arrow-alt"></i>Sales Report
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ route('admin.reports.inventoryReport') }}" class="{{ request()->routeIs('admin.reports.inventoryReport') ? 'active' : '' }}">
+                            <i class="bx bx-right-arrow-alt"></i>Inventory Report
+                        </a>
+                    </li>
+                </ul>
+            </li>
+
+            <li class="{{ $isInventoryItems ? 'active-link' : '' }}">
+                <a href="{{ route('admin.inventoryItem') }}">
+                    <div class="parent-icon"><i class='bx bx-package'></i></div>
+                    <div class="menu-title">Inventory Items</div>
+                </a>
+            </li>
+
+            <li class="{{ $isPurchase ? 'active-link' : '' }}">
+                <a href="{{ route('admin.purchaseInventory') }}">
+                    <div class="parent-icon"><i class='bx bx-cart'></i></div>
+                    <div class="menu-title">Purchase Inventory</div>
+                </a>
+            </li>
+
+            <li class="{{ $isInventoryRecords ? 'active-link' : '' }}">
+                <a href="{{ route('admin.purchaseInventory.storeRecords') }}">
+                    <div class="parent-icon"><i class='bx bx-list-plus'></i></div>
+                    <div class="menu-title">Inventory Records</div>
+                </a>
+            </li>
+
+            <li class="{{ $isSales ? 'active-link' : '' }}">
+                <a href="{{ route('admin.sales.index') }}">
+                    <div class="parent-icon"><i class='bx bx-shopping-bag'></i></div>
+                    <div class="menu-title">Sales</div>
+                </a>
+            </li>
+
+            <li class="{{ $isInvoice ? 'active-link' : '' }}">
+                <a href="{{ route('admin.invoice.index') }}">
+                    <div class="parent-icon"><i class='bx bx-receipt'></i></div>
+                    <div class="menu-title">Invoice</div>
+                </a>
+            </li>
+
+            <li class="{{ $isCustomers ? 'active-link' : '' }}">
+                <a href="{{ route('admin.customer') }}">
+                    <div class="parent-icon"><i class='bx bx-user'></i></div>
+                    <div class="menu-title">Customers</div>
+                </a>
+            </li>
+
+            <li class="has-submenu {{ $isSettingsSection ? 'open' : '' }}">
+                <a href="javascript:;" class="has-arrow {{ $isSettingsSection ? 'mm-active' : '' }}" onclick="toggleDropdown(this)">
+                    <div class="parent-icon"><i class="bx bx-cog"></i></div>
+                    <div class="menu-title">Settings</div>
+                    <i class="bx bx-chevron-right shopora-submenu-chevron"></i>
+                </a>
+                <ul class="submenu shopora-submenu {{ $isSettingsSection ? 'active' : '' }}">
+                    <li>
+                        <a href="{{ route('admin.permission') }}" class="{{ request()->routeIs('admin.permission*') ? 'active' : '' }}">
+                            <i class="bx bx-right-arrow-alt"></i>Permission
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ route('admin.role') }}" class="{{ request()->routeIs('admin.role*') ? 'active' : '' }}">
+                            <i class="bx bx-right-arrow-alt"></i>Role
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ route('admin.user') }}" class="{{ request()->routeIs('admin.user*') ? 'active' : '' }}">
+                            <i class="bx bx-right-arrow-alt"></i>User
+                        </a>
+                    </li>
+                </ul>
+            </li>
+        </ul>
+    </div>
+
+    <div class="sidebar-footer">
+        <div class="footer-icon"><i class='bx bx-store'></i></div>
+        <div>
+            <p class="footer-title">Shopora Store</p>
+            <p class="footer-sub">Retail & Inventory<br>Management System</p>
         </div>
     </div>
-    <!--navigation-->
-    <ul class="metismenu" id="menu">
-        <li>
-            <a href="{{route('admin.dashboard')}}">
-                <div class="parent-icon"><i class='bx bx-home-circle'></i>
-                </div>
-                <div class="menu-title">Dashboard</div>
-            </a>
-        </li>
-
-        @php
-            $isReportsSection = request()->routeIs('admin.reports*');
-        @endphp
-        <li class="has-submenu {{ $isReportsSection ? 'open' : '' }}">
-            <a href="javascript:;" class="has-arrow {{ $isReportsSection ? 'mm-active' : '' }}" onclick="toggleDropdown(this)">
-                <div class="parent-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" style="fill: rgba(0, 0, 0, 1);transform:msFilter">
-                        <path d="m20 8-6-6H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM9 19H7v-9h2v9zm4 0h-2v-6h2v6zm4 0h-2v-3h2v3zM14 9h-1V4l5 5h-4z"></path>
-                    </svg>
-                </div>
-                <div class="menu-title">Reports</div>
-                <i class="bx bx-chevron-right shopora-submenu-chevron"></i>
-            </a>
-            <ul class="submenu shopora-submenu {{ $isReportsSection ? 'active' : '' }}">
-                <li>
-                    <a href="{{route('admin.reports')}}" class="{{ request()->routeIs('admin.reports') && !request()->routeIs('admin.reports.*') ? 'active' : '' }}">
-                        <i class="bx bx-right-arrow-alt"></i>Purchase Report
-                    </a>
-                </li>
-                <li>
-                    <a href="{{route('admin.reports.salesReport')}}" class="{{ request()->routeIs('admin.reports.salesReport') ? 'active' : '' }}">
-                        <i class="bx bx-right-arrow-alt"></i>Sales Report
-                    </a>
-                </li>
-                <li>
-                    <a href="{{route('admin.reports.inventoryReport')}}" class="{{ request()->routeIs('admin.reports.inventoryReport') ? 'active' : '' }}">
-                        <i class="bx bx-right-arrow-alt"></i>Inventory Report
-                    </a>
-                </li>
-            </ul>
-        </li>
-
-        <li>
-            <a href="{{route('admin.inventoryItem')}}">
-                <div class="parent-icon"><i class='bx bx-package'></i>
-                </div>
-                <div class="menu-title">Inventory Items</div>
-            </a>
-        </li>
-
-        <li>
-            <a href="{{route('admin.purchaseInventory')}}">
-                <div class="parent-icon"><i class='bx bx-cart'></i>
-                </div>
-                <div class="menu-title">Purchase Inventory</div>
-            </a>
-        </li>
-
-        <li>
-            <a href="{{route('admin.purchaseInventory.storeRecords')}}">
-                <div class="parent-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" style="fill: rgba(0, 0, 0, 1);transform: msFilter">
-                        <path d="M19 15v-3h-2v3h-3v2h3v3h2v-3h3v-2h-.937zM4 7h11v2H4zm0 4h11v2H4zm0 4h8v2H4z"></path>
-                    </svg></i>
-                </div>
-                <div class="menu-title">Inventory Records</div>
-            </a>
-        </li>
-
-        <li>
-            <a href="{{route('admin.sales.index')}}">
-                <div class="parent-icon"><i class='bx bxs-bar-chart-alt-2'></i>
-                </div>
-                <div class="menu-title">Sales</div>
-            </a>
-        </li>
-
-        <li>
-            <a href="{{route('admin.invoice.index')}}">
-                <div class="parent-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" style="fill: rgba(0, 0, 0, 1);transform:msFilter">
-                        <path d="M12 2C6.486 2 2 6.486 2 12s4.486 10 10 10 10-4.486 10-10S17.514 2 12 2zm1 14.915V18h-2v-1.08c-2.339-.367-3-2.002-3-2.92h2c.011.143.159 1 2 1 1.38 0 2-.585 2-1 0-.324 0-1-2-1-3.48 0-4-1.88-4-3 0 1.288-1.029 2.584-3 2.915V6.012h2v1.109c1.734.41 2.4 1.853 2.4 2.879h-1l-1 .018C13.386 9.638 13.185 9 12 9c-1.299 0-2 .516-2 1 0 .374 0 1 2 1 3.48 0 4 1.88 4 3 0 1.288-1.029 2.584-3 2.915z"></path>
-                    </svg></i>
-                </div>
-                <div class="menu-title">Invoice</div>
-            </a>
-        </li>
-
-        <li>
-            <a href="{{route('admin.customer')}}">
-                <div class="parent-icon"><i class='bx bxs-group'></i>
-                </div>
-                <div class="menu-title">Customers</div>
-            </a>
-        </li>
-
-        @php
-            $isSettingsSection = request()->routeIs('admin.permission*', 'admin.role*', 'admin.user*');
-        @endphp
-        <li class="has-submenu {{ $isSettingsSection ? 'open' : '' }}">
-            <a href="javascript:;" class="has-arrow {{ $isSettingsSection ? 'mm-active' : '' }}" onclick="toggleDropdown(this)">
-                <div class="parent-icon"><i class="bx bx-cog"></i>
-                </div>
-                <div class="menu-title">Settings</div>
-                <i class="bx bx-chevron-right shopora-submenu-chevron"></i>
-            </a>
-            <ul class="submenu shopora-submenu {{ $isSettingsSection ? 'active' : '' }}">
-                <li>
-                    <a href="{{ route('admin.permission') }}" class="{{ request()->routeIs('admin.permission*') ? 'active' : '' }}">
-                        <i class="bx bx-right-arrow-alt"></i>Permission
-                    </a>
-                </li>
-                <li>
-                    <a href="{{ route('admin.role') }}" class="{{ request()->routeIs('admin.role*') ? 'active' : '' }}">
-                        <i class="bx bx-right-arrow-alt"></i>Role
-                    </a>
-                </li>
-                <li>
-                    <a href="{{ route('admin.user') }}" class="{{ request()->routeIs('admin.user*') ? 'active' : '' }}">
-                        <i class="bx bx-right-arrow-alt"></i>User
-                    </a>
-                </li>
-            </ul>
-        </li>
-    </ul>
-    <!--end navigation-->
 </div>
 <!--end sidebar wrapper -->
