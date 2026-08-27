@@ -30,7 +30,7 @@
                     id="shoporaProfileMenu"
                     style="min-width: 180px;">
                     <li>
-                        <a class="dropdown-item d-flex align-items-center gap-2 py-2" href="javascript:;">
+                        <a class="dropdown-item d-flex align-items-center gap-2 py-2" href="{{ route('admin.profile') }}">
                             <i class="bx bx-user fs-5"></i><span>My Profile</span>
                         </a>
                     </li>

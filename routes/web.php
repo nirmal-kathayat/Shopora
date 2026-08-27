@@ -12,6 +12,7 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SalesController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -98,6 +99,10 @@ Route::group(['prefix' => 'admin'], function () {
         Route::post('edit/{id}', [RoleController::class, 'update'])->name('admin.role.update');
         Route::get('delete/{id}', [RoleController::class, 'delete'])->name('admin.role.delete');
     });
+    // profile
+    Route::get('/profile', [ProfileController::class, 'show'])->name('admin.profile');
+    Route::post('/profile', [ProfileController::class, 'update'])->name('admin.profile.update');
+    Route::post('/profile/password', [ProfileController::class, 'updatePassword'])->name('admin.profile.password');
     // user
     Route::group(['prefix' => 'user'], function () {
         Route::get('/', [UserController::class, 'index'])->name('admin.user');
