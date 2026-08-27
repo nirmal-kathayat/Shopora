@@ -22,3 +22,10 @@ Thumbs.db
 /.idea
 /.vscode
 /.cursor
+
+# Local-only Playwright (never commit / never production)
+/playwright-local/
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
