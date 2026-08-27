@@ -1,0 +1,223 @@
+<?php
+
+namespace Database\Seeders;
+
+use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
+
+class DemoDataSeeder extends Seeder
+{
+    /**
+     * Seed demo business data for all menus except Settings (admins/roles/permissions).
+     */
+    public function run(): void
+    {
+        DB::statement('SET FOREIGN_KEY_CHECKS=0');
+        DB::table('store_records')->truncate();
+        DB::table('inventory_stocks')->truncate();
+        DB::table('sales_payment_mode')->truncate();
+        DB::table('sales_products')->truncate();
+        DB::table('sales')->truncate();
+        DB::table('purchase_inventory_items')->truncate();
+        DB::table('purchase_inventory')->truncate();
+        DB::table('inventory_items')->truncate();
+        DB::table('customers')->truncate();
+        DB::table('categories')->truncate();
+        DB::statement('SET FOREIGN_KEY_CHECKS=1');
+
+        $now = Carbon::now();
+
+        // Categories
+        $categoryIds = [];
+        foreach (['Electronics', 'Grocery', 'Stationery', 'Hardware', 'Beverages', 'Personal Care'] as $title) {
+            $categoryIds[] = DB::table('categories')->insertGetId([
+                'title' => $title,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+        }
+
+        // Inventory items
+        $items = [
+            ['title' => 'USB Cable Type-C', 'unit' => 'pcs', 'code' => 'EL-001', 'category_id' => $categoryIds[0], 'price_per_unit' => 450],
+            ['title' => 'Wireless Mouse', 'unit' => 'pcs', 'code' => 'EL-002', 'category_id' => $categoryIds[0], 'price_per_unit' => 1200],
+            ['title' => 'Laptop Charger 65W', 'unit' => 'pcs', 'code' => 'EL-003', 'category_id' => $categoryIds[0], 'price_per_unit' => 2800],
+            ['title' => 'Basmati Rice 25kg', 'unit' => 'bag', 'code' => 'GR-001', 'category_id' => $categoryIds[1], 'price_per_unit' => 4200],
+            ['title' => 'Cooking Oil 5L', 'unit' => 'jar', 'code' => 'GR-002', 'category_id' => $categoryIds[1], 'price_per_unit' => 1450],
+            ['title' => 'Sugar 1kg', 'unit' => 'pkt', 'code' => 'GR-003', 'category_id' => $categoryIds[1], 'price_per_unit' => 140],
+            ['title' => 'A4 Paper Ream', 'unit' => 'ream', 'code' => 'ST-001', 'category_id' => $categoryIds[2], 'price_per_unit' => 650],
+            ['title' => 'Ball Pen Box (50)', 'unit' => 'box', 'code' => 'ST-002', 'category_id' => $categoryIds[2], 'price_per_unit' => 500],
+            ['title' => 'Notebook Spiral', 'unit' => 'pcs', 'code' => 'ST-003', 'category_id' => $categoryIds[2], 'price_per_unit' => 180],
+            ['title' => 'Screwdriver Set', 'unit' => 'set', 'code' => 'HW-001', 'category_id' => $categoryIds[3], 'price_per_unit' => 950],
+            ['title' => 'LED Bulb 12W', 'unit' => 'pcs', 'code' => 'HW-002', 'category_id' => $categoryIds[3], 'price_per_unit' => 220],
+            ['title' => 'Extension Cord 5m', 'unit' => 'pcs', 'code' => 'HW-003', 'category_id' => $categoryIds[3], 'price_per_unit' => 780],
+            ['title' => 'Mineral Water 20L', 'unit' => 'jar', 'code' => 'BV-001', 'category_id' => $categoryIds[4], 'price_per_unit' => 100],
+            ['title' => 'Soft Drink 1.5L', 'unit' => 'btl', 'code' => 'BV-002', 'category_id' => $categoryIds[4], 'price_per_unit' => 180],
+            ['title' => 'Instant Coffee 200g', 'unit' => 'jar', 'code' => 'BV-003', 'category_id' => $categoryIds[4], 'price_per_unit' => 850],
+            ['title' => 'Hand Wash 500ml', 'unit' => 'btl', 'code' => 'PC-001', 'category_id' => $categoryIds[5], 'price_per_unit' => 320],
+            ['title' => 'Toothpaste 150g', 'unit' => 'pcs', 'code' => 'PC-002', 'category_id' => $categoryIds[5], 'price_per_unit' => 150],
+            ['title' => 'Face Wash 100ml', 'unit' => 'pcs', 'code' => 'PC-003', 'category_id' => $categoryIds[5], 'price_per_unit' => 280],
+        ];
+
+        $itemIds = [];
+        foreach ($items as $item) {
+            $itemIds[] = DB::table('inventory_items')->insertGetId(array_merge($item, [
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]));
+        }
+
+        // Customers
+        $customers = [
+            ['name' => 'Ram Bahadur Thapa', 'address' => 'Kathmandu', 'ph_number' => '9841001001', 'pan_number' => '601234567'],
+            ['name' => 'Sita Devi Shrestha', 'address' => 'Lalitpur', 'ph_number' => '9841001002', 'pan_number' => null],
+            ['name' => 'Hari Krishna Magar', 'address' => 'Bhaktapur', 'ph_number' => '9841001003', 'pan_number' => '609876543'],
+            ['name' => 'Anita Gurung', 'address' => 'Pokhara', 'ph_number' => '9856001122', 'pan_number' => null],
+            ['name' => 'Bikash Tamang', 'address' => 'Chitwan', 'ph_number' => '9801112233', 'pan_number' => '601122334'],
+            ['name' => 'Sunita Karki', 'address' => 'Biratnagar', 'ph_number' => '9812345678', 'pan_number' => null],
+            ['name' => 'Prakash Adhikari', 'address' => 'Butwal', 'ph_number' => '9847012345', 'pan_number' => '605544332'],
+            ['name' => 'Manisha Rai', 'address' => 'Dharan', 'ph_number' => '9808765432', 'pan_number' => null],
+            ['name' => 'Nabin Basnet', 'address' => 'Hetauda', 'ph_number' => '9845123456', 'pan_number' => '607788990'],
+            ['name' => 'Kabita Maharjan', 'address' => 'Patan', 'ph_number' => '9851034567', 'pan_number' => null],
+            ['name' => 'Ganesh Trading Pvt Ltd', 'address' => 'New Road, KTM', 'ph_number' => '014411223', 'pan_number' => '600112233'],
+            ['name' => 'Himalayan Mart', 'address' => 'Thamel', 'ph_number' => '014422334', 'pan_number' => '600445566'],
+        ];
+
+        $customerIds = [];
+        foreach ($customers as $customer) {
+            $customerIds[] = DB::table('customers')->insertGetId(array_merge($customer, [
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]));
+        }
+
+        $paymentModes = DB::table('payment_modes')->pluck('id')->all();
+        if (empty($paymentModes)) {
+            $this->call(PaymentModeSeeder::class);
+            $paymentModes = DB::table('payment_modes')->pluck('id')->all();
+        }
+
+        // Purchases (+ stock in)
+        $vendors = [
+            ['vendor' => 'Tech Hub Nepal', 'address' => 'Putalisadak', 'pan_number' => '301122334'],
+            ['vendor' => 'Valley Traders', 'address' => 'Kalanki', 'pan_number' => '302233445'],
+            ['vendor' => 'Himal Supply Co', 'address' => 'Balaju', 'pan_number' => '303344556'],
+            ['vendor' => 'Everest Distributors', 'address' => 'Koteshwor', 'pan_number' => '304455667'],
+            ['vendor' => 'City Wholesale', 'address' => 'Gongabu', 'pan_number' => '305566778'],
+            ['vendor' => 'Sunrise Imports', 'address' => 'Baneshwor', 'pan_number' => '306677889'],
+            ['vendor' => 'Nepal Mart Depot', 'address' => 'Satdobato', 'pan_number' => '307788990'],
+            ['vendor' => 'Prime Stock Yard', 'address' => 'Gwarko', 'pan_number' => '308899001'],
+        ];
+
+        $purchaseIds = [];
+        foreach ($vendors as $i => $vendor) {
+            $billDate = Carbon::now()->subDays(40 - ($i * 4))->toDateString();
+            $purchaseId = DB::table('purchase_inventory')->insertGetId([
+                'vendor' => $vendor['vendor'],
+                'bill_date' => $billDate,
+                'address' => $vendor['address'],
+                'pan_number' => $vendor['pan_number'],
+                'vat_amount' => rand(500, 3500),
+                'created_at' => $now->copy()->subDays(40 - ($i * 4)),
+                'updated_at' => $now,
+            ]);
+            $purchaseIds[] = $purchaseId;
+
+            // 3-4 line items per purchase
+            $picked = collect($itemIds)->shuffle()->take(rand(3, 4));
+            foreach ($picked as $itemId) {
+                $qty = rand(10, 80);
+                $rate = DB::table('inventory_items')->where('id', $itemId)->value('price_per_unit');
+                $purchaseRate = round($rate * 0.7, 2);
+
+                DB::table('purchase_inventory_items')->insert([
+                    'purchase_inventory_id' => $purchaseId,
+                    'inventory_item_id' => $itemId,
+                    'qty' => $qty,
+                    'rate' => $purchaseRate,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ]);
+
+                DB::table('inventory_stocks')->insert([
+                    'inventory_item_id' => $itemId,
+                    'purchase_inventory_id' => $purchaseId,
+                    'sales_id' => null,
+                    'qty' => $qty,
+                    'remarks' => 'Purchase from ' . $vendor['vendor'],
+                    'created_at' => $now->copy()->subDays(40 - ($i * 4)),
+                    'updated_at' => $now,
+                ]);
+
+                DB::table('store_records')->insert([
+                    'inventory_item_id' => $itemId,
+                    'qty' => $qty,
+                    'purchase_inventory_id' => $purchaseId,
+                    'type' => 'purchase',
+                    'created_at' => $now->copy()->subDays(40 - ($i * 4)),
+                    'updated_at' => $now,
+                ]);
+            }
+        }
+
+        // Sales (+ stock out) — feeds Sales, Invoice, Dashboard, Reports
+        $orderBys = ['Walk-in', 'Phone Order', 'Counter', 'Online', 'Dealer'];
+        for ($s = 0; $s < 15; $s++) {
+            $saleDate = Carbon::now()->subDays(30 - $s * 2);
+            // Approximate BS-like dates for display (YYYY-MM-DD stored in date column)
+            $nepaliDate = sprintf('2082-%02d-%02d', (($s % 12) + 1), min(28, 5 + $s));
+
+            $salesId = DB::table('sales')->insertGetId([
+                'order_by' => $orderBys[$s % count($orderBys)],
+                'nepali_date' => $nepaliDate,
+                'customer_id' => $customerIds[$s % count($customerIds)],
+                'discount' => $s % 3 === 0 ? 50 : 0,
+                'created_at' => $saleDate,
+                'updated_at' => $saleDate,
+            ]);
+
+            $lineItems = collect($itemIds)->shuffle()->take(rand(2, 4));
+            $totalAmount = 0;
+            $firstPaymentMode = $paymentModes[$s % count($paymentModes)];
+
+            foreach ($lineItems as $idx => $itemId) {
+                $price = (float) DB::table('inventory_items')->where('id', $itemId)->value('price_per_unit');
+                $qty = rand(1, 8);
+                $lineTotal = $qty * $price;
+                $totalAmount += $lineTotal;
+
+                DB::table('sales_products')->insert([
+                    'sales_id' => $salesId,
+                    'product_id' => $itemId,
+                    'qty' => $qty,
+                    'price_per_unit' => $price,
+                    'payment_mode' => (string) $firstPaymentMode,
+                    'discount' => 0,
+                    'created_at' => $saleDate,
+                    'updated_at' => $saleDate,
+                ]);
+
+                DB::table('inventory_stocks')->insert([
+                    'inventory_item_id' => $itemId,
+                    'purchase_inventory_id' => null,
+                    'sales_id' => $salesId,
+                    'qty' => $qty,
+                    'remarks' => 'Sale',
+                    'created_at' => $saleDate,
+                    'updated_at' => $saleDate,
+                ]);
+            }
+
+            DB::table('sales_payment_mode')->insert([
+                'sales_id' => $salesId,
+                'payment_mode_id' => $firstPaymentMode,
+                'amount' => (int) round($totalAmount),
+                'created_at' => $saleDate,
+                'updated_at' => $saleDate,
+            ]);
+        }
+
+        $this->command?->info('Demo data seeded: categories, inventory items, customers, purchases, sales/invoices/stocks.');
+    }
+}

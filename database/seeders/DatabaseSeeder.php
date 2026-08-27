@@ -50,5 +50,8 @@ class DatabaseSeeder extends Seeder
 
         // payment modes needed by sales / dashboard / invoice
         $this->call(PaymentModeSeeder::class);
+
+        // business demo data (not settings/admins)
+        $this->call(DemoDataSeeder::class);
     }
 }
