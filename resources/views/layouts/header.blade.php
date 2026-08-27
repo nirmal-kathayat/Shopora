@@ -5,46 +5,40 @@
             <div class="mobile-toggle-menu"><i class='bx bx-menu'></i>
             </div>
 
-            <!-- <div class="position-relative search-bar d-lg-block d-none" data-bs-toggle="modal" data-bs-target="#SearchModal">
-                <input class="form-control px-5" disabled type="search" placeholder="Search">
-                <span class="position-absolute top-50 search-show ms-3 translate-middle-y start-0 top-50 fs-5"><i class='bx bx-search'></i></span>
-            </div> -->
-
-
             <div class="top-menu ms-auto">
                 <ul class="navbar-nav align-items-center gap-1">
-
                     <li class="nav-item dark-mode d-none d-sm-flex">
                         <a class="nav-link dark-mode-icon" href="javascript:;"><i class='bx bx-moon'></i>
                         </a>
                     </li>
-
                 </ul>
             </div>
-            <div class="user-box dropdown px-3">
-                <a class="d-flex align-items-center nav-link dropdown-toggle gap-3 dropdown-toggle-nocaret" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                    <img src="{{asset('assets/images/avatars/user-img.png')}}" class="user-img" alt="user avatar">
-                    <div class="user-info">
-                        <p class="user-name mb-0">
-                            <span>{{\Auth::guard('admin')->user()->name}}</span>
-                        </p>
-                    </div>
-                </a>
-                <ul class="dropdown-menu dropdown-menu-end">
-                    <!-- <li><a class="dropdown-item d-flex align-items-center" href="javascript:;"><i class="bx bx-user fs-5"></i><span>Profile</span></a>
+
+            <div class="user-box dropdown px-3" id="shoporaUserBox">
+                <button type="button"
+                        class="shopora-profile-btn d-flex align-items-center gap-2"
+                        id="shoporaProfileDropdown"
+                        aria-expanded="false"
+                        aria-haspopup="true">
+                    <img src="{{ asset('assets/images/avatars/user-img.png') }}" class="user-img" alt="user avatar">
+                    <span class="user-info">
+                        <span class="user-name mb-0 d-block">{{ \Auth::guard('admin')->user()->name }}</span>
+                    </span>
+                    <i class="bx bx-chevron-down fs-5 shopora-profile-caret"></i>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow border-0"
+                    id="shoporaProfileMenu"
+                    style="min-width: 180px;">
+                    <li>
+                        <a class="dropdown-item d-flex align-items-center gap-2 py-2" href="javascript:;">
+                            <i class="bx bx-user fs-5"></i><span>My Profile</span>
+                        </a>
                     </li>
-                    <li><a class="dropdown-item d-flex align-items-center" href="javascript:;"><i class="bx bx-cog fs-5"></i><span>Settings</span></a>
-                    </li>
-                    <li><a class="dropdown-item d-flex align-items-center" href="javascript:;"><i class="bx bx-home-circle fs-5"></i><span>Dashboard</span></a>
-                    </li>
-                    <li><a class="dropdown-item d-flex align-items-center" href="javascript:;"><i class="bx bx-dollar-circle fs-5"></i><span>Earnings</span></a>
-                    </li>
-                    <li><a class="dropdown-item d-flex align-items-center" href="javascript:;"><i class="bx bx-download fs-5"></i><span>Downloads</span></a>
-                    </li> -->
-                    <!-- <li>
-                        <div class="dropdown-divider mb-0"></div>
-                    </li> -->
-                    <li><a class="dropdown-item d-flex align-items-center" href="{{route('logout')}}"><i class="bx bx-log-out-circle"></i><span>Logout</span></a>
+                    <li><hr class="dropdown-divider my-1"></li>
+                    <li>
+                        <a class="dropdown-item d-flex align-items-center gap-2 py-2" href="{{ route('logout') }}">
+                            <i class="bx bx-log-out-circle fs-5"></i><span>Logout</span>
+                        </a>
                     </li>
                 </ul>
             </div>

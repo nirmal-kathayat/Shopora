@@ -6,7 +6,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <!--favicon-->
-    <link rel="icon" href="assets/images/favicon-32x32.png" type="image/png" />
+    <link rel="icon" href="{{ asset('assets/images/shopora.png') }}" type="image/png" />
     <!-- loader-->
     <link href="assets/css/pace.min.css" rel="stylesheet" />
     <script src="assets/js/pace.min.js"></script>
@@ -15,18 +15,20 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet">
     <link href="assets/css/app.css" rel="stylesheet">
     <link href="assets/css/icons.css" rel="stylesheet">
-    <title>Admin Login</title>
+    <title>Shopora Login</title>
 </head>
 
 <body class="bg-login">
     <!--wrapper-->
     <div class="wrapper">
-        <div class="section-authentication-signin d-flex align-items-center justify-content-center my-5 my-lg-0">
+        <div class="section-authentication-signin d-flex align-items-start justify-content-center pt-4 pt-lg-5">
             <div class="container-fluid">
                 <div class="row row-cols-1 row-cols-lg-2 row-cols-xl-3">
                     <div class="col mx-auto">
-                        <div class="mb-4 text-center">
-                            <img src="assets/images/logo.png" width="180" alt="" />
+                        <div class="mb-3 text-center">
+                            <img src="{{ asset('assets/images/shopora.png') }}"
+                                 alt="Shopora"
+                                 style="height: 120px; width: auto; max-width: 320px; object-fit: contain;" />
                         </div>
                         <div class="card">
                             <div class="card-body">

@@ -6,7 +6,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <!--favicon-->
-    <link rel="icon" href="{{asset('assets/images/favicon-32x32.png')}}" type="image/png" />
+    <link rel="icon" href="{{ asset('assets/images/shopora.png') }}" type="image/png" />
     <!--plugins-->
     @yield("style")
     <link href="{{asset('assets/plugins/simplebar/css/simplebar.css')}}" rel="stylesheet" />
@@ -24,7 +24,7 @@
     <link rel="stylesheet" href="{{asset('assets/plugins/sweetalert2/sweetalert2.min.css')}}">
     <link rel="stylesheet" href="{{asset('assets/css/semi-dark.css')}}" />
     <link rel="stylesheet" href="{{asset('assets/css/header-colors.css')}}" />
-    <title>Admin Dashboard</title>
+    <title>Shopora</title>
 </head>
 
 <body>
@@ -70,8 +70,55 @@
     <script>
         function toggleDropdown(element) {
             const submenu = element.nextElementSibling;
-            submenu.classList.toggle("active");
+            const parent = element.closest('li.has-submenu');
+            if (!submenu) return;
+
+            const isOpen = submenu.classList.contains('active');
+
+            document.querySelectorAll('#menu .submenu.shopora-submenu.active').forEach(function (el) {
+                if (el !== submenu) {
+                    el.classList.remove('active');
+                    const li = el.closest('li.has-submenu');
+                    if (li) li.classList.remove('open');
+                }
+            });
+
+            submenu.classList.toggle('active', !isOpen);
+            if (parent) parent.classList.toggle('open', !isOpen);
         }
+
+        // Header profile dropdown (custom — Bootstrap data-api was not toggling on click)
+        document.addEventListener('DOMContentLoaded', function () {
+            var trigger = document.getElementById('shoporaProfileDropdown');
+            var menu = document.getElementById('shoporaProfileMenu');
+            if (!trigger || !menu) return;
+
+            function closeMenu() {
+                menu.classList.remove('show');
+                trigger.setAttribute('aria-expanded', 'false');
+            }
+
+            function openMenu() {
+                menu.classList.add('show');
+                trigger.setAttribute('aria-expanded', 'true');
+            }
+
+            trigger.addEventListener('click', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (menu.classList.contains('show')) {
+                    closeMenu();
+                } else {
+                    openMenu();
+                }
+            });
+
+            document.addEventListener('click', function (e) {
+                if (!menu.classList.contains('show')) return;
+                if (trigger.contains(e.target) || menu.contains(e.target)) return;
+                closeMenu();
+            });
+        });
     </script>
     @include('scripts.message')
     @yield("script")
