@@ -1,6 +1,5 @@
 @extends("layouts.app")
 @section("style")
-<link href="{{asset('assets/plugins/datatable/css/dataTables.bootstrap5.min.css')}}" rel="stylesheet" />
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <style>
     .shopora-date-filter {
@@ -155,6 +154,428 @@
     @keyframes shopora-spin {
         to { transform: rotate(360deg); }
     }
+
+    /* ===== Shopora KPI cards (Figma, top accent, no shadow/hover) ===== */
+    .shopora-stats-row {
+        margin-bottom: 8px;
+    }
+
+    .shopora-stat-card {
+        --accent: #14b8a6;
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-top: 3px solid var(--accent);
+        border-radius: 12px;
+        padding: 18px 18px 16px;
+        height: 100%;
+        box-shadow: none !important;
+        transition: none !important;
+    }
+
+    .shopora-stat-card:hover,
+    .shopora-stat-card:focus {
+        box-shadow: none !important;
+        transform: none !important;
+    }
+
+    .shopora-stat-card.is-items { --accent: #14b8a6; }
+    .shopora-stat-card.is-revenue { --accent: #008cff; }
+    .shopora-stat-card.is-sales { --accent: #0d9488; }
+    .shopora-stat-card.is-alerts { --accent: #f59e0b; }
+
+    .shopora-stat-inner {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+    }
+
+    .shopora-stat-label {
+        margin: 0 0 6px;
+        font-size: 13px;
+        font-weight: 500;
+        color: #6b7280;
+        line-height: 1.2;
+    }
+
+    .shopora-stat-value {
+        margin: 0 0 8px;
+        font-size: 1.55rem;
+        font-weight: 700;
+        color: #111827;
+        line-height: 1.15;
+        letter-spacing: -0.02em;
+    }
+
+    .shopora-stat-meta {
+        margin: 0;
+        font-size: 12px;
+        font-weight: 600;
+        line-height: 1.3;
+    }
+
+    .shopora-stat-meta.is-up { color: #0d9488; }
+    .shopora-stat-meta.is-down { color: #dc2626; }
+    .shopora-stat-meta.is-flat { color: #6b7280; }
+    .shopora-stat-meta.is-warn { color: #ea580c; }
+
+    .shopora-stat-link {
+        display: inline-block;
+        margin-top: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        color: #008cff;
+        text-decoration: none;
+        background: none;
+        border: 0;
+        padding: 0;
+        cursor: pointer;
+    }
+
+    .shopora-stat-link:hover {
+        color: #006fc9;
+        text-decoration: none;
+    }
+
+    .shopora-stat-icon {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        font-size: 22px;
+    }
+
+    .shopora-stat-icon.is-teal {
+        background: #e6f7f4;
+        color: #0d9488;
+    }
+
+    .shopora-stat-icon.is-blue {
+        background: #008cff;
+        color: #ffffff;
+        font-size: 18px;
+        font-weight: 700;
+    }
+
+    .shopora-stat-icon.is-orange {
+        background: #fff4e5;
+        color: #ea580c;
+    }
+
+    /* ===== Revenue by Payment Method ===== */
+    .shopora-pay-revenue {
+        margin: 16px 0 20px;
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 18px 20px;
+        display: flex;
+        align-items: stretch;
+        gap: 0;
+        box-shadow: none !important;
+        overflow-x: auto;
+    }
+
+    .shopora-pay-title {
+        flex: 0 0 112px;
+        max-width: 120px;
+        padding-right: 14px;
+        margin-right: 4px;
+        border-right: 1px solid #eef0f3;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 1px;
+        font-size: 12px;
+        font-weight: 700;
+        color: #374151;
+        line-height: 1.3;
+        white-space: nowrap;
+    }
+
+    .shopora-pay-items {
+        display: flex;
+        flex: 1 1 auto;
+        align-items: stretch;
+        min-width: 0;
+    }
+
+    .shopora-pay-item {
+        flex: 1 1 0;
+        min-width: 150px;
+        padding: 2px 18px;
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        border-right: 1px solid #eef0f3;
+    }
+
+    .shopora-pay-item:last-child {
+        border-right: 0;
+    }
+
+    .shopora-pay-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        color: #fff;
+        font-size: 18px;
+        font-weight: 700;
+    }
+
+    .shopora-pay-icon.is-teal { background: #0d9488; }
+    .shopora-pay-icon.is-blue { background: #008cff; }
+    .shopora-pay-icon.is-gray { background: #9ca3af; }
+
+    .shopora-pay-meta {
+        flex: 1 1 auto;
+        min-width: 0;
+        padding-top: 1px;
+    }
+
+    .shopora-pay-name {
+        margin: 0;
+        font-size: 13px;
+        font-weight: 500;
+        color: #4b5563;
+        line-height: 1.2;
+    }
+
+    .shopora-pay-amount {
+        margin: 4px 0 2px;
+        font-size: 14px;
+        font-weight: 700;
+        color: #111827;
+        line-height: 1.2;
+    }
+
+    .shopora-pay-pct {
+        margin: 0 0 8px;
+        font-size: 12px;
+        font-weight: 500;
+        color: #9ca3af;
+        line-height: 1.2;
+    }
+
+    .shopora-pay-bar {
+        height: 4px;
+        width: 100%;
+        background: #eef0f3;
+        border-radius: 999px;
+        overflow: hidden;
+    }
+
+    .shopora-pay-bar > span {
+        display: block;
+        height: 100%;
+        border-radius: 999px;
+        width: 0;
+        transition: width 0.35s ease;
+    }
+
+    .shopora-pay-bar > span.is-teal { background: #0d9488; }
+    .shopora-pay-bar > span.is-blue { background: #008cff; }
+    .shopora-pay-bar > span.is-gray { background: #9ca3af; }
+
+    .shopora-pay-empty {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        padding: 0 18px;
+        color: #9ca3af;
+        font-size: 13px;
+    }
+
+    @media (max-width: 991px) {
+        .shopora-pay-revenue {
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .shopora-pay-title {
+            flex: none;
+            max-width: none;
+            border-right: 0;
+            border-bottom: 1px solid #eef0f3;
+            padding: 0 0 12px;
+            margin: 0;
+            flex-direction: row;
+            flex-wrap: wrap;
+            gap: 4px;
+            white-space: normal;
+        }
+
+        .shopora-pay-items {
+            flex-wrap: wrap;
+        }
+
+        .shopora-pay-item {
+            flex: 1 1 180px;
+            border-right: 0;
+            border-bottom: 1px solid #eef0f3;
+            padding: 12px 8px;
+        }
+
+        .shopora-pay-item:last-child {
+            border-bottom: 0;
+        }
+    }
+
+    /* ===== Recent sales + low stock panels ===== */
+    .shopora-panels-row {
+        margin: 0 0 8px;
+    }
+
+    .shopora-panel-card {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 18px 18px 14px;
+        height: 100%;
+        box-shadow: none !important;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .shopora-panel-card:hover {
+        box-shadow: none !important;
+        transform: none !important;
+    }
+
+    .shopora-panel-title {
+        margin: 0 0 14px;
+        font-size: 15px;
+        font-weight: 700;
+        color: #1f2937;
+        line-height: 1.3;
+    }
+
+    .shopora-panel-table-wrap {
+        width: 100%;
+        overflow-x: auto;
+        flex: 1 1 auto;
+    }
+
+    .shopora-panel-table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 520px;
+    }
+
+    .shopora-panel-table.compact {
+        min-width: 0;
+    }
+
+    .shopora-panel-table th {
+        font-size: 12px;
+        font-weight: 600;
+        color: #9ca3af;
+        text-align: left;
+        padding: 0 10px 10px 0;
+        border-bottom: 1px solid #eef0f3;
+        white-space: nowrap;
+    }
+
+    .shopora-panel-table td {
+        font-size: 13px;
+        color: #374151;
+        padding: 12px 10px 12px 0;
+        border-bottom: 1px solid #f3f4f6;
+        vertical-align: middle;
+        white-space: nowrap;
+    }
+
+    .shopora-panel-table tr:last-child td {
+        border-bottom: 0;
+    }
+
+    .shopora-panel-table .col-num,
+    .shopora-panel-table .col-qty,
+    .shopora-panel-table .col-stock {
+        text-align: center;
+    }
+
+    .shopora-panel-table .col-amount {
+        text-align: right;
+        font-weight: 600;
+        color: #111827;
+    }
+
+    .shopora-panel-table .col-name {
+        white-space: normal;
+        min-width: 120px;
+    }
+
+    .shopora-inv-link {
+        color: #008cff;
+        font-weight: 600;
+        text-decoration: none;
+        background: none;
+        border: 0;
+        padding: 0;
+        cursor: pointer;
+    }
+
+    .shopora-inv-link:hover {
+        color: #006fc9;
+        text-decoration: underline;
+    }
+
+    .shopora-pill {
+        display: inline-block;
+        padding: 3px 9px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 600;
+        line-height: 1.3;
+        white-space: nowrap;
+    }
+
+    .shopora-pill + .shopora-pill {
+        margin-left: 4px;
+    }
+
+    .shopora-pill.is-cash { background: #ecfdf5; color: #059669; }
+    .shopora-pill.is-esewa { background: #e6f7f4; color: #0d9488; }
+    .shopora-pill.is-khalti { background: #eef2ff; color: #4f46e5; }
+    .shopora-pill.is-card,
+    .shopora-pill.is-bank,
+    .shopora-pill.is-fonepay { background: #eff6ff; color: #2563eb; }
+    .shopora-pill.is-paid { background: #ecfdf5; color: #059669; }
+    .shopora-pill.is-low { background: #fff7ed; color: #ea580c; }
+    .shopora-pill.is-out { background: #fef2f2; color: #dc2626; }
+    .shopora-pill.is-default { background: #f3f4f6; color: #4b5563; }
+
+    .shopora-panel-footer {
+        margin-top: 12px;
+        padding-top: 4px;
+    }
+
+    .shopora-panel-link {
+        color: #008cff;
+        font-size: 13px;
+        font-weight: 600;
+        text-decoration: none;
+    }
+
+    .shopora-panel-link:hover {
+        color: #006fc9;
+        text-decoration: none;
+    }
+
+    .shopora-panel-empty {
+        padding: 18px 0;
+        text-align: center;
+        color: #9ca3af;
+        font-size: 13px;
+    }
 </style>
 @endsection
 @section("wrapper")
@@ -187,94 +608,133 @@
             </div>
         </div>
 
-        <!-- Stats Cards -->
-        <div class="row row-cols-1 row-cols-md-2 row-cols-xl-4">
+        <!-- Stats Cards (Figma) -->
+        @php
+            $itemsChange = $data['itemsChangePercent'] ?? 0;
+            $revenueChange = $data['revenueChangePercent'] ?? 0;
+            $salesChange = $data['salesChangePercent'] ?? 0;
+            $fmtChange = function ($pct) {
+                $sign = $pct > 0 ? '+' : '';
+                return $sign . number_format((float) $pct, 1) . '% vs previous period';
+            };
+            $changeClass = function ($pct) {
+                if ($pct > 0) return 'is-up';
+                if ($pct < 0) return 'is-down';
+                return 'is-flat';
+            };
+        @endphp
+        <div class="row row-cols-1 row-cols-md-2 row-cols-xl-4 g-3 shopora-stats-row">
             <div class="col">
-                <div class="card radius-10 border-start border-0 border-4 border-info">
-                    <div class="card-body">
-                        <div class="d-flex align-items-center">
-                            <div>
-                                <p class="mb-0 text-secondary">Total Items</p>
-                                <h4 class="my-1 text-info">{{$data['totalInventoryItems']}}</h4>
-                            </div>
-                            <div class="widgets-icons-2 rounded-circle bg-gradient-blues text-white ms-auto"><i class='bx bxs-cart'></i>
-                            </div>
+                <div class="shopora-stat-card is-items">
+                    <div class="shopora-stat-inner">
+                        <div>
+                            <p class="shopora-stat-label">Total Items</p>
+                            <h3 class="shopora-stat-value" id="statTotalItems">{{ number_format($data['totalInventoryItems']) }}</h3>
+                            <p class="shopora-stat-meta {{ $changeClass($itemsChange) }}" id="statItemsChange">{{ $fmtChange($itemsChange) }}</p>
                         </div>
+                        <div class="shopora-stat-icon is-teal" aria-hidden="true"><i class='bx bx-package'></i></div>
                     </div>
                 </div>
             </div>
             <div class="col">
-                <div class="card radius-10 border-start border-0 border-4 border-danger" style="cursor: pointer;" onclick="showPaymentMethodRevenue()">
-                    <div class="card-body">
-                        <div class="d-flex align-items-center">
-                            <div>
-                                <p class="mb-0 text-secondary">Total Revenue</p>
-                                <h4 class="my-1 text-red">Rs {{ number_format($data['totalRevenue'], 2) }}</h4>
-                            </div>
-                            <div class="widgets-icons-2 rounded-circle bg-gradient-burning text-white ms-auto"><i class='bx bxs-wallet'></i>
-                            </div>
+                <div class="shopora-stat-card is-revenue">
+                    <div class="shopora-stat-inner">
+                        <div>
+                            <p class="shopora-stat-label">Total Revenue</p>
+                            <h3 class="shopora-stat-value" id="statTotalRevenue">Rs {{ number_format($data['totalRevenue'], 2) }}</h3>
+                            <p class="shopora-stat-meta {{ $changeClass($revenueChange) }}" id="statRevenueChange">{{ $fmtChange($revenueChange) }}</p>
+                            <button type="button" class="shopora-stat-link" onclick="showPaymentMethodRevenue()">View revenue report →</button>
                         </div>
+                        <div class="shopora-stat-icon is-blue" aria-hidden="true">₹</div>
                     </div>
                 </div>
             </div>
             <div class="col">
-                <div class="card radius-10 border-start border-0 border-4 border-success">
-                    <div class="card-body">
-                        <div class="d-flex align-items-center">
-                            <div>
-                                <p class="mb-0 text-secondary">Total Sales</p>
-                                <h4 class="my-1 text-success">{{$data['totalSales']}}</h4>
-                            </div>
-                            <div class="widgets-icons-2 rounded-circle bg-gradient-ohhappiness text-white ms-auto"><i class='bx bxs-bar-chart-alt-2'></i>
-                            </div>
+                <div class="shopora-stat-card is-sales">
+                    <div class="shopora-stat-inner">
+                        <div>
+                            <p class="shopora-stat-label">Total Sales (Qty)</p>
+                            <h3 class="shopora-stat-value" id="statTotalSales">{{ number_format($data['totalSales']) }}</h3>
+                            <p class="shopora-stat-meta {{ $changeClass($salesChange) }}" id="statSalesChange">{{ $fmtChange($salesChange) }}</p>
                         </div>
+                        <div class="shopora-stat-icon is-teal" aria-hidden="true"><i class='bx bx-cart'></i></div>
                     </div>
                 </div>
             </div>
             <div class="col">
-                <div class="card radius-10 border-start border-0 border-4 border-warning">
-                    <div class="card-body">
-                        <div class="d-flex align-items-center">
-                            <div>
-                                <p class="mb-0 text-secondary">Total Customers</p>
-                                <h4 class="my-1 text-warning">{{$data['totalCustomer']}}</h4>
-                            </div>
-                            <div class="widgets-icons-2 rounded-circle bg-gradient-orange text-white ms-auto"><i class='bx bxs-group'></i>
-                            </div>
+                <div class="shopora-stat-card is-alerts">
+                    <div class="shopora-stat-inner">
+                        <div>
+                            <p class="shopora-stat-label">Stock Alerts</p>
+                            <h3 class="shopora-stat-value" id="statStockAlerts">{{ number_format($data['stockAlerts'] ?? 0) }}</h3>
+                            <p class="shopora-stat-meta is-warn">Low stock items</p>
                         </div>
+                        <div class="shopora-stat-icon is-orange" aria-hidden="true"><i class='bx bxs-error'></i></div>
                     </div>
                 </div>
             </div>
         </div><!--end row-->
-        <!-- invoice lists -->
-        <div class="page-breadcrumb d-none d-sm-flex align-items-center mb-3">
-            <div class="breadcrumb-title pe-3">Sales Invoice History</div>
-            <div class="ps-3">
-                <nav aria-label="breadcrumb">
-                    <ol class="breadcrumb mb-0 p-0">
-                        <li class="breadcrumb-item"><a href="javascript:;"><i class="bx bx-home-alt"></i></a>
-                        </li>
-                        <li class="breadcrumb-item active" aria-current="page">Sales Invoice</li>
-                    </ol>
-                </nav>
+
+        <!-- Revenue by Payment Method (Figma) -->
+        <div class="shopora-pay-revenue" id="shoporaPaymentRevenue">
+            <div class="shopora-pay-title">
+                <span>Revenue by</span>
+                <span>Payment Method</span>
+            </div>
+            <div class="shopora-pay-items" id="shoporaPaymentRevenueItems">
+                <div class="shopora-pay-empty">Loading payment breakdown…</div>
             </div>
         </div>
-        <!--end breadcrumb-->
-        <hr />
-        <div class="card">
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table id="invoiceTable" class="table table-striped table-bordered" style="width:100%">
-                        <thead>
-                            <tr>
-                                <th>S.no</th>
-                                <th>Order By</th>
-                                <th>Customers</th>
-                                <th>Created_at</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                    </table>
+
+        <!-- Recent Sales + Low Stock (Figma) -->
+        <div class="row g-3 shopora-panels-row">
+            <div class="col-12 col-xl-8">
+                <div class="shopora-panel-card">
+                    <h3 class="shopora-panel-title">Recent Sales / Invoices</h3>
+                    <div class="shopora-panel-table-wrap">
+                        <table class="shopora-panel-table">
+                            <thead>
+                                <tr>
+                                    <th class="col-num">#</th>
+                                    <th>Invoice No.</th>
+                                    <th>Date &amp; Time</th>
+                                    <th>Customer</th>
+                                    <th>Payment Method</th>
+                                    <th class="col-qty">Qty</th>
+                                    <th class="col-amount">Amount (Rs)</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recentSalesBody">
+                                <tr><td colspan="8" class="shopora-panel-empty">Loading…</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="shopora-panel-footer">
+                        <a href="{{ route('admin.invoice.index') }}" class="shopora-panel-link">View all invoices →</a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-xl-4">
+                <div class="shopora-panel-card">
+                    <h3 class="shopora-panel-title">Top Low Stock Items</h3>
+                    <div class="shopora-panel-table-wrap">
+                        <table class="shopora-panel-table compact">
+                            <thead>
+                                <tr>
+                                    <th>Item Name</th>
+                                    <th class="col-stock">In Stock</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="lowStockBody">
+                                <tr><td colspan="3" class="shopora-panel-empty">Loading…</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="shopora-panel-footer">
+                        <a href="{{ route('admin.reports.inventoryReport') }}" class="shopora-panel-link">View all low stock items →</a>
+                    </div>
                 </div>
             </div>
         </div>
@@ -301,17 +761,16 @@
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <!-- Bootstrap Bundle with Popper -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-<!-- DataTables -->
-<script src="{{asset('assets/plugins/datatable/js/jquery.dataTables.min.js')}}"></script>
-<script src="{{asset('assets/plugins/datatable/js/dataTables.bootstrap5.min.js')}}"></script>
 <!-- Flatpickr for Date Range Picker -->
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
 <script>
     // Create payment mode mapping globally
     window.paymentModeMap = {};
+    window.paymentModesList = [];
     @foreach($paymentModes as $payment)
     window.paymentModeMap[{{ $payment->id }}] = '{{ $payment->payment_title }}';
+    window.paymentModesList.push(@json($payment->payment_title));
     @endforeach
     
     let currentInvoice = null;
@@ -415,60 +874,11 @@
             applyDateRange(dates.from, dates.to, 'today');
         });
 
-        initializeInvoiceTable();
+        bindInvoiceViewer();
         updateDashboard({ loader: false });
     });
-    
-    function initializeInvoiceTable() {
-        var table = $('#invoiceTable').DataTable({
-            processing: true,
-            serverSide: true,
-            ajax: {
-                url: "{{ route('admin.invoice.index') }}",
-                data: function(d) {
-                    d.from_date = $('#fromDate').val();
-                    d.to_date = $('#toDate').val();
-                }
-            },
-            pageLength: 25,
-            columns: [{
-                    data: 'id',
-                    name: 'id',
-                    searchable: false,
-                    render: function(data, type, full, meta) {
-                        return full?.DT_RowIndex
-                    }
-                },
-                {
-                    data: 'order_by_name',
-                    name: 'admins.name',
-                    orderable: false
-                },
-                {
-                    data: 'customer_title',
-                    name: 'customers.name',
-                    orderable: false
-                },
-                {
-                    data: 'created_at',
-                    name: 'created_at',
-                    orderable: false
-                },
-                {
-                    data: 'action',
-                    name: 'action',
-                    orderable: false,
-                    searchable: false,
-                    render: function(data, type, full, meta) {
-                        var viewButton = '<a class="btn btn-info btn-sm view-invoice" data-id="' + full.id + '"><i class="bx bx-show"></i></a>';
-                        var actionButton = '<div class="d-flex gap-sm-2">' + viewButton +  '</div>';
-                        return actionButton;
-                    }
-                }
-            ]
-        });
-        
-        // Handle view button for invoice
+
+    function bindInvoiceViewer() {
         $(document).on('click', '.view-invoice', function(e) {
             e.preventDefault();
             var invoiceId = $(this).data('id');
@@ -549,13 +959,194 @@
             });
         });
     }
+
+    function paymentPillClass(title) {
+        const name = String(title || '').toLowerCase();
+        if (name.includes('cash')) return 'is-cash';
+        if (name.includes('esewa')) return 'is-esewa';
+        if (name.includes('khalti')) return 'is-khalti';
+        if (name.includes('card')) return 'is-card';
+        if (name.includes('bank')) return 'is-bank';
+        if (name.includes('fone')) return 'is-fonepay';
+        return 'is-default';
+    }
+
+    function escapeHtml(text) {
+        return $('<div>').text(text == null ? '' : text).html();
+    }
+
+    function renderRecentSales(rows) {
+        const body = $('#recentSalesBody');
+        if (!rows || !rows.length) {
+            body.html('<tr><td colspan="8" class="shopora-panel-empty">No sales in this date range</td></tr>');
+            return;
+        }
+
+        let html = '';
+        rows.forEach(function(row, index) {
+            const payments = (row.payment_methods || []).map(function(title) {
+                return '<span class="shopora-pill ' + paymentPillClass(title) + '">' + escapeHtml(title) + '</span>';
+            }).join('');
+
+            html += '<tr>' +
+                '<td class="col-num">' + (index + 1) + '</td>' +
+                '<td><button type="button" class="shopora-inv-link view-invoice" data-id="' + row.id + '">' + escapeHtml(row.invoice_no) + '</button></td>' +
+                '<td>' + escapeHtml(row.datetime) + '</td>' +
+                '<td>' + escapeHtml(row.customer) + '</td>' +
+                '<td>' + (payments || '<span class="shopora-pill is-default">—</span>') + '</td>' +
+                '<td class="col-qty">' + Number(row.qty || 0).toLocaleString() + '</td>' +
+                '<td class="col-amount">' + parseFloat(row.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</td>' +
+                '<td><span class="shopora-pill is-paid">' + escapeHtml(row.status || 'Paid') + '</span></td>' +
+            '</tr>';
+        });
+        body.html(html);
+    }
+
+    function renderLowStockItems(rows) {
+        const body = $('#lowStockBody');
+        if (!rows || !rows.length) {
+            body.html('<tr><td colspan="3" class="shopora-panel-empty">No low stock items</td></tr>');
+            return;
+        }
+
+        let html = '';
+        rows.forEach(function(row) {
+            const isOut = String(row.status || '').toLowerCase().indexOf('out') !== -1;
+            html += '<tr>' +
+                '<td class="col-name">' + escapeHtml(row.name) + '</td>' +
+                '<td class="col-stock">' + Number(row.in_stock || 0).toLocaleString() + '</td>' +
+                '<td><span class="shopora-pill ' + (isOut ? 'is-out' : 'is-low') + '">' + escapeHtml(row.status) + '</span></td>' +
+            '</tr>';
+        });
+        body.html(html);
+    }
     
+    function setStatChange(selector, percent) {
+        const el = $(selector);
+        if (!el.length) return;
+
+        const pct = parseFloat(percent);
+        const safePct = isNaN(pct) ? 0 : pct;
+        const sign = safePct > 0 ? '+' : '';
+        el.text(sign + safePct.toFixed(1) + '% vs previous period');
+        el.removeClass('is-up is-down is-flat');
+        if (safePct > 0) el.addClass('is-up');
+        else if (safePct < 0) el.addClass('is-down');
+        else el.addClass('is-flat');
+    }
+
+    function paymentMethodVisual(title) {
+        const name = String(title || '').toLowerCase();
+
+        if (name.includes('cash')) {
+            return { tone: 'teal', iconHtml: '<i class="bx bx-money"></i>' };
+        }
+        if (name.includes('esewa')) {
+            return { tone: 'teal', iconHtml: '<span>e</span>' };
+        }
+        if (name.includes('fonepay') || name.includes('fone')) {
+            return { tone: 'teal', iconHtml: '<i class="bx bx-mobile"></i>' };
+        }
+        if (name.includes('khalti')) {
+            return { tone: 'blue', iconHtml: '<span>K</span>' };
+        }
+        if (name.includes('card') || name.includes('bank')) {
+            return { tone: 'blue', iconHtml: '<i class="bx bx-credit-card"></i>' };
+        }
+        if (name.includes('other')) {
+            return { tone: 'gray', iconHtml: '<i class="bx bx-dots-horizontal-rounded"></i>' };
+        }
+
+        return { tone: 'gray', iconHtml: '<i class="bx bx-wallet"></i>' };
+    }
+
+    function formatRs(amount) {
+        return 'Rs ' + parseFloat(amount || 0).toLocaleString(undefined, {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+    }
+
+    function renderPaymentMethodRevenue(payload) {
+        const container = $('#shoporaPaymentRevenueItems');
+        const apiModes = (payload && payload.payment_modes) ? payload.payment_modes : [];
+        const amountByTitle = {};
+
+        apiModes.forEach(function(item) {
+            amountByTitle[item.payment_title] = parseFloat(item.total_amount || 0);
+        });
+
+        const titles = (window.paymentModesList && window.paymentModesList.length)
+            ? window.paymentModesList.slice()
+            : apiModes.map(function(item) { return item.payment_title; });
+
+        apiModes.forEach(function(item) {
+            if (titles.indexOf(item.payment_title) === -1) {
+                titles.push(item.payment_title);
+            }
+        });
+
+        let total = parseFloat((payload && payload.total_revenue) || 0);
+        if (!total) {
+            total = titles.reduce(function(sum, title) {
+                return sum + (amountByTitle[title] || 0);
+            }, 0);
+        }
+
+        if (!titles.length) {
+            container.html('<div class="shopora-pay-empty">No payment methods configured</div>');
+            return;
+        }
+
+        let html = '';
+        titles.forEach(function(title) {
+            const amount = amountByTitle[title] || 0;
+            const pct = total > 0 ? (amount / total) * 100 : 0;
+            const visual = paymentMethodVisual(title);
+            const barWidth = Math.max(0, Math.min(100, pct));
+
+            html += '<div class="shopora-pay-item">' +
+                '<div class="shopora-pay-icon is-' + visual.tone + '">' + visual.iconHtml + '</div>' +
+                '<div class="shopora-pay-meta">' +
+                    '<p class="shopora-pay-name">' + $('<div>').text(title).html() + '</p>' +
+                    '<p class="shopora-pay-amount">' + formatRs(amount) + '</p>' +
+                    '<p class="shopora-pay-pct">' + pct.toFixed(1) + '%</p>' +
+                    '<div class="shopora-pay-bar"><span class="is-' + visual.tone + '" style="width:' + barWidth + '%"></span></div>' +
+                '</div>' +
+            '</div>';
+        });
+
+        container.html(html);
+    }
+
+    function fetchPaymentMethodRevenue(done) {
+        $.ajax({
+            url: "{{ route('admin.dashboard.paymentMethodRevenue') }}",
+            method: 'GET',
+            data: {
+                from_date: $('#fromDate').val(),
+                to_date: $('#toDate').val()
+            },
+            success: function(response) {
+                renderPaymentMethodRevenue(response.data || {});
+            },
+            error: function() {
+                $('#shoporaPaymentRevenueItems').html(
+                    '<div class="shopora-pay-empty">Unable to load payment breakdown</div>'
+                );
+            },
+            complete: function() {
+                if (typeof done === 'function') done();
+            }
+        });
+    }
+
     function updateDashboard(options) {
         options = options || {};
         const withLoader = options.loader === true;
         const fromDate = $('#fromDate').val();
         const toDate = $('#toDate').val();
-        let pending = 1;
+        let pending = 2;
 
         if (withLoader) {
             showDashboardLoader();
@@ -575,23 +1166,25 @@
                 to_date: toDate
             },
             success: function(response) {
-                $('.text-info').text(response.totalInventoryItems);
-                $('.text-red').text('Rs ' + parseFloat(response.totalRevenue).toLocaleString(undefined, {
+                $('#statTotalItems').text(Number(response.totalInventoryItems || 0).toLocaleString());
+                $('#statTotalRevenue').text('Rs ' + parseFloat(response.totalRevenue || 0).toLocaleString(undefined, {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2
                 }));
-                $('.text-success').text(response.totalSales);
-                $('.text-warning').text(response.totalCustomer);
+                $('#statTotalSales').text(Number(response.totalSales || 0).toLocaleString());
+                $('#statStockAlerts').text(Number(response.stockAlerts || 0).toLocaleString());
+
+                setStatChange('#statItemsChange', response.itemsChangePercent);
+                setStatChange('#statRevenueChange', response.revenueChangePercent);
+                setStatChange('#statSalesChange', response.salesChangePercent);
+
+                renderRecentSales(response.recentSales || []);
+                renderLowStockItems(response.lowStockItems || []);
             },
             complete: markDone
         });
 
-        if ($.fn.DataTable.isDataTable('#invoiceTable')) {
-            pending++;
-            $('#invoiceTable').DataTable().ajax.reload(function() {
-                markDone();
-            }, false);
-        }
+        fetchPaymentMethodRevenue(markDone);
     }
 </script>
 
