@@ -9,6 +9,7 @@
     <link rel="icon" href="{{ asset('assets/images/shopora.png') }}" type="image/png" />
     <!--plugins-->
     @yield("style")
+    @stack('style')
     <link href="{{asset('assets/plugins/simplebar/css/simplebar.css')}}" rel="stylesheet" />
     <link href="{{asset('assets/plugins/perfect-scrollbar/css/perfect-scrollbar.css')}}" rel="stylesheet" />
     <!-- <link href="{{asset('assets/plugins/metisMenu/css/metisMenu.min.css')}}" rel="stylesheet" /> -->
@@ -121,6 +122,8 @@
         });
     </script>
     @include('scripts.message')
+    @stack('scripts')
+    @stack('script')
     @yield("script")
 </body>
 

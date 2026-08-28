@@ -2,20 +2,26 @@
 if (!function_exists('getPermissionUrl')) {
     function getPermissionUrl($accessUri)
     {
-        $html = '<div class="table-permission-list-wrapper">';
-        $html .= '<ul>';
+        $labels = [];
+
         foreach ($accessUri as $url) {
-            if ($url == '/*') {
-                $html .= '<li>Full Control</li>';
+            if ($url === '/*') {
+                $labels[] = 'Full Control';
+                continue;
+            }
+
+            $urlArr = explode('/', $url);
+            $module = preg_replace('/([a-z])([A-Z])/', '$1 $2', ucfirst($urlArr[1] ?? ''));
+
+            if (count($urlArr) > 2) {
+                $action = ucfirst(str_replace('-', ' ', preg_replace('/\{id\}.*$/', '', $urlArr[2])));
+                $labels[] = trim($action . ' ' . $module);
             } else {
-                $urlArr = explode('/', $url);
-                $action = count($urlArr) > 2 ? ucFirst($urlArr[2]) : 'View';
-                $html .= '<li>' . $action . ' ' . ucFirst($urlArr[1]) . '</li>';
+                $labels[] = trim('View ' . $module);
             }
         }
-        $html .= '</ul>';
-        $html .= '</div>';
-        return $html;
+
+        return '<span class="table-permission-list-inline">' . e(implode(', ', $labels)) . '</span>';
     }
 }
 

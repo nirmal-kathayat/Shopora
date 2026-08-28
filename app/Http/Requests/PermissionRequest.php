@@ -23,7 +23,7 @@ class PermissionRequest extends FormRequest
     {
         return [
             'name' => 'required|unique:permissions,name,' . $this->id,
-            'access_uri' => 'required'
+            'access_uri' => 'required|array|min:1',
         ];
     }
 }

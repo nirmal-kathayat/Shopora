@@ -48,25 +48,41 @@
                                 <label class="form-label">Access URI</label>
                                 <div class="row">
                                     @foreach($routeLists as $key => $items)
+                                    @php
+                                        $cardId = 'permission-card-' . preg_replace('/[^a-zA-Z0-9_-]/', '-', $key);
+                                        $isAdminCard = $key === config('permission.basePrefix');
+                                    @endphp
                                     <div class="col-md-4 mb-3">
-                                        <div class="card card-wrap">
-                                            <div class="card-header">
+                                        <div class="card card-wrap permission-card" id="{{ $cardId }}">
+                                            <div class="card-header d-flex align-items-center justify-content-between gap-2">
                                                 <h5 class="card-title mb-0">{{preg_replace('/([a-z])([A-Z])/', '$1 $2',ucfirst($key))}}</h5>
+                                                @unless($isAdminCard)
+                                                <div class="form-check mb-0">
+                                                    <input class="form-check-input permission-select-all" type="checkbox" id="select-all-{{ $cardId }}" data-card="{{ $cardId }}" aria-label="Select all {{ preg_replace('/([a-z])([A-Z])/', '$1 $2', ucfirst($key)) }} permissions">
+                                                    <label class="form-check-label small text-muted" for="select-all-{{ $cardId }}">Select all</label>
+                                                </div>
+                                                @endunless
                                             </div>
                                             <div class="card-body">
                                                 <ul class="list-unstyled mb-0">
                                                     @foreach($items as $itemKey => $route)
+                                                    @if($isAdminCard && (is_array($route) || $itemKey !== 'full-control'))
+                                                        @continue
+                                                    @endif
                                                     @if(is_array($route))
                                                     @foreach($route as $otherRoute)
                                                     @if($otherRoute !== 'admin/dashboard')
                                                     @php
-                                                    $arr = explode('/',$otherRoute);
+                                                    $arr = explode('/', $otherRoute);
+                                                    $actionLabel = count($arr) > 2
+                                                        ? ucfirst(str_replace('-', ' ', $arr[2]))
+                                                        : ucfirst(str_replace('-', ' ', end($arr)));
                                                     @endphp
                                                     <li class="mb-2">
                                                         <div class="form-check">
-                                                            <input class="form-check-input" type="checkbox" name="access_uri[]" value="{{$otherRoute}}" id="{{$otherRoute}}" {{ isset($permission) && is_array($permission->access_uri) && in_array($otherRoute, $permission->access_uri) ? 'checked' : '' }}>
+                                                            <input class="form-check-input permission-uri-checkbox" type="checkbox" name="access_uri[]" value="{{$otherRoute}}" id="{{$otherRoute}}" {{ isset($permission) && is_array($permission->access_uri) && in_array($otherRoute, $permission->access_uri) ? 'checked' : '' }}>
                                                             <label class="form-check-label" for="{{$otherRoute}}">
-                                                                {{ucfirst($arr[2])}} {{ucfirst($key)}}
+                                                                {{ $actionLabel }} {{ucfirst($key)}}
                                                             </label>
                                                         </div>
                                                     </li>
@@ -75,19 +91,23 @@
                                                     @else
                                                     <li class="mb-2">
                                                         <div class="form-check">
-                                                            <input class="form-check-input" type="checkbox" name="access_uri[]" value="{{$route}}" id="{{$route}}" {{ isset($permission) && is_array($permission->access_uri) && in_array($route, $permission->access_uri) ? 'checked' : '' }}>
+                                                            <input class="form-check-input permission-uri-checkbox" type="checkbox" name="access_uri[]" value="{{$route}}" id="{{$route}}" {{ isset($permission) && is_array($permission->access_uri) && in_array($route, $permission->access_uri) ? 'checked' : '' }}>
                                                             <label class="form-check-label" for="{{$route}}">
-                                                                {{str_replace('-',' ',ucfirst($itemKey))}} {{$key == 'admin' ? '' :preg_replace('/([a-z])([A-Z])/', '$1 $2',ucfirst($key))}}
+                                                                @if($itemKey === 'full-control')
+                                                                    Full control <span class="text-muted">(entire system access)</span>
+                                                                @else
+                                                                    {{str_replace('-',' ',ucfirst($itemKey))}} {{$key == 'admin' ? '' :preg_replace('/([a-z])([A-Z])/', '$1 $2',ucfirst($key))}}
+                                                                @endif
                                                             </label>
                                                         </div>
                                                     </li>
                                                     @endif
                                                     @endforeach
                                                 </ul>
+                                                @if($isAdminCard)
+                                                <p class="small text-muted mt-2 mb-0">Dashboard, profile, and every other module are included when Full control is selected.</p>
+                                                @endif
                                             </div>
-                                            @error('access_uri')
-                                            <p class="validation-error">{{$message}}</p>
-                                            @enderror
                                         </div>
                                     </div>
                                     @endforeach
@@ -102,7 +122,7 @@
                                 @else
                                 <a href="{{route('admin.permission')}}" class="btn btn-secondary px-3 me-2">Cancel</a>
                                 @endif
-                                <button type="submit" class="btn btn-primary px-5">{{(isset($role)) ? 'Update Permission' : 'Create Permission'}}</button>
+                                <button type="submit" class="btn btn-primary px-5">{{ isset($permission) ? 'Update Permission' : 'Create Permission' }}</button>
                             </div>
                         </form>
                     </div>
@@ -116,4 +136,33 @@
 
 @push('scripts')
 @include('scripts.validation')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.permission-select-all').forEach(function (selectAll) {
+        var card = document.getElementById(selectAll.dataset.card);
+        if (!card) return;
+
+        var checkboxes = card.querySelectorAll('.permission-uri-checkbox');
+
+        function syncSelectAll() {
+            var checkedCount = card.querySelectorAll('.permission-uri-checkbox:checked').length;
+            selectAll.checked = checkboxes.length > 0 && checkedCount === checkboxes.length;
+            selectAll.indeterminate = checkedCount > 0 && checkedCount < checkboxes.length;
+        }
+
+        selectAll.addEventListener('change', function () {
+            checkboxes.forEach(function (checkbox) {
+                checkbox.checked = selectAll.checked;
+            });
+            selectAll.indeterminate = false;
+        });
+
+        checkboxes.forEach(function (checkbox) {
+            checkbox.addEventListener('change', syncSelectAll);
+        });
+
+        syncSelectAll();
+    });
+});
+</script>
 @endpush
