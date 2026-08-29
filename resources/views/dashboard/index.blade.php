@@ -169,7 +169,16 @@
         padding: 18px 18px 16px;
         height: 100%;
         box-shadow: none !important;
-        transition: none !important;
+        transition: none;
+    }
+
+    .shopora-stat-card.is-clickable {
+        cursor: pointer;
+    }
+
+    .shopora-stat-card.is-clickable:focus-visible {
+        outline: 2px solid #008cff;
+        outline-offset: 2px;
     }
 
     .shopora-stat-card:hover,
@@ -235,6 +244,68 @@
     .shopora-stat-link:hover {
         color: #006fc9;
         text-decoration: none;
+    }
+
+    .shopora-dash-modal-period {
+        margin: 0 0 14px;
+        font-size: 13px;
+        color: #6b7280;
+    }
+
+    .shopora-dash-modal-summary {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 10px;
+        margin-bottom: 16px;
+    }
+
+    .shopora-dash-modal-stat {
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        padding: 12px 14px;
+        background: #f9fafb;
+    }
+
+    .shopora-dash-modal-stat-label {
+        margin: 0 0 4px;
+        font-size: 12px;
+        color: #6b7280;
+        font-weight: 500;
+    }
+
+    .shopora-dash-modal-stat-value {
+        margin: 0;
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #111827;
+        line-height: 1.2;
+    }
+
+    .shopora-dash-modal-stat.is-highlight {
+        background: #eff6ff;
+        border-color: #bfdbfe;
+    }
+
+    .shopora-dash-modal-stat.is-highlight .shopora-dash-modal-stat-value {
+        color: #008cff;
+    }
+
+    .shopora-dash-modal-table th {
+        font-size: 12px;
+        font-weight: 600;
+        color: #9ca3af;
+        border-bottom: 1px solid #eef0f3;
+    }
+
+    .shopora-dash-modal-table td {
+        font-size: 13px;
+        color: #374151;
+        vertical-align: middle;
+    }
+
+    .shopora-dash-modal-table .col-amount {
+        text-align: right;
+        white-space: nowrap;
     }
 
     .shopora-stat-icon {
@@ -333,6 +404,20 @@
     .shopora-pay-icon.is-teal { background: #0d9488; }
     .shopora-pay-icon.is-blue { background: #008cff; }
     .shopora-pay-icon.is-gray { background: #9ca3af; }
+
+    .shopora-pay-icon.is-logo {
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        padding: 5px;
+        color: inherit;
+    }
+
+    .shopora-pay-icon.is-logo img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        display: block;
+    }
 
     .shopora-pay-meta {
         flex: 1 1 auto;
@@ -563,6 +648,10 @@
         font-size: 13px;
         font-weight: 600;
         text-decoration: none;
+        background: none;
+        border: 0;
+        padding: 0;
+        cursor: pointer;
     }
 
     .shopora-panel-link:hover {
@@ -625,49 +714,52 @@
         @endphp
         <div class="row row-cols-1 row-cols-md-2 row-cols-xl-4 g-3 shopora-stats-row">
             <div class="col">
-                <div class="shopora-stat-card is-items">
+                <div class="shopora-stat-card is-items is-clickable" data-stat-action="items" role="link" tabindex="0" aria-label="View all inventory items">
                     <div class="shopora-stat-inner">
                         <div>
                             <p class="shopora-stat-label">Total Items</p>
                             <h3 class="shopora-stat-value" id="statTotalItems">{{ number_format($data['totalInventoryItems']) }}</h3>
                             <p class="shopora-stat-meta {{ $changeClass($itemsChange) }}" id="statItemsChange">{{ $fmtChange($itemsChange) }}</p>
+                            <span class="shopora-stat-link">View inventory items →</span>
                         </div>
                         <div class="shopora-stat-icon is-teal" aria-hidden="true"><i class='bx bx-package'></i></div>
                     </div>
                 </div>
             </div>
             <div class="col">
-                <div class="shopora-stat-card is-revenue">
+                <div class="shopora-stat-card is-revenue is-clickable" data-stat-action="revenue" role="button" tabindex="0" aria-label="View revenue breakdown">
                     <div class="shopora-stat-inner">
                         <div>
                             <p class="shopora-stat-label">Total Revenue</p>
                             <h3 class="shopora-stat-value" id="statTotalRevenue">Rs {{ number_format($data['totalRevenue'], 2) }}</h3>
                             <p class="shopora-stat-meta {{ $changeClass($revenueChange) }}" id="statRevenueChange">{{ $fmtChange($revenueChange) }}</p>
-                            <button type="button" class="shopora-stat-link" onclick="showPaymentMethodRevenue()">View revenue report →</button>
+                            <span class="shopora-stat-link">View revenue breakdown →</span>
                         </div>
                         <div class="shopora-stat-icon is-blue" aria-hidden="true">₹</div>
                     </div>
                 </div>
             </div>
             <div class="col">
-                <div class="shopora-stat-card is-sales">
+                <div class="shopora-stat-card is-sales is-clickable" data-stat-action="sales" role="button" tabindex="0" aria-label="View sales summary">
                     <div class="shopora-stat-inner">
                         <div>
                             <p class="shopora-stat-label">Total Sales (Qty)</p>
                             <h3 class="shopora-stat-value" id="statTotalSales">{{ number_format($data['totalSales']) }}</h3>
                             <p class="shopora-stat-meta {{ $changeClass($salesChange) }}" id="statSalesChange">{{ $fmtChange($salesChange) }}</p>
+                            <span class="shopora-stat-link">View sales summary →</span>
                         </div>
                         <div class="shopora-stat-icon is-teal" aria-hidden="true"><i class='bx bx-cart'></i></div>
                     </div>
                 </div>
             </div>
             <div class="col">
-                <div class="shopora-stat-card is-alerts">
+                <div class="shopora-stat-card is-alerts is-clickable" data-stat-action="stock" role="button" tabindex="0" aria-label="View low stock items">
                     <div class="shopora-stat-inner">
                         <div>
                             <p class="shopora-stat-label">Stock Alerts</p>
                             <h3 class="shopora-stat-value" id="statStockAlerts">{{ number_format($data['stockAlerts'] ?? 0) }}</h3>
                             <p class="shopora-stat-meta is-warn">Low stock items</p>
+                            <span class="shopora-stat-link">View low stock items →</span>
                         </div>
                         <div class="shopora-stat-icon is-orange" aria-hidden="true"><i class='bx bxs-error'></i></div>
                     </div>
@@ -733,7 +825,7 @@
                         </table>
                     </div>
                     <div class="shopora-panel-footer">
-                        <a href="{{ route('admin.reports.inventoryReport') }}" class="shopora-panel-link">View all low stock items →</a>
+                        <button type="button" class="shopora-panel-link" id="viewAllLowStockBtn">View all low stock items →</button>
                     </div>
                 </div>
             </div>
@@ -754,6 +846,38 @@
         </div>
     </div>
     <iframe id="printFrame" style="display:none;"></iframe>
+
+    <!-- Low stock items modal -->
+    <div class="modal fade" id="lowStockModal" tabindex="-1" aria-labelledby="lowStockModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="lowStockModalLabel">Low Stock Items</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-0">
+                    <div class="shopora-panel-table-wrap px-3 pt-2">
+                        <table class="shopora-panel-table compact w-100">
+                            <thead>
+                                <tr>
+                                    <th>Item Name</th>
+                                    <th class="col-stock">In Stock</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="lowStockModalBody">
+                                <tr><td colspan="3" class="shopora-panel-empty">Loading…</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer justify-content-between">
+                    <a href="{{ route('admin.purchaseInventory') }}" class="shopora-panel-link">Add purchase stock →</a>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 @endsection
 @section("script")
@@ -768,6 +892,7 @@
     // Create payment mode mapping globally
     window.paymentModeMap = {};
     window.paymentModesList = [];
+    window.paymentLogoBase = "{{ asset('assets/images/payment-methods') }}";
     @foreach($paymentModes as $payment)
     window.paymentModeMap[{{ $payment->id }}] = '{{ $payment->payment_title }}';
     window.paymentModesList.push(@json($payment->payment_title));
@@ -872,6 +997,21 @@
         $('#clearDateFilter').on('click', function() {
             const dates = getRangeDates('today');
             applyDateRange(dates.from, dates.to, 'today');
+        });
+
+        $('#viewAllLowStockBtn').on('click', function() {
+            openLowStockModal();
+        });
+
+        $('.shopora-stat-card[data-stat-action]').on('click', function() {
+            handleStatCardAction($(this).data('stat-action'));
+        });
+
+        $('.shopora-stat-card[data-stat-action]').on('keydown', function(e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                handleStatCardAction($(this).data('stat-action'));
+            }
         });
 
         bindInvoiceViewer();
@@ -1002,8 +1142,8 @@
         body.html(html);
     }
 
-    function renderLowStockItems(rows) {
-        const body = $('#lowStockBody');
+    function renderLowStockItems(rows, targetBody) {
+        const body = targetBody || $('#lowStockBody');
         if (!rows || !rows.length) {
             body.html('<tr><td colspan="3" class="shopora-panel-empty">No low stock items</td></tr>');
             return;
@@ -1019,6 +1159,56 @@
             '</tr>';
         });
         body.html(html);
+    }
+
+    function handleStatCardAction(action) {
+        if (action === 'items') {
+            window.location.href = "{{ route('admin.inventoryItem') }}";
+            return;
+        }
+        if (action === 'revenue') {
+            showPaymentMethodRevenue();
+            return;
+        }
+        if (action === 'sales') {
+            showSalesSummaryModal();
+            return;
+        }
+        if (action === 'stock') {
+            openLowStockModal();
+        }
+    }
+
+    function dashModalSummaryStat(label, value, highlight) {
+        return '<div class="shopora-dash-modal-stat' + (highlight ? ' is-highlight' : '') + '">' +
+            '<p class="shopora-dash-modal-stat-label">' + escapeHtml(label) + '</p>' +
+            '<p class="shopora-dash-modal-stat-value">' + value + '</p>' +
+        '</div>';
+    }
+
+    function showModalLoader(targetSelector) {
+        $(targetSelector).html(
+            '<div class="text-center py-4"><div class="spinner-border text-primary" role="status">' +
+            '<span class="visually-hidden">Loading...</span></div></div>'
+        );
+    }
+
+    function openLowStockModal() {
+        const modalEl = document.getElementById('lowStockModal');
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        renderLowStockItems(null, $('#lowStockModalBody'));
+        modal.show();
+
+        $.ajax({
+            url: "{{ route('admin.dashboard.lowStockItems') }}",
+            method: 'GET',
+            success: function(response) {
+                renderLowStockItems(response.items || [], $('#lowStockModalBody'));
+            },
+            error: function() {
+                $('#lowStockModalBody').html('<tr><td colspan="3" class="shopora-panel-empty">Unable to load low stock items</td></tr>');
+            }
+        });
     }
     
     function setStatChange(selector, percent) {
@@ -1037,27 +1227,41 @@
 
     function paymentMethodVisual(title) {
         const name = String(title || '').toLowerCase();
+        const base = window.paymentLogoBase || '';
+        let logoUrl = null;
+        let tone = 'gray';
 
         if (name.includes('cash')) {
-            return { tone: 'teal', iconHtml: '<i class="bx bx-money"></i>' };
-        }
-        if (name.includes('esewa')) {
-            return { tone: 'teal', iconHtml: '<span>e</span>' };
-        }
-        if (name.includes('fonepay') || name.includes('fone')) {
-            return { tone: 'teal', iconHtml: '<i class="bx bx-mobile"></i>' };
-        }
-        if (name.includes('khalti')) {
-            return { tone: 'blue', iconHtml: '<span>K</span>' };
-        }
-        if (name.includes('card') || name.includes('bank')) {
-            return { tone: 'blue', iconHtml: '<i class="bx bx-credit-card"></i>' };
-        }
-        if (name.includes('other')) {
-            return { tone: 'gray', iconHtml: '<i class="bx bx-dots-horizontal-rounded"></i>' };
+            logoUrl = base + '/cash.svg';
+            tone = 'logo';
+        } else if (name.includes('esewa')) {
+            logoUrl = base + '/esewa.ico';
+            tone = 'logo';
+        } else if (name.includes('fonepay') || name.includes('fone')) {
+            logoUrl = base + '/fonepay.png';
+            tone = 'logo';
+        } else if (name.includes('khalti')) {
+            logoUrl = base + '/khalti.png';
+            tone = 'logo';
+        } else if (name.includes('card') || name.includes('bank')) {
+            logoUrl = base + '/bank.svg';
+            tone = 'logo';
         }
 
-        return { tone: 'gray', iconHtml: '<i class="bx bx-wallet"></i>' };
+        if (logoUrl) {
+            const alt = escapeHtml(title || 'Payment');
+            return {
+                tone: tone === 'logo' ? 'logo' : tone,
+                logoUrl: logoUrl,
+                iconHtml: '<img src="' + logoUrl + '" alt="' + alt + '" loading="lazy">'
+            };
+        }
+
+        if (name.includes('other')) {
+            return { tone: 'gray', logoUrl: null, iconHtml: '<i class="bx bx-dots-horizontal-rounded"></i>' };
+        }
+
+        return { tone: 'gray', logoUrl: null, iconHtml: '<i class="bx bx-wallet"></i>' };
     }
 
     function formatRs(amount) {
@@ -1104,9 +1308,12 @@
             const pct = total > 0 ? (amount / total) * 100 : 0;
             const visual = paymentMethodVisual(title);
             const barWidth = Math.max(0, Math.min(100, pct));
+            const iconClass = visual.logoUrl
+                ? 'shopora-pay-icon is-logo'
+                : 'shopora-pay-icon is-' + visual.tone;
 
             html += '<div class="shopora-pay-item">' +
-                '<div class="shopora-pay-icon is-' + visual.tone + '">' + visual.iconHtml + '</div>' +
+                '<div class="' + iconClass + '">' + visual.iconHtml + '</div>' +
                 '<div class="shopora-pay-meta">' +
                     '<p class="shopora-pay-name">' + $('<div>').text(title).html() + '</p>' +
                     '<p class="shopora-pay-amount">' + formatRs(amount) + '</p>' +
@@ -1194,22 +1401,48 @@
 
 <!-- Payment Method Revenue Modal -->
 <div class="modal fade" id="paymentMethodRevenueModal" tabindex="-1" aria-labelledby="paymentMethodRevenueModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="paymentMethodRevenueModalLabel">Total Revenue by Payment Method</h5>
+                <h5 class="modal-title" id="paymentMethodRevenueModalLabel">Revenue Summary</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <div id="paymentMethodRevenueContent">
-                    <div class="text-center">
+                    <div class="text-center py-4">
                         <div class="spinner-border text-primary" role="status">
                             <span class="visually-hidden">Loading...</span>
                         </div>
                     </div>
                 </div>
             </div>
-            <div class="modal-footer">
+            <div class="modal-footer justify-content-between">
+                <a href="{{ route('admin.invoice.index') }}" class="shopora-panel-link">View all invoices →</a>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Sales Summary Modal -->
+<div class="modal fade" id="salesSummaryModal" tabindex="-1" aria-labelledby="salesSummaryModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="salesSummaryModalLabel">Sales Summary (Quantity)</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="salesSummaryContent">
+                    <div class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer justify-content-between">
+                <a href="{{ route('admin.invoice.index') }}" class="shopora-panel-link">View all invoices →</a>
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
             </div>
         </div>
@@ -1218,70 +1451,128 @@
 
 <script>
     function showPaymentMethodRevenue() {
-        const fromDate = $('#fromDate').val();
-        const toDate = $('#toDate').val();
-
-        $('#paymentMethodRevenueContent').html(`
-        <div class="text-center">
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Loading...</span>
-            </div>
-        </div>
-    `);
-
-        $('#paymentMethodRevenueModal').modal('show');
+        const modalEl = document.getElementById('paymentMethodRevenueModal');
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        showModalLoader('#paymentMethodRevenueContent');
+        modal.show();
 
         $.ajax({
-            url: '/admin/dashboard/payment-method-revenue',
+            url: "{{ route('admin.dashboard.paymentMethodRevenue') }}",
             method: 'GET',
             data: {
-                from_date: fromDate,
-                to_date: toDate
+                from_date: $('#fromDate').val(),
+                to_date: $('#toDate').val()
             },
             success: function(response) {
-    let html = '<div class="table-responsive">';
-    html += '<table class="table table-striped">';
-    html += '<thead><tr><th>Payment Method</th><th>Revenue (Rs)</th></tr></thead><tbody>';
-
-    if (response.data.payment_modes && response.data.payment_modes.length > 0) {
-        response.data.payment_modes.forEach(function(item) {
-            html += `
-                <tr>
-                    <td>${item.payment_title}</td>
-                    <td>${parseFloat(item.total_amount).toFixed(2)}</td>
-                </tr>
-            `;
+                renderPaymentRevenueModal(response.data || {});
+            },
+            error: function() {
+                $('#paymentMethodRevenueContent').html(
+                    '<p class="text-center text-muted py-4">Unable to load revenue summary</p>'
+                );
+            }
         });
-    } else {
-        html += '<tr><td colspan="2" class="text-center">No data available</td></tr>';
     }
 
-    html += `
-    <div class="mt-3 d-flex justify-content-end">
-        <table class="table mb-0">
-            <tr>
-                <td class="pe-4 text-muted text-end">Total Revenue:</td>
-                <td class="text-end">Rs ${parseFloat(response.data.total_revenue || 0).toFixed(2)}</td>
-            </tr>
-            <tr>
-                <td class="pe-4 text-muted text-end">Total Discount:</td>
-                <td class="text-end">Rs ${parseFloat(response.data.total_discount || 0).toFixed(2)}</td>
-            </tr>
-            <tr class="border-top">
-                <td class="pe-4 fw-bold text-end">Net Revenue:</td>
-                <td class="fw-bold text-end ">
-                    Rs ${parseFloat(response.data.net_revenue || 0).toFixed(2)}
-                </td>
-            </tr>
-        </table>
-    </div>
-`;
+    function renderPaymentRevenueModal(data) {
+        const modes = data.payment_modes || [];
+        const gross = parseFloat(data.total_revenue || 0);
+        const discount = parseFloat(data.total_discount || 0);
+        const net = parseFloat(data.net_revenue || 0);
+        const from = data.from_date || $('#fromDate').val();
+        const to = data.to_date || $('#toDate').val();
 
+        let html = '<p class="shopora-dash-modal-period">Period: <strong>' + escapeHtml(from) + '</strong> to <strong>' + escapeHtml(to) + '</strong></p>';
+        html += '<div class="shopora-dash-modal-summary">';
+        html += dashModalSummaryStat('Gross Revenue', formatRs(gross), true);
+        html += dashModalSummaryStat('Total Discount', formatRs(discount));
+        html += dashModalSummaryStat('Net Revenue', formatRs(net), true);
+        html += '</div>';
 
-    $('#paymentMethodRevenueContent').html(html);
-}
+        html += '<div class="table-responsive"><table class="table shopora-dash-modal-table mb-0">';
+        html += '<thead><tr><th>Payment Method</th><th class="col-amount">Amount (Rs)</th><th class="col-amount">Share</th></tr></thead><tbody>';
 
+        if (modes.length) {
+            modes.forEach(function(item) {
+                const amt = parseFloat(item.total_amount || 0);
+                const pct = gross > 0 ? (amt / gross) * 100 : 0;
+                html += '<tr>' +
+                    '<td>' + escapeHtml(item.payment_title) + '</td>' +
+                    '<td class="col-amount">' + amt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</td>' +
+                    '<td class="col-amount">' + pct.toFixed(1) + '%</td>' +
+                '</tr>';
+            });
+        } else {
+            html += '<tr><td colspan="3" class="text-center text-muted py-3">No payment data for this period</td></tr>';
+        }
+
+        html += '</tbody></table></div>';
+        html += '<p class="mt-3 mb-0 small text-muted">Gross revenue is total collected by payment method. Net revenue subtracts invoice-level discounts from that amount.</p>';
+
+        $('#paymentMethodRevenueContent').html(html);
+    }
+
+    function showSalesSummaryModal() {
+        const modalEl = document.getElementById('salesSummaryModal');
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        showModalLoader('#salesSummaryContent');
+        modal.show();
+
+        $.ajax({
+            url: "{{ route('admin.dashboard.salesSummary') }}",
+            method: 'GET',
+            data: {
+                from_date: $('#fromDate').val(),
+                to_date: $('#toDate').val()
+            },
+            success: function(response) {
+                renderSalesSummaryModal(response.data || {});
+            },
+            error: function() {
+                $('#salesSummaryContent').html(
+                    '<p class="text-center text-muted py-4">Unable to load sales summary</p>'
+                );
+            }
         });
+    }
+
+    function renderSalesSummaryModal(data) {
+        const from = data.from_date || $('#fromDate').val();
+        const to = data.to_date || $('#toDate').val();
+        const totalQty = Number(data.total_qty || 0);
+        const invoiceCount = Number(data.invoice_count || 0);
+        const avgQty = parseFloat(data.avg_qty_per_invoice || 0);
+        const revenue = parseFloat(data.total_revenue || 0);
+        const products = data.top_products || [];
+
+        let html = '<p class="shopora-dash-modal-period">Period: <strong>' + escapeHtml(from) + '</strong> to <strong>' + escapeHtml(to) + '</strong></p>';
+        html += '<div class="shopora-dash-modal-summary">';
+        html += dashModalSummaryStat('Units Sold', totalQty.toLocaleString(), true);
+        html += dashModalSummaryStat('Invoices', invoiceCount.toLocaleString());
+        html += dashModalSummaryStat('Avg Units / Invoice', avgQty.toLocaleString(undefined, { maximumFractionDigits: 1 }));
+        html += dashModalSummaryStat('Sales Revenue', formatRs(revenue));
+        html += '</div>';
+
+        html += '<h6 class="mb-2 fw-semibold">Top Sold Products</h6>';
+        html += '<div class="table-responsive"><table class="table shopora-dash-modal-table mb-0">';
+        html += '<thead><tr><th>Product</th><th class="col-amount">Qty Sold</th><th class="col-amount">Amount (Rs)</th></tr></thead><tbody>';
+
+        if (products.length) {
+            products.forEach(function(row) {
+                html += '<tr>' +
+                    '<td>' + escapeHtml(row.name) + '</td>' +
+                    '<td class="col-amount">' + Number(row.qty || 0).toLocaleString() + '</td>' +
+                    '<td class="col-amount">' + parseFloat(row.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</td>' +
+                '</tr>';
+            });
+        } else {
+            html += '<tr><td colspan="3" class="text-center text-muted py-3">No sales in this period</td></tr>';
+        }
+
+        html += '</tbody></table></div>';
+        html += '<p class="mt-3 mb-0 small text-muted">Units sold counts product quantities across all invoices in the selected date range.</p>';
+
+        $('#salesSummaryContent').html(html);
     }
 
     function centerText(text, lineLength = 32) {

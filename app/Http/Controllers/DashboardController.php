@@ -54,4 +54,30 @@ class DashboardController extends Controller
             return response()->json(['error' => 'Something went wrong'], 500);
         }
     }
+
+    public function getLowStockItems()
+    {
+        try {
+            return response()->json([
+                'items' => $this->repo->getLowStockItems(),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Something went wrong'], 500);
+        }
+    }
+
+    public function getSalesSummary(Request $request)
+    {
+        try {
+            return response()->json([
+                'data' => $this->repo->getSalesSummary(
+                    null,
+                    $request->query('from_date'),
+                    $request->query('to_date')
+                ),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Something went wrong'], 500);
+        }
+    }
 }

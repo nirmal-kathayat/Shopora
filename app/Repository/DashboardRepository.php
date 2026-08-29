@@ -15,12 +15,7 @@ class DashboardRepository
 
     public function getFilteredData($filterType = null, $fromDate = null, $toDate = null)
     {
-        if ($fromDate && $toDate) {
-            $from = Carbon::createFromFormat('Y-m-d', $fromDate)->startOfDay();
-            $to = Carbon::createFromFormat('Y-m-d', $toDate)->endOfDay();
-        } else {
-            [$from, $to] = $this->getDateRange($filterType ?? 'Monthly');
-        }
+        [$from, $to] = $this->resolveDateRange($filterType, $fromDate, $toDate);
 
         $dateRange = [$from, $to];
         $periodDays = max($from->diffInDays($to), 0);
@@ -50,14 +45,8 @@ class DashboardRepository
 
     public function getPaymentMethodRevenue($filterType = null, $fromDate = null, $toDate = null)
     {
-        if ($fromDate && $toDate) {
-            $dateRange = [
-                Carbon::createFromFormat('Y-m-d', $fromDate)->startOfDay(),
-                Carbon::createFromFormat('Y-m-d', $toDate)->endOfDay()
-            ];
-        } else {
-            $dateRange = $this->getDateRange($filterType ?? 'Monthly');
-        }
+        [$from, $to] = $this->resolveDateRange($filterType, $fromDate, $toDate);
+        $dateRange = [$from, $to];
 
         $data = DB::table('sales_payment_mode')
             ->join('payment_modes', 'sales_payment_mode.payment_mode_id', '=', 'payment_modes.id')
@@ -77,11 +66,67 @@ class DashboardRepository
         $netRevenue = $totalRevenue - $totalDiscount;
 
         return [
+            'from_date' => $dateRange[0]->format('Y-m-d'),
+            'to_date' => $dateRange[1]->format('Y-m-d'),
             'payment_modes'  => $data,
             'total_revenue'  => $totalRevenue,
             'total_discount' => $totalDiscount,
             'net_revenue'    => $netRevenue,
         ];
+    }
+
+    public function getSalesSummary($filterType = null, $fromDate = null, $toDate = null): array
+    {
+        [$from, $to] = $this->resolveDateRange($filterType, $fromDate, $toDate);
+        $dateRange = [$from, $to];
+        $stats = $this->computePeriodStats($dateRange);
+        $invoiceCount = (int) Sales::whereBetween('created_at', $dateRange)->count();
+
+        $topProducts = DB::table('sales_products')
+            ->join('sales', 'sales.id', '=', 'sales_products.sales_id')
+            ->join('inventory_items', 'inventory_items.id', '=', 'sales_products.product_id')
+            ->whereBetween('sales.created_at', $dateRange)
+            ->select(
+                'inventory_items.title',
+                DB::raw('SUM(sales_products.qty) as total_qty'),
+                DB::raw('SUM(sales_products.qty * sales_products.price_per_unit) as total_amount')
+            )
+            ->groupBy('inventory_items.id', 'inventory_items.title')
+            ->orderByDesc('total_qty')
+            ->limit(10)
+            ->get()
+            ->map(function ($row) {
+                return [
+                    'name' => $row->title,
+                    'qty' => (int) $row->total_qty,
+                    'amount' => (float) $row->total_amount,
+                ];
+            })
+            ->all();
+
+        return [
+            'from_date' => $from->format('Y-m-d'),
+            'to_date' => $to->format('Y-m-d'),
+            'total_qty' => $stats['salesQty'],
+            'invoice_count' => $invoiceCount,
+            'avg_qty_per_invoice' => $invoiceCount > 0
+                ? round($stats['salesQty'] / $invoiceCount, 1)
+                : 0,
+            'total_revenue' => $stats['revenue'],
+            'top_products' => $topProducts,
+        ];
+    }
+
+    private function resolveDateRange($filterType = null, $fromDate = null, $toDate = null): array
+    {
+        if ($fromDate && $toDate) {
+            return [
+                Carbon::createFromFormat('Y-m-d', $fromDate)->startOfDay(),
+                Carbon::createFromFormat('Y-m-d', $toDate)->endOfDay(),
+            ];
+        }
+
+        return $this->getDateRange($filterType ?? 'Monthly');
     }
 
     private function computePeriodStats(array $dateRange): array
@@ -168,9 +213,14 @@ class DashboardRepository
 
     private function getTopLowStockItems(int $limit = 5): array
     {
+        return $this->getLowStockItems($limit);
+    }
+
+    public function getLowStockItems(?int $limit = null): array
+    {
         $stockSub = $this->stockNetQtySubquery();
 
-        $rows = InventoryItem::query()
+        $query = InventoryItem::query()
             ->leftJoinSub($stockSub, 'stock', function ($join) {
                 $join->on('stock.inventory_item_id', '=', 'inventory_items.id');
             })
@@ -181,16 +231,19 @@ class DashboardRepository
             )
             ->whereRaw('COALESCE(stock.net_qty, 0) <= ?', [self::LOW_STOCK_THRESHOLD])
             ->orderByRaw('COALESCE(stock.net_qty, 0) ASC')
-            ->orderBy('inventory_items.title')
-            ->limit($limit)
-            ->get();
+            ->orderBy('inventory_items.title');
 
-        return $rows->map(function ($row) {
+        if ($limit !== null) {
+            $query->limit($limit);
+        }
+
+        return $query->get()->map(function ($row) {
             $qty = (int) $row->net_qty;
+
             return [
                 'id' => $row->id,
                 'name' => $row->title,
-                'in_stock' => $qty,
+                'in_stock' => max(0, $qty),
                 'status' => $qty <= 0 ? 'Out of Stock' : 'Low',
             ];
         })->all();

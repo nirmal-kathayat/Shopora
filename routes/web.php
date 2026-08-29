@@ -26,6 +26,10 @@ Route::group(['prefix' => 'admin'], function () {
         ->name('admin.dashboardStats');
     Route::get('/dashboard/payment-method-revenue', [DashboardController::class, 'getPaymentMethodRevenue'])
         ->name('admin.dashboard.paymentMethodRevenue');
+    Route::get('/dashboard/low-stock-items', [DashboardController::class, 'getLowStockItems'])
+        ->name('admin.dashboard.lowStockItems');
+    Route::get('/dashboard/sales-summary', [DashboardController::class, 'getSalesSummary'])
+        ->name('admin.dashboard.salesSummary');
     // category
     Route::group(['prefix' => 'category'], function () {
         Route::post('/store', [CategoryController::class, 'storeCategory'])->name('admin.category.store');

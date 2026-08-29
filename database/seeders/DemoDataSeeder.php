@@ -102,6 +102,8 @@ class DemoDataSeeder extends Seeder
             $paymentModes = DB::table('payment_modes')->pluck('id')->all();
         }
 
+        $itemStock = array_fill_keys($itemIds, 0);
+
         // Purchases (+ stock in)
         $vendors = [
             ['vendor' => 'Tech Hub Nepal', 'address' => 'Putalisadak', 'pan_number' => '301122334'],
@@ -162,6 +164,8 @@ class DemoDataSeeder extends Seeder
                     'created_at' => $now->copy()->subDays(40 - ($i * 4)),
                     'updated_at' => $now,
                 ]);
+
+                $itemStock[$itemId] += $qty;
             }
         }
 
@@ -181,13 +185,26 @@ class DemoDataSeeder extends Seeder
                 'updated_at' => $saleDate,
             ]);
 
-            $lineItems = collect($itemIds)->shuffle()->take(rand(2, 4));
+            $availableItems = collect($itemIds)->filter(function ($itemId) use ($itemStock) {
+                return ($itemStock[$itemId] ?? 0) > 0;
+            });
+
+            if ($availableItems->isEmpty()) {
+                continue;
+            }
+
+            $lineItems = $availableItems->shuffle()->take(rand(2, min(4, $availableItems->count())));
             $totalAmount = 0;
             $firstPaymentMode = $paymentModes[$s % count($paymentModes)];
 
             foreach ($lineItems as $idx => $itemId) {
+                $available = (int) ($itemStock[$itemId] ?? 0);
+                if ($available <= 0) {
+                    continue;
+                }
+
                 $price = (float) DB::table('inventory_items')->where('id', $itemId)->value('price_per_unit');
-                $qty = rand(1, 8);
+                $qty = min(rand(1, 8), $available);
                 $lineTotal = $qty * $price;
                 $totalAmount += $lineTotal;
 
@@ -211,6 +228,14 @@ class DemoDataSeeder extends Seeder
                     'created_at' => $saleDate,
                     'updated_at' => $saleDate,
                 ]);
+
+                $itemStock[$itemId] -= $qty;
+            }
+
+            if ($totalAmount <= 0) {
+                DB::table('sales')->where('id', $salesId)->delete();
+
+                continue;
             }
 
             DB::table('sales_payment_mode')->insert([
