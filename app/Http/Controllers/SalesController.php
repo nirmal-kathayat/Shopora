@@ -30,12 +30,26 @@ class SalesController extends Controller
             $term = $request->input('search');
             $paymentModes = DB::table('payment_modes')->get();
             $inventories = $this->inventoryItemRepo->getInventoryItems()
-                ->select('inventory_items.id', 'inventory_items.title', 'inventory_items.code', 'inventory_items.unit', 'inventory_items.price_per_unit', 'inventory_items.category_id')
+                ->select(
+                    'inventory_items.id',
+                    'inventory_items.title',
+                    'inventory_items.code',
+                    'inventory_items.unit',
+                    'inventory_items.price_per_unit',
+                    'inventory_items.category_id',
+                    'inventory_items.image'
+                )
                 ->where('inventory_items.title', 'LIKE', "%{$term}%")
                 ->orWhere('inventory_items.code', 'LIKE', "%{$term}%")
                 ->limit(10)
                 ->get();
             if ($request->ajax()) {
+                $inventories = $inventories->map(function ($item) {
+                    $item->image_url = inventoryItemImageUrl($item->image);
+
+                    return $item;
+                });
+
                 return response()->json([
                     'inventories' => $inventories
                 ]);

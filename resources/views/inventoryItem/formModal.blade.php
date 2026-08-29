@@ -40,6 +40,12 @@
                             <label for="inv_modal_price_per_unit" class="form-label required">Selling Price Per Unit</label>
                             <input type="number" name="price_per_unit" id="inv_modal_price_per_unit" class="form-control" data-validation="required" step="0.01" placeholder="Enter price">
                         </div>
+                        <div class="col-md-6">
+                            <label for="inv_modal_image" class="form-label">Product Image</label>
+                            <input type="file" name="image" id="inv_modal_image" class="form-control" accept="image/jpeg,image/png,image/webp,image/gif">
+                            <small class="text-muted">Optional. JPG, PNG, WEBP or GIF (max 2MB)</small>
+                            <div id="inv_modal_image_preview" class="inv-modal-image-preview d-none mt-2"></div>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -73,6 +79,18 @@
     </div>
 </div>
 
+@push('style')
+<style>
+    #inventoryItemFormModal .inv-modal-image-preview img {
+        width: 72px;
+        height: 72px;
+        object-fit: cover;
+        border-radius: 6px;
+        border: 1px solid #e5e7eb;
+    }
+</style>
+@endpush
+
 @push('scripts')
 @include('scripts.validation')
 <script>
@@ -80,10 +98,27 @@
         const storeUrl = "{{ route('admin.inventoryItem.store') }}";
         const updateUrlTemplate = "{{ route('admin.inventoryItem.update', ['id' => ':id']) }}";
         const categoryStoreUrl = "{{ route('admin.category.store') }}";
+        const inventoryImageBaseUrl = "{{ asset('image') }}/";
         let inventoryItemModalMode = 'create';
 
         function getInventoryItemModalEl() {
             return document.getElementById('inventoryItemFormModal');
+        }
+
+        function resetInventoryImagePreview() {
+            $('#inv_modal_image').val('');
+            $('#inv_modal_image_preview').addClass('d-none').empty();
+        }
+
+        function showInventoryImagePreview(imageUrl) {
+            if (!imageUrl) {
+                resetInventoryImagePreview();
+                return;
+            }
+
+            $('#inv_modal_image_preview')
+                .removeClass('d-none')
+                .html('<img src="' + imageUrl + '" alt="Product image preview">');
         }
 
         function resetInventoryItemModal() {
@@ -94,6 +129,7 @@
             $('#inventory-item-modal-errors').addClass('d-none').empty();
             $('#inventory-item-modal-form')[0].reset();
             $('#inv_modal_category_id').val('').trigger('change');
+            resetInventoryImagePreview();
         }
 
         function populateInventoryItemModal(row) {
@@ -107,6 +143,10 @@
             $('#inv_modal_code').val(row.code);
             $('#inv_modal_price_per_unit').val(row.price_per_unit);
             $('#inv_modal_category_id').val(row.category_id).trigger('change');
+            resetInventoryImagePreview();
+
+            const imageUrl = row.image_url || (row.image ? inventoryImageBaseUrl + row.image : '');
+            showInventoryImagePreview(imageUrl);
         }
 
         function showInventoryItemModalErrors(message) {
@@ -151,6 +191,8 @@
                     code: $btn.data('code'),
                     price_per_unit: $btn.data('price'),
                     category_id: $btn.data('categoryId'),
+                    image: $btn.data('image'),
+                    image_url: $btn.data('imageUrl'),
                 };
             }
 
@@ -230,6 +272,21 @@
             });
         });
 
+        $('#inv_modal_image').on('change', function () {
+            const file = this.files && this.files[0];
+            if (!file) {
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                $('#inv_modal_image_preview')
+                    .removeClass('d-none')
+                    .html('<img src="' + e.target.result + '" alt="Product image preview">');
+            };
+            reader.readAsDataURL(file);
+        });
+
         $('#inventory-item-modal-form').on('submit', function (e) {
             e.preventDefault();
 
@@ -240,17 +297,25 @@
             $('#inventory-item-modal-submit').prop('disabled', true).text(isEdit ? 'Updating...' : 'Saving...');
             $('#inventory-item-modal-errors').addClass('d-none').empty();
 
+            const formData = new FormData();
+            formData.append('title', $('#inv_modal_title').val());
+            formData.append('unit', $('#inv_modal_unit').val());
+            formData.append('code', $('#inv_modal_code').val());
+            formData.append('category_id', $('#inv_modal_category_id').val());
+            formData.append('price_per_unit', $('#inv_modal_price_per_unit').val());
+            formData.append('_token', $('input[name="_token"]').val());
+
+            const imageFile = $('#inv_modal_image')[0].files[0];
+            if (imageFile) {
+                formData.append('image', imageFile);
+            }
+
             $.ajax({
                 url: url,
                 method: 'POST',
-                data: {
-                    title: $('#inv_modal_title').val(),
-                    unit: $('#inv_modal_unit').val(),
-                    code: $('#inv_modal_code').val(),
-                    category_id: $('#inv_modal_category_id').val(),
-                    price_per_unit: $('#inv_modal_price_per_unit').val(),
-                    _token: $('input[name="_token"]').val()
-                },
+                data: formData,
+                processData: false,
+                contentType: false,
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest'
                 },

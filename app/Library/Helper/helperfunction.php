@@ -1,4 +1,27 @@
 <?php
+if (!function_exists('inventoryItemImageUrl')) {
+    function inventoryItemImageUrl(?string $image): ?string
+    {
+        if (empty($image)) {
+            return null;
+        }
+
+        return asset('image/' . ltrim($image, '/'));
+    }
+}
+
+if (!function_exists('inventoryItemImageHtml')) {
+    function inventoryItemImageHtml(?string $image, string $alt = '', string $iconClass = 'bx bx-package'): string
+    {
+        $url = inventoryItemImageUrl($image);
+        if ($url) {
+            return '<img src="' . e($url) . '" alt="' . e($alt) . '">';
+        }
+
+        return '<i class="' . e($iconClass) . '"></i>';
+    }
+}
+
 if (!function_exists('getPermissionUrl')) {
     function getPermissionUrl($accessUri)
     {

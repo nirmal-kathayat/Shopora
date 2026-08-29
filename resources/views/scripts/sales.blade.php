@@ -9,9 +9,9 @@
             $(this).addClass('active');
 
             if (category === 'all') {
-                $('#inventory-list tr').show();
+                $('#inventory-list tr.sales-inventory-row').show();
             } else {
-                $('#inventory-list tr').each(function() {
+                $('#inventory-list tr.sales-inventory-row').each(function() {
                     if ($(this).data('category') === category) {
                         $(this).show();
                     } else {
@@ -19,6 +19,8 @@
                     }
                 });
             }
+
+            toggleInventoryEmptyState();
         });
 
         // Search functionality
@@ -61,6 +63,8 @@
                     price: parseFloat($this.data('price_per_unit')),
                     unit: $this.data('unit'),
                     code: $this.data('code'),
+                    image: $this.data('image') || '',
+                    image_url: $this.data('imageUrl') || '',
                     quantity: 1,
                     discount: 0
                 });
@@ -92,6 +96,7 @@
             $('#inv_unit').val('');
             $('#inv_code').val('');
             $('#inv_price_per_unit').val('');
+            $('#inv_image').val('');
             $('#inventory_category_id').val('').trigger('change');
         });
 
@@ -114,42 +119,80 @@
             closeInventoryCategoryNested();
         });
 
+        function toggleInventoryEmptyState() {
+            const totalRows = $('#inventory-list tr.sales-inventory-row').length;
+            const visibleRows = $('#inventory-list tr.sales-inventory-row:visible').length;
+
+            if (totalRows === 0 || visibleRows === 0) {
+                $('#inventory-list-empty').removeClass('d-none');
+            } else {
+                $('#inventory-list-empty').addClass('d-none');
+            }
+        }
+
+        window.toggleInventoryEmptyState = toggleInventoryEmptyState;
+
+        function escapeHtml(text) {
+            return String(text || '').replace(/[&<>"']/g, function (m) {
+                return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m];
+            });
+        }
+
+        function buildInventoryThumb(item) {
+            const imageUrl = item.image_url || (item.image ? '{{ asset('image') }}/' + encodeURIComponent(item.image) : null);
+            if (imageUrl) {
+                return '<img src="' + imageUrl + '" alt="' + escapeHtml(item.title) + '">';
+            }
+
+            return '<i class="bx bx-package"></i>';
+        }
+
         function buildInventoryRow(item) {
+            const price = Number(item.price_per_unit).toLocaleString(undefined, { maximumFractionDigits: 0 });
+            const code = item.code || '—';
+            const unit = item.unit || '—';
+            const imageUrl = item.image_url || (item.image ? '{{ asset('image') }}/' + encodeURIComponent(item.image) : '');
+
             return `
-                <tr data-category="${item.category_id}">
+                <tr class="sales-inventory-row" data-category="${item.category_id}">
                     <td>
-                        <div class="d-flex align-items-center justify-content-between">
-                            <div class="text-sm">
-                                <span class="fw-bold">${item.title}</span>
-                                <br>
-                                <small class="text-muted">- Rs. ${Number(item.price_per_unit).toLocaleString()}</small>
+                        <div class="sales-inventory-item-cell">
+                            <div class="sales-inventory-thumb">
+                                ${buildInventoryThumb(item)}
                             </div>
-                            <div class="plus-sm add-inventory"
-                                data-id="${item.id}"
-                                data-title="${item.title}"
-                                data-price_per_unit="${item.price_per_unit}"
-                                data-unit="${item.unit}"
-                                data-code="${item.code}">
-                                <i class="bx bx-plus"></i>
+                            <div class="sales-inventory-item-meta">
+                                <span class="sales-inventory-item-name">${escapeHtml(item.title)}</span>
+                                <span class="sales-inventory-item-sub">Code: ${escapeHtml(code)} • Unit: ${escapeHtml(unit)}</span>
                             </div>
                         </div>
+                    </td>
+                    <td class="sales-inventory-col-price">Rs. ${price}</td>
+                    <td class="sales-inventory-col-action">
+                        <button type="button" class="sales-inventory-add-btn add-inventory"
+                            data-id="${item.id}"
+                            data-title="${escapeHtml(item.title)}"
+                            data-price_per_unit="${item.price_per_unit}"
+                            data-unit="${escapeHtml(item.unit || '')}"
+                            data-code="${escapeHtml(item.code || '')}"
+                            data-image="${escapeHtml(item.image || '')}"
+                            data-image-url="${imageUrl}"
+                            aria-label="Add ${escapeHtml(item.title)}">
+                            <i class="bx bx-plus"></i>
+                        </button>
                     </td>
                 </tr>`;
         }
 
         function prependInventoryToList(item) {
             const $list = $('#inventory-list');
-            // remove "No items found" placeholder if present
-            if ($list.find('tr').length === 1 && $list.find('td').length && $list.text().toLowerCase().includes('no items')) {
-                $list.empty();
-            }
             $list.prepend(buildInventoryRow(item));
 
-            // Respect category filter (select based)
             const selectedCategory = $('#category-filter-select').val();
             if (selectedCategory && selectedCategory !== 'all' && String(item.category_id) !== String(selectedCategory)) {
                 $list.find('tr').first().hide();
             }
+
+            toggleInventoryEmptyState();
         }
 
         $('#inventory-item-form').on('submit', function(e) {
@@ -166,10 +209,22 @@
                 _token: $('meta[name="csrf-token"]').attr('content')
             };
 
+            const formData = new FormData();
+            Object.keys(payload).forEach(function (key) {
+                formData.append(key, payload[key]);
+            });
+
+            const imageFile = $('#inv_image')[0] && $('#inv_image')[0].files[0];
+            if (imageFile) {
+                formData.append('image', imageFile);
+            }
+
             $.ajax({
                 url: '{{ route("admin.inventoryItem.store") }}',
                 method: 'POST',
-                data: payload,
+                data: formData,
+                processData: false,
+                contentType: false,
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest'
                 },
@@ -278,81 +333,99 @@
         });
 
         function updateInventoryList(items) {
-            let $inventoryListContainer = $('#inventory-list');
+            const $inventoryListContainer = $('#inventory-list');
             $inventoryListContainer.empty();
 
             if (!items || items.length === 0) {
-                $inventoryListContainer.append('<tr><td colspan="4" class="text-center">No items found</td></tr>');
-            } else {
-                items.forEach(function(item) {
-                    let itemRow = `
-                    <tr data-category="${item.category_id}">
-                        <td>
-                            <div class="d-flex align-items-center justify-content-between">
-                                <div class="text-sm">
-                                    <span class="fw-bold">${item.title}</span>
-                                    <br>
-                                    <small class="text-muted">- Rs. ${Number(item.price_per_unit).toLocaleString()}</small>
-                                </div>
-                                <div class="plus-sm add-inventory"
-                                    data-id="${item.id}"
-                                    data-title="${item.title}"
-                                    data-price_per_unit="${item.price_per_unit}"
-                                    data-unit="${item.unit}"
-                                    data-code="${item.code}">
-                                    <i class="bx bx-plus"></i>
-                                </div>
-                            </div>
-                        </td>
-                    </tr>`;
-                    $inventoryListContainer.append(itemRow);
+                toggleInventoryEmptyState();
+                return;
+            }
+
+            items.forEach(function(item) {
+                $inventoryListContainer.append(buildInventoryRow(item));
+            });
+
+            const selectedCategory = $('#category-filter-select').val();
+            if (selectedCategory && selectedCategory !== 'all') {
+                $('#inventory-list tr.sales-inventory-row').each(function() {
+                    if ($(this).data('category') == selectedCategory) {
+                        $(this).show();
+                    } else {
+                        $(this).hide();
+                    }
                 });
             }
+
+            toggleInventoryEmptyState();
+        }
+
+        function buildCartRow(item, index) {
+            const lineTotal = Math.max((item.price * item.quantity) - (item.discount || 0), 0);
+            const unitPrice = Number(item.price).toLocaleString(undefined, { maximumFractionDigits: 0 });
+
+            return `
+                <tr class="sales-cart-row" data-index="${index}">
+                    <td>
+                        <div class="sales-cart-item-cell">
+                            <div class="sales-cart-thumb">${buildInventoryThumb(item)}</div>
+                            <div>
+                                <span class="sales-cart-item-name">${escapeHtml(item.title)}</span>
+                                <span class="sales-cart-item-sub">Rs. ${unitPrice}</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="sales-cart-col-qty">
+                        <div class="sales-cart-qty-stepper">
+                            <button type="button" class="decrease-quantity" data-index="${index}" aria-label="Decrease quantity">
+                                <i class="bx bx-minus"></i>
+                            </button>
+                            <span class="sales-cart-qty-value">${item.quantity}</span>
+                            <button type="button" class="increase-quantity" data-index="${index}" aria-label="Increase quantity">
+                                <i class="bx bx-plus"></i>
+                            </button>
+                        </div>
+                    </td>
+                    <td class="sales-cart-col-price">Rs. ${unitPrice}</td>
+                    <td>
+                        <div class="sales-cart-total-cell">
+                            <span class="sales-cart-line-total">Rs. ${lineTotal.toFixed(2)}</span>
+                            <button type="button" class="sales-cart-remove trash-button" data-index="${index}" aria-label="Remove item">
+                                <i class="bx bx-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>`;
         }
 
         function updateInventoryDisplay() {
-            let $selectedItemsContainer = $('#selected-items');
-            $selectedItemsContainer.empty();
+            const $tbody = $('#selected-items');
+            $tbody.empty();
 
             if (selectedInventoryItems.length > 0) {
-                // Iterate in reverse order to show latest items first
                 for (let i = selectedInventoryItems.length - 1; i >= 0; i--) {
-                    let item = selectedInventoryItems[i];
-                    let index = i; // Keep original index for data-index
-                    let itemHtml = `
-                    <div class="card-sm-wrapper" data-index="${index}">
-                        <div class="product-drawer">  
-                            <div class="product-item-sm">
-                                <h5 class="card-title sm-name">${item.title}</h5>
-                                <h6>Quantity</h6>
-                               <div class="qty-discount">
-                                    <div class="btn-qty">
-                                        <button class="decrease-quantity" data-index="${index}">-</button>
-                                        <span class="count">${item.quantity}</span>
-                                        <button class="increase-quantity" data-index="${index}">+</button>
-                                    </div>
-                                </div>
-
-                            </div>
-                            <div class="price-sm">
-                                <button class="btn-sm-trash trash-button" data-index="${index}">
-                                    <i class="bx bx-trash"></i>
-                                </button>
-                                <span class="product-total">Rs.${(item.price * item.quantity).toFixed(2)}</span>
-                            </div>
-                        </div>
-                    </div>`;
-                    $selectedItemsContainer.append(itemHtml);
+                    $tbody.append(buildCartRow(selectedInventoryItems[i], i));
                 }
-
                 $('#payment-mode-section').show();
+                $('#cart-empty-state').addClass('d-none');
             } else {
-                $selectedItemsContainer.html('<div class="text-center">No items selected</div>');
                 $('#payment-mode-section').hide();
+                $('#cart-empty-state').removeClass('d-none');
             }
 
             updateTotalAmount();
         }
+
+        $('#clear-cart-btn').on('click', function() {
+            if (selectedInventoryItems.length === 0) {
+                return;
+            }
+
+            selectedInventoryItems = [];
+            updateInventoryDisplay();
+            $('#received-amount').val('');
+            $('#change-amount').val('Rs. 0.00');
+            $('#discount-amount').val('');
+        });
 
         // Discount amount input handler
         $('#discount-amount').on('input', function() {
@@ -369,16 +442,17 @@
             let discountAmount = parseFloat($('#discount-amount').val()) || 0;
             let totalAmount = Math.max(subtotal - discountAmount, 0);
             
-            $('.order-total').text(`Rs. ${totalAmount.toFixed(2)}`);
+        $('.order-total').text(`Rs. ${totalAmount.toFixed(2)}`);
             calculateChange();
         }
-        $('.amount-cal').first().on('input', calculateChange);
+        $('#received-amount').on('input', calculateChange);
 
         function calculateChange() {
-            let totalAmount = parseFloat($('.order-total').text().replace('Rs. ', '')) || 0;
-            let receivedAmount = parseFloat($('.amount-cal').first().val()) || 0;
+            const totalText = $('.order-total').text().replace('Rs.', '').trim();
+            let totalAmount = parseFloat(totalText) || 0;
+            let receivedAmount = parseFloat($('#received-amount').val()) || 0;
             let changeAmount = Math.max(receivedAmount - totalAmount, 0);
-            $('.amount-cal').last().val(changeAmount.toFixed(2));
+            $('#change-amount').val('Rs. ' + changeAmount.toFixed(2));
         }
 
         $('#selected-items').on('click', '.increase-quantity, .decrease-quantity', function() {
@@ -393,26 +467,6 @@
 
             updateInventoryDisplay();
         });
-        $('#selected-items').on('input', '.discount-input', function() {
-            const index = $(this).data('index');
-            let discount = parseFloat(this.value);
-            if (isNaN(discount) || discount < 0) discount = 0;
-            selectedInventoryItems[index].discount = discount;
-            const item = selectedInventoryItems[index];
-            const itemTotal = Math.max(
-                (item.price * item.quantity) - discount,
-                0
-            );
-            $(this)
-                .closest('.card-sm-wrapper')
-                .find('.product-total')
-                .text(`Rs.${itemTotal.toFixed(2)}`);
-
-            // update grand total
-            updateTotalAmount();
-        });
-
-
         $('#selected-items').on('click', '.trash-button', function() {
             const index = $(this).data('index');
             selectedInventoryItems.splice(index, 1);
@@ -478,7 +532,7 @@
 
             let customerId = $('#customer').val();
             let totalAmount = parseFloat($('.order-total').text().replace('Rs. ', '')) || 0;
-            let receivedAmount = parseFloat($('.amount-cal').first().val()) || 0;
+            let receivedAmount = parseFloat($('#received-amount').val()) || 0;
             let discountAmount = parseFloat($('#discount-amount').val()) || 0;
             
             // For split payments, skip received amount validation
@@ -522,7 +576,8 @@
                         selectedInventoryItems = [];
                         updateInventoryDisplay();
                         $('#payment-mode').val('');
-                        $('.amount-cal').val('');
+                        $('#received-amount').val('');
+                        $('#change-amount').val('Rs. 0.00');
                         $('#customer').val('').trigger('change');
                         $('#discount-amount').val('');
                         

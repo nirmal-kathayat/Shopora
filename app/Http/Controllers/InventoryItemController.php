@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\InventoryItemRequest;
+use App\Models\InventoryItem;
 use App\Repository\CategoryRepository;
 use App\Repository\InventoryItemRepository;
 use DataTables;
@@ -11,6 +12,7 @@ use Illuminate\Http\Request;
 class InventoryItemController extends Controller
 {
     private $inventoryItemRepo, $categoryRepo;
+
     public function __construct(InventoryItemRepository $inventoryItemRepo, CategoryRepository $categoryRepo)
     {
         $this->inventoryItemRepo = $inventoryItemRepo;
@@ -55,28 +57,24 @@ class InventoryItemController extends Controller
 
     public function store(InventoryItemRequest $request)
     {
-        // dd($request->all());
         try {
-            $item = $this->inventoryItemRepo->storeInventoryItem($request->validated());
+            $data = $request->validated();
+            if ($request->hasFile('image')) {
+                $data['image'] = $this->inventoryItemRepo->storeImageFile($request->file('image'));
+            }
+
+            $item = $this->inventoryItemRepo->storeInventoryItem($data);
 
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([
                     'type' => 'success',
                     'message' => 'Inventory Item added successfully!',
-                    'inventory' => [
-                        'id' => $item->id,
-                        'title' => $item->title,
-                        'code' => $item->code,
-                        'unit' => $item->unit,
-                        'price_per_unit' => $item->price_per_unit,
-                        'category_id' => $item->category_id,
-                    ],
+                    'inventory' => $this->formatInventoryItem($item),
                 ]);
             }
 
             return redirect()->route('admin.inventoryItem')->with(['message' => 'Inventory Item added successfully!', 'type' => 'success']);
         } catch (\Exception $e) {
-            // dd($e->getMessage());
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json(['type' => 'error', 'message' => 'Something went wrong!'], 500);
             }
@@ -91,9 +89,16 @@ class InventoryItemController extends Controller
 
     public function update(InventoryItemRequest $request, $id)
     {
-      
         try {
-            $this->inventoryItemRepo->updateInventoryItem($request->validated(), $id);
+            $data = $request->validated();
+            $existing = $this->inventoryItemRepo->find($id);
+
+            if ($request->hasFile('image')) {
+                $this->inventoryItemRepo->deleteImageFile($existing->image);
+                $data['image'] = $this->inventoryItemRepo->storeImageFile($request->file('image'));
+            }
+
+            $this->inventoryItemRepo->updateInventoryItem($data, $id);
 
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([
@@ -120,5 +125,19 @@ class InventoryItemController extends Controller
         } catch (\Exception $e) {
             return redirect()->back()->with(['message' => 'Something went wrong!', 'type' => 'error']);
         }
+    }
+
+    private function formatInventoryItem(InventoryItem $item): array
+    {
+        return [
+            'id' => $item->id,
+            'title' => $item->title,
+            'code' => $item->code,
+            'unit' => $item->unit,
+            'price_per_unit' => $item->price_per_unit,
+            'category_id' => $item->category_id,
+            'image' => $item->image,
+            'image_url' => inventoryItemImageUrl($item->image),
+        ];
     }
 }

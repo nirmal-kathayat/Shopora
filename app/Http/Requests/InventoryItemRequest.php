@@ -26,7 +26,8 @@ class InventoryItemRequest extends FormRequest
             'unit' => 'required',
             'category_id' => 'required',
             'price_per_unit' => 'required',
-            'code' => 'required'
+            'code' => 'required',
+            'image' => 'nullable|image|mimes:jpeg,jpg,png,webp,gif|max:2048',
         ];
     }
 }

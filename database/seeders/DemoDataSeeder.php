@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Carbon\Carbon;
 
 class DemoDataSeeder extends Seeder
@@ -61,8 +62,11 @@ class DemoDataSeeder extends Seeder
         ];
 
         $itemIds = [];
+        $this->clearDemoProductImages();
         foreach ($items as $item) {
+            $image = $this->seedProductImage($item['code'], $item['title']);
             $itemIds[] = DB::table('inventory_items')->insertGetId(array_merge($item, [
+                'image' => $image,
                 'created_at' => $now,
                 'updated_at' => $now,
             ]));
@@ -218,6 +222,84 @@ class DemoDataSeeder extends Seeder
             ]);
         }
 
-        $this->command?->info('Demo data seeded: categories, inventory items, customers, purchases, sales/invoices/stocks.');
+        $this->command?->info('Demo data seeded: categories, inventory items (with images), customers, purchases, sales/invoices/stocks.');
+    }
+
+    /**
+     * Copy bundled real product photo into public/image (no storage:link).
+     */
+    private function seedProductImage(string $code, string $title): ?string
+    {
+        $directory = public_path('image');
+        if (!is_dir($directory)) {
+            mkdir($directory, 0755, true);
+        }
+
+        $filename = 'demo_' . Str::lower(Str::slug($code, '_')) . '.jpg';
+        $fullPath = $directory . DIRECTORY_SEPARATOR . $filename;
+        $assetPath = database_path('seeders/assets/demo-products/' . $filename);
+
+        if (is_file($assetPath) && filesize($assetPath) > 0) {
+            copy($assetPath, $fullPath);
+
+            return $filename;
+        }
+
+        $downloaded = $this->downloadProductImage($code, $title, $fullPath);
+        if ($downloaded) {
+            return $filename;
+        }
+
+        $this->command?->warn("Image skip for {$code}: no bundled asset and download failed.");
+
+        return null;
+    }
+
+    private function clearDemoProductImages(): void
+    {
+        $publicDir = public_path('image');
+        foreach (glob($publicDir . DIRECTORY_SEPARATOR . 'demo_*.jpg') ?: [] as $oldFile) {
+            @unlink($oldFile);
+        }
+    }
+
+    private function downloadProductImage(string $code, string $title, string $fullPath): bool
+    {
+        $tagMap = [
+            'EL-001' => 'usb,cable',
+            'EL-002' => 'computer,mouse',
+            'EL-003' => 'laptop,charger',
+            'GR-001' => 'rice,bag',
+            'GR-002' => 'cooking,oil',
+            'GR-003' => 'sugar,packet',
+            'ST-001' => 'paper,office',
+            'ST-002' => 'pen,stationery',
+            'ST-003' => 'notebook,spiral',
+            'HW-001' => 'screwdriver,tools',
+            'HW-002' => 'light,bulb',
+            'HW-003' => 'power,cable',
+            'BV-001' => 'water,bottle',
+            'BV-002' => 'soda,drink',
+            'BV-003' => 'coffee,jar',
+            'PC-001' => 'soap,handwash',
+            'PC-002' => 'toothpaste',
+            'PC-003' => 'skincare,face',
+        ];
+
+        $tags = $tagMap[$code] ?? Str::slug($title, ',');
+        $lock = preg_replace('/[^a-zA-Z0-9]/', '', $code);
+        $url = "https://loremflickr.com/200/200/{$tags}?lock={$lock}";
+
+        $context = stream_context_create([
+            'ssl' => ['verify_peer' => false, 'verify_peer_name' => false],
+            'http' => ['timeout' => 30, 'header' => 'User-Agent: ShoporaDemoSeeder/1.0'],
+        ]);
+
+        $body = @file_get_contents($url, false, $context);
+        if (!$body || strlen($body) < 2000) {
+            return false;
+        }
+
+        return file_put_contents($fullPath, $body) !== false;
     }
 }
