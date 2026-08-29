@@ -23,7 +23,8 @@ class RoleRequest extends FormRequest
     {
         return [
             'name' => 'required|unique:roles,name,' . $this->id,
-            'permissions' => 'nullable'
+            'permissions' => 'nullable|array',
+            'permissions.*' => 'integer|exists:permissions,id',
         ];
     }
 }

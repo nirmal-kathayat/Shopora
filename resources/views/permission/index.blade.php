@@ -2,6 +2,26 @@
 
 @section("style")
 <link href="{{asset('assets/plugins/datatable/css/dataTables.bootstrap5.min.css')}}" rel="stylesheet" />
+<style>
+    #permissionTable .table-permission-list-stacked {
+        min-width: 0;
+    }
+
+    #permissionTable .permission-module-line {
+        display: block;
+        padding: 2px 0;
+        line-height: 1.45;
+        font-size: 13px;
+        color: #374151;
+        white-space: nowrap;
+    }
+
+    #permissionTable .permission-module-line + .permission-module-line {
+        margin-top: 4px;
+        border-top: 1px dashed #e5e7eb;
+        padding-top: 6px;
+    }
+</style>
 @endsection
 
 @section("wrapper")

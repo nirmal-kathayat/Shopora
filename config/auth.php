@@ -71,7 +71,7 @@ return [
         ],
         'admins' => [
             'driver' => 'eloquent',
-            'model' => IAnanta\UserManagement\Models\Admin::class,
+            'model' => App\Models\Admin::class,
         ],
 
         // 'users' => [

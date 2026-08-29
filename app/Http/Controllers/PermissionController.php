@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Admin;
 use IAnanta\UserManagement\Models\Permission;
 use IAnanta\UserManagement\Repository\PermissionRepository;
 use App\Http\Requests\PermissionRequest;
@@ -53,6 +54,7 @@ class PermissionController extends Controller
     {
         try {
             $this->repo->storePermission($request->validated());
+            Admin::clearAllPermissionCaches();
             return redirect()->route('admin.permission')->with(['message' => 'Permission created successfully', 'type' => 'success']);
         } catch (\Exception $e) {
             return redirect()->back()->with(['message' => 'Somthing were wrong', 'type' => 'error']);
@@ -74,6 +76,7 @@ class PermissionController extends Controller
     {
         try {
             $this->repo->updatePermission($request->validated(), $id);
+            Admin::clearAllPermissionCaches();
             return redirect()->route('admin.permission')->with(['message' => 'Permission updated successfully', 'type' => 'success']);
         } catch (\Exception $e) {
             return redirect()->back()->with(['message' => 'Somthing were wrong', 'type' => 'error']);
@@ -84,6 +87,7 @@ class PermissionController extends Controller
     {
         try {
             $this->repo->deletePermission($id);
+            Admin::clearAllPermissionCaches();
             return response()->json(['message' => 'Permission deleted successfully', 'type' => 'success']);
         } catch (\Exception $e) {
             return redirect()->back()->with(['message' => 'Somthing were wrong', 'type' => 'error']);

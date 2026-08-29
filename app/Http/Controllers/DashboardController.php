@@ -24,7 +24,7 @@ class DashboardController extends Controller
 
             return view('dashboard.index', [
                 'data' => $data,
-                'paymentModes' => $paymentModes
+                'paymentModes' => $paymentModes,
             ]);
         } catch (\Exception $e) {
             return redirect()->back()->with(['message' => 'Something went wrong', 'type' => 'error']);

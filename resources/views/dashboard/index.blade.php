@@ -1181,6 +1181,10 @@
                 renderRecentSales(response.recentSales || []);
                 renderLowStockItems(response.lowStockItems || []);
             },
+            error: function() {
+                $('#recentSalesBody').html('<tr><td colspan="8" class="shopora-panel-empty">Unable to load recent sales</td></tr>');
+                $('#lowStockBody').html('<tr><td colspan="3" class="shopora-panel-empty">Unable to load low stock items</td></tr>');
+            },
             complete: markDone
         });
 

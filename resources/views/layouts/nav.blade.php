@@ -385,6 +385,23 @@
     $isInvoice = request()->routeIs('admin.invoice*');
     $isCustomers = request()->routeIs('admin.customer*');
     $isSettingsSection = request()->routeIs('admin.permission*', 'admin.role*', 'admin.user*');
+
+    $showDashboard = auth()->guard(config('permission.guard'))->check();
+    $showReports = canAccessAnyRoute([
+        'admin.reports',
+        'admin.reports.salesReport',
+        'admin.reports.inventoryReport',
+    ]);
+    $showInventoryItems = canAccessRoute('admin.inventoryItem');
+    $showPurchase = canAccessRoute('admin.purchaseInventory');
+    $showInventoryRecords = canAccessRoute('admin.purchaseInventory.storeRecords');
+    $showSales = canAccessRoute('admin.sales.index');
+    $showInvoice = canAccessRoute('admin.invoice.index');
+    $showCustomers = canAccessRoute('admin.customer');
+    $showPermission = canAccessRoute('admin.permission');
+    $showRole = canAccessRoute('admin.role');
+    $showUser = canAccessRoute('admin.user');
+    $showSettings = $showPermission || $showRole || $showUser;
 @endphp
 
 <div class="sidebar-wrapper shopora-sidebar">
@@ -401,13 +418,16 @@
 
     <div class="sidebar-nav-scroll">
         <ul class="metismenu" id="menu">
+            @if($showDashboard)
             <li class="{{ $isDashboard ? 'active-link' : '' }}">
                 <a href="{{ route('admin.dashboard') }}">
                     <div class="parent-icon"><i class='bx bx-tachometer'></i></div>
                     <div class="menu-title">Dashboard</div>
                 </a>
             </li>
+            @endif
 
+            @if($showReports)
             <li class="has-submenu {{ $isReportsSection ? 'open' : '' }}">
                 <a href="javascript:;" class="has-arrow {{ $isReportsSection ? 'mm-active' : '' }}" onclick="toggleDropdown(this)">
                     <div class="parent-icon"><i class='bx bx-bar-chart-alt-2'></i></div>
@@ -415,66 +435,86 @@
                     <i class="bx bx-chevron-right shopora-submenu-chevron"></i>
                 </a>
                 <ul class="submenu shopora-submenu {{ $isReportsSection ? 'active' : '' }}">
+                    @if(canAccessRoute('admin.reports'))
                     <li>
                         <a href="{{ route('admin.reports') }}" class="{{ request()->routeIs('admin.reports') && !request()->routeIs('admin.reports.*') ? 'active' : '' }}">
                             <i class="bx bx-right-arrow-alt"></i>Purchase Report
                         </a>
                     </li>
+                    @endif
+                    @if(canAccessRoute('admin.reports.salesReport'))
                     <li>
                         <a href="{{ route('admin.reports.salesReport') }}" class="{{ request()->routeIs('admin.reports.salesReport') ? 'active' : '' }}">
                             <i class="bx bx-right-arrow-alt"></i>Sales Report
                         </a>
                     </li>
+                    @endif
+                    @if(canAccessRoute('admin.reports.inventoryReport'))
                     <li>
                         <a href="{{ route('admin.reports.inventoryReport') }}" class="{{ request()->routeIs('admin.reports.inventoryReport') ? 'active' : '' }}">
                             <i class="bx bx-right-arrow-alt"></i>Inventory Report
                         </a>
                     </li>
+                    @endif
                 </ul>
             </li>
+            @endif
 
+            @if($showInventoryItems)
             <li class="{{ $isInventoryItems ? 'active-link' : '' }}">
                 <a href="{{ route('admin.inventoryItem') }}">
                     <div class="parent-icon"><i class='bx bx-package'></i></div>
                     <div class="menu-title">Inventory Items</div>
                 </a>
             </li>
+            @endif
 
+            @if($showPurchase)
             <li class="{{ $isPurchase ? 'active-link' : '' }}">
                 <a href="{{ route('admin.purchaseInventory') }}">
                     <div class="parent-icon"><i class='bx bx-cart'></i></div>
                     <div class="menu-title">Purchase Inventory</div>
                 </a>
             </li>
+            @endif
 
+            @if($showInventoryRecords)
             <li class="{{ $isInventoryRecords ? 'active-link' : '' }}">
                 <a href="{{ route('admin.purchaseInventory.storeRecords') }}">
                     <div class="parent-icon"><i class='bx bx-list-plus'></i></div>
                     <div class="menu-title">Inventory Records</div>
                 </a>
             </li>
+            @endif
 
+            @if($showSales)
             <li class="{{ $isSales ? 'active-link' : '' }}">
                 <a href="{{ route('admin.sales.index') }}">
                     <div class="parent-icon"><i class='bx bx-shopping-bag'></i></div>
                     <div class="menu-title">Sales</div>
                 </a>
             </li>
+            @endif
 
+            @if($showInvoice)
             <li class="{{ $isInvoice ? 'active-link' : '' }}">
                 <a href="{{ route('admin.invoice.index') }}">
                     <div class="parent-icon"><i class='bx bx-receipt'></i></div>
                     <div class="menu-title">Invoice</div>
                 </a>
             </li>
+            @endif
 
+            @if($showCustomers)
             <li class="{{ $isCustomers ? 'active-link' : '' }}">
                 <a href="{{ route('admin.customer') }}">
                     <div class="parent-icon"><i class='bx bx-user'></i></div>
                     <div class="menu-title">Customers</div>
                 </a>
             </li>
+            @endif
 
+            @if($showSettings)
             <li class="has-submenu {{ $isSettingsSection ? 'open' : '' }}">
                 <a href="javascript:;" class="has-arrow {{ $isSettingsSection ? 'mm-active' : '' }}" onclick="toggleDropdown(this)">
                     <div class="parent-icon"><i class="bx bx-cog"></i></div>
@@ -482,23 +522,30 @@
                     <i class="bx bx-chevron-right shopora-submenu-chevron"></i>
                 </a>
                 <ul class="submenu shopora-submenu {{ $isSettingsSection ? 'active' : '' }}">
+                    @if($showPermission)
                     <li>
                         <a href="{{ route('admin.permission') }}" class="{{ request()->routeIs('admin.permission*') ? 'active' : '' }}">
                             <i class="bx bx-right-arrow-alt"></i>Permission
                         </a>
                     </li>
+                    @endif
+                    @if($showRole)
                     <li>
                         <a href="{{ route('admin.role') }}" class="{{ request()->routeIs('admin.role*') ? 'active' : '' }}">
                             <i class="bx bx-right-arrow-alt"></i>Role
                         </a>
                     </li>
+                    @endif
+                    @if($showUser)
                     <li>
                         <a href="{{ route('admin.user') }}" class="{{ request()->routeIs('admin.user*') ? 'active' : '' }}">
                             <i class="bx bx-right-arrow-alt"></i>User
                         </a>
                     </li>
+                    @endif
                 </ul>
             </li>
+            @endif
         </ul>
     </div>
 

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Admin;
 use IAnanta\UserManagement\Models\Role;
 use IAnanta\UserManagement\Repository\RoleRepository;
 use IAnanta\UserManagement\Repository\PermissionRepository;
@@ -77,6 +78,7 @@ class RoleController extends Controller
     {
         try {
             $this->repo->updateRole($request->validated(), $id);
+            Admin::clearPermissionCacheForRole((int) $id);
             return redirect()->route('admin.role')->with(['message' => 'Role updated successfully', 'type' => 'success']);
         } catch (\Exception $e) {
             return redirect()->back()->with(['message' => 'Somthing were wrong', 'type' => 'error']);
@@ -87,6 +89,7 @@ class RoleController extends Controller
     {
         try {
             $this->repo->deleteRole($id);
+            Admin::clearPermissionCacheForRole((int) $id);
             return response()->json(['message' => 'Role deleted successfully', 'type' => 'success']);
         } catch (\Exception $e) {
             return response()->json(['error' => 'An error occurred while deleting the menu.']);

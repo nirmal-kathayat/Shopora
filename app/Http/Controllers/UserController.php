@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Admin;
 use IAnanta\UserManagement\Repository\AdminRepository;
-use IAnanta\UserManagement\Models\Admin;
 use IAnanta\UserManagement\Repository\RoleRepository;
 use App\Http\Requests\UserRequest;
 use Yajra\DataTables\DataTables;
@@ -46,7 +46,9 @@ class UserController extends Controller
     public function store(UserRequest $request)
     {
         try {
-            $this->repo->storeAdmin($request->validated());
+            $admin = $this->repo->storeAdmin($request->validated());
+            $admin->roles()->sync($request->input('roles', []));
+            Admin::clearPermissionCache($admin->id);
             return redirect()->route('admin.user')->with(['message' => 'User created successfully', 'type' => 'success']);
         } catch (\Exception $e) {
             return redirect()->back()->with(['message' => 'Somthing were wrong', 'type' => 'error']);
@@ -68,7 +70,9 @@ class UserController extends Controller
     public function update(UserRequest $request, $id)
     {
         try {
-            $this->repo->updateAdmin($request->validated(), $id);
+            $admin = $this->repo->updateAdmin($request->validated(), $id);
+            $admin->roles()->sync($request->input('roles', []));
+            Admin::clearPermissionCache((int) $id);
             return redirect()->route('admin.user')->with(['message' => 'User updated successfully', 'type' => 'success']);
         } catch (\Exception $e) {
             return redirect()->back()->with(['message' => 'Somthing were wrong', 'type' => 'error']);
