@@ -28,7 +28,9 @@ class InventoryItemController extends Controller
                     ->rawColumns([])
                     ->make(true);
             }
-            return view('inventoryItem.index');
+            $categories = $this->categoryRepo->getCategory();
+
+            return view('inventoryItem.index', compact('categories'));
         } catch (\Exception $e) {
             return redirect()->back()->with(['message' => 'Something went wrong!', 'type' => 'error']);
         }
@@ -48,13 +50,7 @@ class InventoryItemController extends Controller
 
     public function create()
     {
-        try {
-            $categories = $this->categoryRepo->getCategory();
-            $inventoryCount = $this->inventoryItemRepo->countInventories();
-            return view('inventoryItem.form')->with(['categories' => $categories, 'inventoryCount' => $inventoryCount]);
-        } catch (\Exception $e) {
-            return redirect()->back()->with(['message' => 'Something went wrong!', 'type' => 'error']);
-        }
+        return redirect()->route('admin.inventoryItem');
     }
 
     public function store(InventoryItemRequest $request)
@@ -90,13 +86,7 @@ class InventoryItemController extends Controller
 
     public function edit($id)
     {
-        try {
-            $categories = $this->categoryRepo->getCategory();
-            $inventoryItem = $this->inventoryItemRepo->find($id);
-            return view('inventoryItem.form')->with(['categories' => $categories, 'inventoryItem' => $inventoryItem]);
-        } catch (\Exception $e) {
-            return redirect()->back()->with(['message' => 'Something went wrong!', 'type' => 'error']);
-        }
+        return redirect()->route('admin.inventoryItem');
     }
 
     public function update(InventoryItemRequest $request, $id)
@@ -104,8 +94,20 @@ class InventoryItemController extends Controller
       
         try {
             $this->inventoryItemRepo->updateInventoryItem($request->validated(), $id);
+
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'type' => 'success',
+                    'message' => 'Inventory Item updated successfully!',
+                ]);
+            }
+
             return redirect()->route('admin.inventoryItem')->with(['message' => 'Inventory Item updated successfully!', 'type' => 'success']);
         } catch (\Exception $e) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['type' => 'error', 'message' => 'Something went wrong!'], 500);
+            }
+
             return redirect()->back()->with(['message' => 'Something went wrong!', 'type' => 'error']);
         }
     }

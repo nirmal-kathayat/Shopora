@@ -28,20 +28,17 @@ class PurchaseInventoryController extends Controller
                     ->rawColumns([])
                     ->make(true);
             }
-            return view('purchaseInventory.index');
+            $inventories = $this->inventoryItemRepo->getInventoryTitle();
+            $categories = $this->categoryRepo->getCategory();
+
+            return view('purchaseInventory.index', compact('inventories', 'categories'));
         } catch (\Exception $e) {
             return redirect()->back()->with(['message' => 'Something went wrong!', 'type' => 'error']);
         }
     }
     public function create()
     {
-        try {
-            $inventories = $this->inventoryItemRepo->getInventoryTitle();
-            $categories = $this->categoryRepo->getCategory();
-            return view('purchaseInventory.form')->with(['inventories' => $inventories, 'categories' => $categories]);
-        } catch (\Exception $e) {
-            return redirect()->back()->with(['message' => 'Something went wrong!', 'type' => 'error']);
-        }
+        return redirect()->route('admin.purchaseInventory');
     }
 
     public function store(PurchaseInventoryRequest $request)
@@ -49,30 +46,47 @@ class PurchaseInventoryController extends Controller
         // dd($request->all());
         try {
             $this->purchaseInventoryRepo->store($request->validated());
+
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'type' => 'success',
+                    'message' => 'Purchase inventory added!',
+                ]);
+            }
+
             return redirect()->route('admin.purchaseInventory')->with(['message' => 'Purchase inventory added!', 'type' => 'success']);
         } catch (\Exception $e) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['type' => 'error', 'message' => 'Something went wrong!'], 500);
+            }
+
             return redirect()->back()->with(['message' => 'Something went wrong!', 'type' => 'error']);
         }
     }
 
     public function edit($id)
     {
-        try {
-            $inventories = $this->inventoryItemRepo->getInventoryTitle();
-            $purchaseInventory = $this->purchaseInventoryRepo->find($id);
-            $categories = $this->categoryRepo->getCategory();
-            return view('purchaseInventory.form')->with(['inventories' => $inventories, 'purchaseInventory' => $purchaseInventory, 'categories' => $categories]);
-        } catch (\Exception $e) {
-            return redirect()->back()->with(['message' => 'Something went wrong!', 'type' => 'error']);
-        }
+        return redirect()->route('admin.purchaseInventory');
     }
 
     public function update(PurchaseInventoryRequest $request, $id)
     {
         try {
             $this->purchaseInventoryRepo->update($request->validated(), $id);
+
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'type' => 'success',
+                    'message' => 'Purchase inventory updated!',
+                ]);
+            }
+
             return redirect()->route('admin.purchaseInventory')->with(['message' => 'Purchase inventory updated!', 'type' => 'success']);
         } catch (\Exception $e) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['type' => 'error', 'message' => 'Something went wrong!'], 500);
+            }
+
             return redirect()->back()->with(['message' => 'Something went wrong!', 'type' => 'error']);
         }
     }

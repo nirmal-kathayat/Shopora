@@ -26,6 +26,7 @@ class InventoryItemRepository
                 'inventory_items.code',
                 'inventory_items.unit',
                 'inventory_items.price_per_unit',
+                'inventory_items.category_id',
                 'categories.title as category_title'
             );
 

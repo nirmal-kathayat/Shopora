@@ -48,9 +48,9 @@
             </div>
             <div class="ms-auto">
                 <div class="btn-group">
-                    <a href="{{ route('admin.purchaseInventory.create') }}" class="btn btn-primary">
+                    <button type="button" id="btnNewPurchaseInventory" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#purchaseInventoryFormModal">
                         <i class="bx bx-plus me-1"></i> New Purchase Inventory
-                    </a>
+                    </button>
                 </div>
             </div>
         </div>
@@ -74,6 +74,8 @@
         </div>
     </div>
 </div>
+
+@include('purchaseInventory.formModal')
 
 @endsection
 
@@ -99,20 +101,19 @@
 </div>
 
 @section("script")
-
-<!-- jQuery -->
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<!-- Bootstrap Bundle with Popper -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-<!-- DataTables -->
 <script src="{{asset('assets/plugins/datatable/js/jquery.dataTables.min.js')}}"></script>
 <script src="{{asset('assets/plugins/datatable/js/dataTables.bootstrap5.min.js')}}"></script>
 <script>
     $(document).ready(function() {
-        $('#purchaseInventoryTable').DataTable({
+        var table = $('#purchaseInventoryTable').DataTable({
             processing: true,
             serverSide: true,
-            ajax: "{{ route('admin.purchaseInventory') }}",
+            ajax: {
+                url: "{{ route('admin.purchaseInventory') }}",
+                error: function(xhr) {
+                    console.error('Purchase inventory table load failed:', xhr.responseText || xhr.statusText);
+                }
+            },
             pageLength: 25,
             columns: [{
                     data: 'id',
@@ -138,18 +139,19 @@
                     orderable: false,
                     searchable: false,
                     render: function(data, type, full, meta) {
-                        var editUrl = "{{route('admin.purchaseInventory.edit',['id'=>':id'])}}".replace(':id', full.id);
                         var viewButton = '<a class="btn-primary btn-sm action-btn view-bill-btn" title="View" href="javascript:void(0)" data-id="' + full.id + '"><i class="bx bx-show"></i></a>';
-                        var editButton = '<a class="btn-primary btn-sm action-btn" title="Edit" href="' + editUrl + '"><i class="bx bx-edit"></i></a>';
+                        var editButton = '<button type="button" class="btn-primary btn-sm action-btn editPurchaseInventory" title="Edit" data-id="' + full.id + '"><i class="bx bx-edit"></i></button>';
                         var deleteButton = '<a class="btn-danger btn-sm action-btn deleteAction" title="Delete" href="javascript:void(0)" data-id="' + full.id + '"><i class="bx bx-trash"></i></a>';
                         return `<div class="action-btn-group">${viewButton}${editButton}${deleteButton}</div>`;
                     }
                 }
             ],
             initComplete: function(settings, json) {
-                console.log(json); // Log the received JSON data
+                console.log(json);
             }
         });
+
+        window.purchaseInventoryDataTable = table;
 
         // delete action
         $('#purchaseInventoryTable').on('click', '.deleteAction', function(e) {
@@ -208,7 +210,10 @@
                 success: function(response) {
                     var billHtml = generateBillHtml(response);
                     $('#billContent').html(billHtml);
-                    $('#purchaseBillModal').modal('show');
+                    const billModalEl = document.getElementById('purchaseBillModal');
+                    if (billModalEl && window.bootstrap) {
+                        bootstrap.Modal.getOrCreateInstance(billModalEl).show();
+                    }
                 },
                 error: function(xhr) {
                     Swal.fire(

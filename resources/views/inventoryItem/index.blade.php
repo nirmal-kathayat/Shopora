@@ -21,9 +21,9 @@
             </div>
             <div class="ms-auto">
                 <div class="btn-group">
-                    <a href="{{ route('admin.inventoryItem.create') }}" class="btn btn-primary">
+                    <button type="button" id="btnNewInventoryItem" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#inventoryItemFormModal">
                         <i class="bx bx-plus me-1"></i> New Inventory Item
-                    </a>
+                    </button>
                 </div>
             </div>
         </div>
@@ -61,21 +61,13 @@
     </div>
 </div>
 
+@include('inventoryItem.formModal')
+
 @endsection
 
 @section("script")
-
-<!-- jQuery -->
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<!-- Bootstrap Bundle with Popper -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-<!-- DataTables -->
 <script src="{{asset('assets/plugins/datatable/js/jquery.dataTables.min.js')}}"></script>
 <script src="{{asset('assets/plugins/datatable/js/dataTables.bootstrap5.min.js')}}"></script>
-<!-- Select2 CSS -->
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-<!-- Select2 JS -->
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <style>
     .select2-container--default .select2-selection--single {
         border-radius: 0.375rem;
@@ -143,6 +135,9 @@
                 type: 'GET',
                 data: function(d) {
                     d.category_id = $('#categoryFilter').val();
+                },
+                error: function(xhr) {
+                    console.error('Inventory table load failed:', xhr.responseText || xhr.statusText);
                 }
             },
             pageLength: 25,
@@ -185,8 +180,7 @@
                     orderable: false,
                     searchable: false,
                     render: function(data, type, full, meta) {
-                        var editUrl = "{{route('admin.inventoryItem.edit',['id'=>':id'])}}".replace(':id', full.id);
-                        var editButton = '<a class="btn btn-primary btn-sm" href="' + editUrl + '"><i class="bx bx-edit"></i></a>';
+                        var editButton = '<button type="button" class="btn btn-primary btn-sm editInventoryItem" data-id="' + full.id + '" data-title="' + (full.title || '').replace(/"/g, '&quot;') + '" data-unit="' + (full.unit || '').replace(/"/g, '&quot;') + '" data-code="' + (full.code || '').replace(/"/g, '&quot;') + '" data-price="' + (full.price_per_unit || '') + '" data-category-id="' + (full.category_id || '') + '"><i class="bx bx-edit"></i></button>';
                         var deleteButton = '<a class="btn btn-danger deleteAction btn-sm" href="javascript:void(0)" data-id="' + full.id + '"><i class="bx bx-trash"></i></a>';
                         var actionButtons = '<div class="d-flex gap-sm-2">' + editButton + deleteButton + '</div>';
                         return actionButtons;
@@ -197,6 +191,8 @@
                 console.log(json); // Log the received JSON data
             }
         });
+
+        window.inventoryItemDataTable = table;
 
         // Category filter change event
         $('#categoryFilter').on('change', function() {
