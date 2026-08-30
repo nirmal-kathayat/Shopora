@@ -261,41 +261,37 @@
     /* Footer branding (Figma) */
     .shopora-sidebar .sidebar-footer {
         flex-shrink: 0;
-        padding: 14px 16px 16px;
+        padding: 0;
         border-top: 1px solid #eef0f3;
         background: #fff;
-        display: flex;
-        align-items: flex-start;
-        gap: 10px;
     }
 
-    .shopora-sidebar .sidebar-footer .footer-icon {
-        width: 28px;
-        height: 28px;
-        border-radius: 8px;
-        background: #ecfdf8;
-        color: #0d9488;
+    .shopora-sidebar .collapse-btn {
+        width: 100%;
+        border: 0;
+        background: transparent;
         display: flex;
         align-items: center;
-        justify-content: center;
-        font-size: 16px;
+        gap: 12px;
+        padding: 14px 20px;
+        border-radius: 0;
+        color: #4b5563;
+        font-size: 14.5px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background 0.2s ease, color 0.2s ease;
+    }
+
+    .shopora-sidebar .collapse-btn:hover {
+        background: #f6f8fb;
+        color: #008cff;
+    }
+
+    .shopora-sidebar .collapse-btn .collapse-ico {
+        font-size: 22px;
+        line-height: 1;
         flex-shrink: 0;
-        margin-top: 2px;
-    }
-
-    .shopora-sidebar .sidebar-footer .footer-title {
-        margin: 0;
-        font-size: 13.5px;
-        font-weight: 700;
-        color: #0f766e;
-        line-height: 1.2;
-    }
-
-    .shopora-sidebar .sidebar-footer .footer-sub {
-        margin: 3px 0 0;
-        font-size: 11px;
-        color: #9ca3af;
-        line-height: 1.35;
+        transition: transform 0.2s ease;
     }
 
     /* Topbar stays aligned */
@@ -366,6 +362,77 @@
     .page-wrapper {
         margin-top: 64px !important;
     }
+
+    /* mini logo shows only when the sidebar is collapsed */
+    .shopora-sidebar .sidebar-header .logo-mini {
+        display: none;
+        height: 30px;
+        width: 30px;
+        object-fit: contain;
+    }
+
+    /* ===== Collapsed (toggled) sidebar — desktop only ===== */
+    @media screen and (min-width: 1025px) {
+
+        /* swap wide logo for the compact mark, centered */
+        .wrapper.toggled:not(.sidebar-hovered) .shopora-sidebar .sidebar-header .logo-icon {
+            display: none;
+        }
+
+        .wrapper.toggled:not(.sidebar-hovered) .shopora-sidebar .sidebar-header .logo-mini {
+            display: block;
+        }
+
+        .wrapper.toggled:not(.sidebar-hovered) .shopora-sidebar .sidebar-header {
+            justify-content: center;
+            padding: 12px 0 !important;
+        }
+
+        .wrapper.toggled:not(.sidebar-hovered) .shopora-sidebar .sidebar-header .d-flex {
+            flex: 0 0 auto !important;
+            justify-content: center;
+        }
+
+        /* hide labels and the submenu chevron */
+        .wrapper.toggled:not(.sidebar-hovered) .shopora-sidebar .metismenu .menu-title,
+        .wrapper.toggled:not(.sidebar-hovered) .shopora-sidebar .shopora-submenu-chevron {
+            display: none !important;
+        }
+
+        /* keep each row a centered icon */
+        .wrapper.toggled:not(.sidebar-hovered) .shopora-sidebar .metismenu > li > a {
+            justify-content: center !important;
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+            gap: 0 !important;
+        }
+
+        .wrapper.toggled:not(.sidebar-hovered) .shopora-sidebar .metismenu > li > a .parent-icon {
+            width: auto !important;
+            margin: 0 !important;
+        }
+
+        /* never show open submenus while collapsed */
+        .wrapper.toggled:not(.sidebar-hovered) .shopora-sidebar .metismenu .submenu {
+            display: none !important;
+        }
+
+        /* footer collapse button: icon only, flipped to point right (expand) */
+        .wrapper.toggled:not(.sidebar-hovered) .shopora-sidebar .collapse-btn {
+            justify-content: center;
+            padding-left: 0;
+            padding-right: 0;
+            gap: 0;
+        }
+
+        .wrapper.toggled:not(.sidebar-hovered) .shopora-sidebar .collapse-label {
+            display: none !important;
+        }
+
+        .wrapper.toggled:not(.sidebar-hovered) .shopora-sidebar .collapse-btn .collapse-ico {
+            transform: rotate(180deg);
+        }
+    }
 </style>
 
 @php
@@ -410,6 +477,9 @@
             <a href="{{ route('admin.dashboard') }}" class="d-flex align-items-center text-decoration-none">
                 <img src="{{ asset('assets/images/shopora.png') }}"
                      class="logo-icon"
+                     alt="Shopora">
+                <img src="{{ asset('assets/images/favicon-32x32.png') }}"
+                     class="logo-mini"
                      alt="Shopora">
             </a>
         </div>
@@ -550,11 +620,10 @@
     </div>
 
     <div class="sidebar-footer">
-        <div class="footer-icon"><i class='bx bx-store'></i></div>
-        <div>
-            <p class="footer-title">Shopora Store</p>
-            <p class="footer-sub">Retail & Inventory<br>Management System</p>
-        </div>
+        <button type="button" class="collapse-btn toggle-icon" aria-label="Collapse sidebar">
+            <i class='bx bx-chevrons-left collapse-ico'></i>
+            <span class="collapse-label">Collapse</span>
+        </button>
     </div>
 </div>
 <!--end sidebar wrapper -->

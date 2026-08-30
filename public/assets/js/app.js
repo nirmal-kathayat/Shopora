@@ -59,22 +59,10 @@ $(function () {
         }
     });
 
-    // Sidebar toggle
+    // Sidebar toggle (clean collapse/expand, no hover-expand)
     $(".toggle-icon").click(function () {
-        if ($(".wrapper").hasClass("toggled")) {
-            $(".wrapper").removeClass("toggled");
-            $(".sidebar-wrapper").unbind("hover");
-        } else {
-            $(".wrapper").addClass("toggled");
-            $(".sidebar-wrapper").hover(
-                function () {
-                    $(".wrapper").addClass("sidebar-hovered");
-                },
-                function () {
-                    $(".wrapper").removeClass("sidebar-hovered");
-                }
-            );
-        }
+        $(".wrapper").removeClass("sidebar-hovered");
+        $(".wrapper").toggleClass("toggled");
     });
 
     // Back to top functionality
