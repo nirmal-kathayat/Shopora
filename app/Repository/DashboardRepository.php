@@ -43,6 +43,88 @@ class DashboardRepository
         ];
     }
 
+    public function getSalesTrend($filterType = null, $fromDate = null, $toDate = null): array
+    {
+        [$from, $to] = $this->resolveDateRange($filterType, $fromDate, $toDate);
+        $dateRange = [$from, $to];
+        $days = (int) $from->copy()->startOfDay()->diffInDays($to->copy()->startOfDay());
+
+        // adaptive granularity: daily for short ranges, monthly for long ones
+        $monthly = $days > 62;
+        $sqlDate = $monthly ? "DATE_FORMAT(sales.created_at, '%Y-%m-01')" : "DATE(sales.created_at)";
+
+        $gross = DB::table('sales_products')
+            ->join('sales', 'sales.id', '=', 'sales_products.sales_id')
+            ->whereBetween('sales.created_at', $dateRange)
+            ->select(DB::raw("$sqlDate as bucket"), DB::raw('SUM(sales_products.qty * sales_products.price_per_unit) as gross'))
+            ->groupBy('bucket')
+            ->pluck('gross', 'bucket');
+
+        $discount = DB::table('sales')
+            ->whereBetween('created_at', $dateRange)
+            ->select(DB::raw(($monthly ? "DATE_FORMAT(created_at, '%Y-%m-01')" : "DATE(created_at)") . ' as bucket'), DB::raw('SUM(discount) as disc'))
+            ->groupBy('bucket')
+            ->pluck('disc', 'bucket');
+
+        $points = [];
+        $cursor = $from->copy()->startOfDay();
+        $end = $to->copy()->startOfDay();
+
+        while ($cursor->lte($end)) {
+            $key = $monthly ? $cursor->format('Y-m-01') : $cursor->format('Y-m-d');
+            $g = (float) ($gross[$key] ?? 0);
+            $d = (float) ($discount[$key] ?? 0);
+            $points[$key] = [
+                'date' => $key,
+                'label' => $monthly ? $cursor->format('M Y') : $cursor->format('M j'),
+                'revenue' => max($g - $d, 0),
+            ];
+            $monthly ? $cursor->addMonthNoOverflow()->startOfMonth() : $cursor->addDay();
+        }
+
+        return [
+            'from_date' => $from->format('Y-m-d'),
+            'to_date' => $to->format('Y-m-d'),
+            'granularity' => $monthly ? 'monthly' : 'daily',
+            'points' => array_values($points),
+        ];
+    }
+
+    public function getCategoryBreakdown($filterType = null, $fromDate = null, $toDate = null): array
+    {
+        [$from, $to] = $this->resolveDateRange($filterType, $fromDate, $toDate);
+        $dateRange = [$from, $to];
+
+        $rows = DB::table('sales_products')
+            ->join('sales', 'sales.id', '=', 'sales_products.sales_id')
+            ->join('inventory_items', 'inventory_items.id', '=', 'sales_products.product_id')
+            ->leftJoin('categories', 'categories.id', '=', 'inventory_items.category_id')
+            ->whereBetween('sales.created_at', $dateRange)
+            ->select(
+                DB::raw("COALESCE(categories.title, 'Uncategorized') as category"),
+                DB::raw('SUM(sales_products.qty * sales_products.price_per_unit) as revenue'),
+                DB::raw('SUM(sales_products.qty) as qty')
+            )
+            ->groupBy('category')
+            ->orderByDesc('revenue')
+            ->get()
+            ->map(function ($row) {
+                return [
+                    'category' => $row->category,
+                    'revenue' => (float) $row->revenue,
+                    'qty' => (int) $row->qty,
+                ];
+            })
+            ->all();
+
+        return [
+            'from_date' => $from->format('Y-m-d'),
+            'to_date' => $to->format('Y-m-d'),
+            'categories' => $rows,
+            'total_revenue' => array_sum(array_column($rows, 'revenue')),
+        ];
+    }
+
     public function getPaymentMethodRevenue($filterType = null, $fromDate = null, $toDate = null)
     {
         [$from, $to] = $this->resolveDateRange($filterType, $fromDate, $toDate);

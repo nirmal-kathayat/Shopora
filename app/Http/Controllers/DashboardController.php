@@ -80,4 +80,34 @@ class DashboardController extends Controller
             return response()->json(['error' => 'Something went wrong'], 500);
         }
     }
+
+    public function getSalesTrend(Request $request)
+    {
+        try {
+            return response()->json([
+                'data' => $this->repo->getSalesTrend(
+                    null,
+                    $request->query('from_date'),
+                    $request->query('to_date')
+                ),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Something went wrong'], 500);
+        }
+    }
+
+    public function getCategoryBreakdown(Request $request)
+    {
+        try {
+            return response()->json([
+                'data' => $this->repo->getCategoryBreakdown(
+                    null,
+                    $request->query('from_date'),
+                    $request->query('to_date')
+                ),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Something went wrong'], 500);
+        }
+    }
 }

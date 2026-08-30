@@ -518,6 +518,38 @@
         margin: 0 0 8px;
     }
 
+    .shopora-charts-row {
+        margin: 0 0 8px;
+    }
+
+    .shopora-chart-head {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        margin-bottom: 6px;
+    }
+
+    .shopora-chart-sub {
+        font-size: 12.5px;
+        color: #9ca3af;
+    }
+
+    .shopora-chart-body {
+        position: relative;
+        flex: 1 1 auto;
+        min-height: 300px;
+    }
+
+    .shopora-chart-empty {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #9ca3af;
+        font-size: 14px;
+    }
+
     .shopora-panel-card {
         background: #fff;
         border: 1px solid #e5e7eb;
@@ -778,6 +810,34 @@
             </div>
         </div>
 
+        <!-- Charts: Sales Trend + Sales by Category -->
+        <div class="row g-3 shopora-charts-row">
+            <div class="col-12 col-xl-8">
+                <div class="shopora-panel-card">
+                    <div class="shopora-chart-head">
+                        <h3 class="shopora-panel-title mb-0">Sales Trend</h3>
+                        <span class="shopora-chart-sub" id="salesTrendSub">Revenue over the selected period</span>
+                    </div>
+                    <div class="shopora-chart-body">
+                        <div id="salesTrendChart"></div>
+                        <div class="shopora-chart-empty" id="salesTrendEmpty" hidden>No sales in this period</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-xl-4">
+                <div class="shopora-panel-card">
+                    <div class="shopora-chart-head">
+                        <h3 class="shopora-panel-title mb-0">Sales by Category</h3>
+                        <span class="shopora-chart-sub">Revenue share by category</span>
+                    </div>
+                    <div class="shopora-chart-body">
+                        <div id="categoryChart"></div>
+                        <div class="shopora-chart-empty" id="categoryEmpty" hidden>No category sales in this period</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Recent Sales + Low Stock (Figma) -->
         <div class="row g-3 shopora-panels-row">
             <div class="col-12 col-xl-8">
@@ -887,6 +947,8 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 <!-- Flatpickr for Date Range Picker -->
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<!-- ApexCharts (bundled, offline) -->
+<script src="{{ asset('assets/plugins/apexcharts-bundle/js/apexcharts.min.js') }}"></script>
 
 <script>
     // Create payment mode mapping globally
@@ -1348,12 +1410,105 @@
         });
     }
 
+    // ---------- Charts (ApexCharts) ----------
+    let salesTrendChart = null;
+    let categoryChart = null;
+    const CHART_BRAND = '#008cff';
+
+    function fmtRsShort(n) {
+        n = Number(n) || 0;
+        if (n >= 1000000) return 'Rs ' + (n / 1000000).toFixed(1) + 'M';
+        if (n >= 1000) return 'Rs ' + (n / 1000).toFixed(1) + 'K';
+        return 'Rs ' + Math.round(n);
+    }
+
+    function renderSalesTrend(payload) {
+        const points = (payload && payload.points) || [];
+        const hasData = points.some(p => Number(p.revenue) > 0);
+        $('#salesTrendEmpty').prop('hidden', hasData);
+        $('#salesTrendSub').text(payload && payload.granularity === 'monthly'
+            ? 'Monthly revenue over the selected period'
+            : 'Daily revenue over the selected period');
+
+        const categories = points.map(p => p.label);
+        const data = points.map(p => Math.round(Number(p.revenue) || 0));
+
+        const options = {
+            chart: { type: 'area', height: 300, fontFamily: 'inherit', toolbar: { show: false }, zoom: { enabled: false }, animations: { easing: 'easeinout', speed: 400 } },
+            series: [{ name: 'Revenue', data: data }],
+            colors: [CHART_BRAND],
+            stroke: { curve: 'smooth', width: 2 },
+            fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.35, opacityTo: 0.03, stops: [0, 90, 100] } },
+            dataLabels: { enabled: false },
+            grid: { borderColor: '#eef0f3', strokeDashArray: 4, padding: { left: 8, right: 8 } },
+            xaxis: { categories: categories, labels: { style: { colors: '#9ca3af', fontSize: '11px' }, rotate: -35, hideOverlappingLabels: true }, axisBorder: { show: false }, axisTicks: { show: false }, tooltip: { enabled: false } },
+            yaxis: { labels: { style: { colors: '#9ca3af', fontSize: '11px' }, formatter: v => fmtRsShort(v) } },
+            markers: { size: 0, hover: { size: 5 } },
+            tooltip: { y: { formatter: v => 'Rs ' + Number(v).toLocaleString() } },
+        };
+
+        if (salesTrendChart) {
+            salesTrendChart.updateOptions({ xaxis: { categories: categories } }, false, false);
+            salesTrendChart.updateSeries([{ name: 'Revenue', data: data }], true);
+        } else {
+            salesTrendChart = new ApexCharts(document.querySelector('#salesTrendChart'), options);
+            salesTrendChart.render();
+        }
+    }
+
+    function renderCategoryChart(payload) {
+        const cats = (payload && payload.categories) || [];
+        const hasData = cats.some(c => Number(c.revenue) > 0);
+        $('#categoryEmpty').prop('hidden', hasData);
+
+        const data = cats.map(c => ({ x: c.category, y: Math.round(Number(c.revenue) || 0) }));
+
+        const options = {
+            chart: { type: 'bar', height: 300, fontFamily: 'inherit', toolbar: { show: false } },
+            series: [{ name: 'Revenue', data: data }],
+            colors: [CHART_BRAND],
+            plotOptions: { bar: { horizontal: true, borderRadius: 4, barHeight: '62%' } },
+            dataLabels: { enabled: false },
+            grid: { borderColor: '#eef0f3', strokeDashArray: 4 },
+            xaxis: { tickAmount: 3, labels: { style: { colors: '#9ca3af', fontSize: '11px' }, formatter: v => fmtRsShort(v) }, axisBorder: { show: false }, axisTicks: { show: false } },
+            yaxis: { labels: { style: { colors: '#4b5563', fontSize: '12px' } } },
+            tooltip: { y: { formatter: v => 'Rs ' + Number(v).toLocaleString() } },
+        };
+
+        if (categoryChart) {
+            categoryChart.updateSeries([{ name: 'Revenue', data: data }], true);
+        } else {
+            categoryChart = new ApexCharts(document.querySelector('#categoryChart'), options);
+            categoryChart.render();
+        }
+    }
+
+    function fetchSalesTrend(done) {
+        $.ajax({
+            url: "{{ route('admin.dashboard.salesTrend') }}",
+            data: { from_date: $('#fromDate').val(), to_date: $('#toDate').val() },
+            success: function (res) { renderSalesTrend(res.data || {}); },
+            error: function () { $('#salesTrendEmpty').prop('hidden', false).text('Unable to load sales trend'); },
+            complete: function () { if (done) done(); }
+        });
+    }
+
+    function fetchCategoryBreakdown(done) {
+        $.ajax({
+            url: "{{ route('admin.dashboard.categoryBreakdown') }}",
+            data: { from_date: $('#fromDate').val(), to_date: $('#toDate').val() },
+            success: function (res) { renderCategoryChart(res.data || {}); },
+            error: function () { $('#categoryEmpty').prop('hidden', false).text('Unable to load category data'); },
+            complete: function () { if (done) done(); }
+        });
+    }
+
     function updateDashboard(options) {
         options = options || {};
         const withLoader = options.loader === true;
         const fromDate = $('#fromDate').val();
         const toDate = $('#toDate').val();
-        let pending = 2;
+        let pending = 4;
 
         if (withLoader) {
             showDashboardLoader();
@@ -1396,6 +1551,8 @@
         });
 
         fetchPaymentMethodRevenue(markDone);
+        fetchSalesTrend(markDone);
+        fetchCategoryBreakdown(markDone);
     }
 </script>
 
