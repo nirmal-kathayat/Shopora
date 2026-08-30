@@ -775,6 +775,122 @@
         color: #9ca3af;
         font-size: 13px;
     }
+
+    /* ===================== Dark mode ===================== */
+    html.dark-theme .shopora-stat-card,
+    html.dark-theme .shopora-panel-card,
+    html.dark-theme .shopora-date-filter {
+        background: #12181a;
+        border-color: #2a3236;
+    }
+
+    html.dark-theme .shopora-stat-label {
+        color: #aab3bb;
+    }
+
+    html.dark-theme .shopora-stat-value,
+    html.dark-theme .shopora-stat-value-sm,
+    html.dark-theme .shopora-panel-title {
+        color: #eef1f3;
+    }
+
+    html.dark-theme .shopora-chart-sub,
+    html.dark-theme .shopora-stat-meta.is-flat {
+        color: #8b949c;
+    }
+
+    html.dark-theme .shopora-date-filter .date-field label {
+        color: #cbd2d8;
+    }
+
+    html.dark-theme .shopora-date-filter .date-input-wrap input {
+        background: #0d1315;
+        border-color: #2a3236;
+        color: #eef1f3;
+    }
+
+    html.dark-theme .shopora-date-filter .date-input-wrap .cal-icon {
+        color: #8b949c;
+    }
+
+    html.dark-theme .shopora-date-filter .range-tab {
+        background: #0d1315;
+        border-color: #2a3236;
+        color: #cbd2d8;
+    }
+
+    html.dark-theme .shopora-date-filter .range-tab.active {
+        background: rgba(0, 140, 255, 0.16);
+        border-color: #008cff;
+        color: #4aa8ff;
+    }
+
+    html.dark-theme .shopora-tabs {
+        border-bottom-color: #2a3236;
+    }
+
+    html.dark-theme .shopora-tab {
+        color: #8b949c;
+    }
+
+    html.dark-theme .shopora-tab.active,
+    html.dark-theme .shopora-tab:hover {
+        color: #4aa8ff;
+    }
+
+    html.dark-theme .shopora-panel-table th {
+        color: #8b949c;
+        border-color: #2a3236;
+    }
+
+    html.dark-theme .shopora-panel-table td {
+        color: #d4d8db;
+        border-color: #232a2e;
+    }
+
+    html.dark-theme .shopora-panel-table tbody tr:hover td {
+        background: rgba(255, 255, 255, 0.03);
+    }
+
+    html.dark-theme .shopora-panel-empty {
+        color: #7a848c;
+    }
+
+    html.dark-theme .modal-content {
+        background: #12181a;
+        color: #eef1f3;
+    }
+
+    html.dark-theme .modal-header,
+    html.dark-theme .modal-footer {
+        border-color: #2a3236;
+    }
+
+    html.dark-theme .shopora-dash-modal-period {
+        color: #8b949c;
+    }
+
+    html.dark-theme .shopora-dash-modal-stat {
+        background: #0d1315;
+        border-color: #2a3236;
+    }
+
+    html.dark-theme .shopora-dash-modal-stat-label {
+        color: #8b949c;
+    }
+
+    html.dark-theme .shopora-dash-modal-stat-value {
+        color: #eef1f3;
+    }
+
+    html.dark-theme .shopora-dash-modal-table th {
+        color: #8b949c;
+    }
+
+    html.dark-theme .shopora-dash-modal-table td {
+        color: #d4d8db;
+        border-color: #232a2e;
+    }
 </style>
 @endsection
 @section("wrapper")
@@ -1278,6 +1394,11 @@
             }
         });
 
+        // recolour charts when dark mode is toggled
+        $('.dark-mode').on('click', function () {
+            setTimeout(reThemeCharts, 60);
+        });
+
         bindInvoiceViewer();
         updateDashboard({ loader: false });
     });
@@ -1739,6 +1860,25 @@
         return 'Rs ' + Math.round(n);
     }
 
+    function isDarkTheme() {
+        return document.documentElement.classList.contains('dark-theme');
+    }
+
+    function chartTheme() {
+        return isDarkTheme()
+            ? { grid: '#2a3236', tooltip: 'dark' }
+            : { grid: '#eef0f3', tooltip: 'light' };
+    }
+
+    function reThemeCharts() {
+        const t = chartTheme();
+        [salesTrendChart, categoryChart, invCategoryChart, vendorChart].forEach(function (c) {
+            if (c) {
+                c.updateOptions({ grid: { borderColor: t.grid }, tooltip: { theme: t.tooltip } }, false, false);
+            }
+        });
+    }
+
     function renderSalesTrend(payload) {
         const points = (payload && payload.points) || [];
         const hasData = points.some(p => Number(p.revenue) > 0);
@@ -1757,11 +1897,11 @@
             stroke: { curve: 'smooth', width: 2 },
             fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.35, opacityTo: 0.03, stops: [0, 90, 100] } },
             dataLabels: { enabled: false },
-            grid: { borderColor: '#eef0f3', strokeDashArray: 4, padding: { left: 8, right: 8 } },
+            grid: { borderColor: chartTheme().grid, strokeDashArray: 4, padding: { left: 8, right: 8 } },
             xaxis: { categories: categories, labels: { style: { colors: '#9ca3af', fontSize: '11px' }, rotate: -35, hideOverlappingLabels: true }, axisBorder: { show: false }, axisTicks: { show: false }, tooltip: { enabled: false } },
             yaxis: { labels: { style: { colors: '#9ca3af', fontSize: '11px' }, formatter: v => fmtRsShort(v) } },
             markers: { size: 0, hover: { size: 5 } },
-            tooltip: { y: { formatter: v => 'Rs ' + Number(v).toLocaleString() } },
+            tooltip: { theme: chartTheme().tooltip, y: { formatter: v => 'Rs ' + Number(v).toLocaleString() } },
         };
 
         if (salesTrendChart) {
@@ -1786,10 +1926,10 @@
             colors: [CHART_BRAND],
             plotOptions: { bar: { horizontal: true, borderRadius: 4, barHeight: '62%' } },
             dataLabels: { enabled: false },
-            grid: { borderColor: '#eef0f3', strokeDashArray: 4 },
+            grid: { borderColor: chartTheme().grid, strokeDashArray: 4 },
             xaxis: { tickAmount: 3, labels: { style: { colors: '#9ca3af', fontSize: '11px' }, formatter: v => fmtRsShort(v) }, axisBorder: { show: false }, axisTicks: { show: false } },
             yaxis: { labels: { style: { colors: '#4b5563', fontSize: '12px' } } },
-            tooltip: { y: { formatter: v => 'Rs ' + Number(v).toLocaleString() } },
+            tooltip: { theme: chartTheme().tooltip, y: { formatter: v => 'Rs ' + Number(v).toLocaleString() } },
         };
 
         if (categoryChart) {
@@ -1836,10 +1976,10 @@
             colors: [CHART_BRAND],
             plotOptions: { bar: { horizontal: true, borderRadius: 4, barHeight: '62%' } },
             dataLabels: { enabled: false },
-            grid: { borderColor: '#eef0f3', strokeDashArray: 4 },
+            grid: { borderColor: chartTheme().grid, strokeDashArray: 4 },
             xaxis: { tickAmount: 3, labels: { style: { colors: '#9ca3af', fontSize: '11px' }, formatter: v => fmtRsShort(v) }, axisBorder: { show: false }, axisTicks: { show: false } },
             yaxis: { labels: { style: { colors: '#4b5563', fontSize: '12px' } } },
-            tooltip: { y: { formatter: v => 'Rs ' + Number(v).toLocaleString() } },
+            tooltip: { theme: chartTheme().tooltip, y: { formatter: v => 'Rs ' + Number(v).toLocaleString() } },
         };
     }
 
