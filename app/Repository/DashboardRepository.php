@@ -26,12 +26,41 @@ class DashboardRepository
         $current = $this->computePeriodStats($dateRange);
         $previous = $this->computePeriodStats($prevRange);
 
+        $costMap = $this->itemCostMap();
+        $cogs = $this->computeCogs($dateRange, $costMap);
+        $prevCogs = $this->computeCogs($prevRange, $costMap);
+        $grossProfit = $current['revenue'] - $cogs;
+        $prevProfit = $previous['revenue'] - $prevCogs;
+        $profitMargin = $current['revenue'] > 0 ? round($grossProfit / $current['revenue'] * 100, 1) : 0.0;
+
+        $totalPurchases = $this->purchaseCostForRange($dateRange);
+        $prevPurchases = $this->purchaseCostForRange($prevRange);
+
+        $inventory = $this->inventoryValuation();
+        $invoiceCount = (int) Sales::whereBetween('created_at', $dateRange)->count();
+        $purchaseCount = (int) DB::table('purchase_inventory')->whereBetween('created_at', $dateRange)->count();
+        $topVendor = $this->topVendorForRange($dateRange);
+
         return [
             'totalInventoryItems' => InventoryItem::count(),
             'totalCustomer' => Customer::count(),
             'totalRevenue' => $current['revenue'],
             'totalSales' => $current['salesQty'],
+            'invoiceCount' => $invoiceCount,
+            'avgOrderValue' => $invoiceCount > 0 ? round($current['revenue'] / $invoiceCount, 2) : 0,
+            'outOfStock' => $this->outOfStockCount(),
+            'purchaseCount' => $purchaseCount,
+            'avgPurchase' => $purchaseCount > 0 ? round($totalPurchases / $purchaseCount, 2) : 0,
+            'topVendorName' => $topVendor['name'],
+            'topVendorAmount' => $topVendor['total'],
             'stockAlerts' => $this->getStockAlertCount(),
+            'grossProfit' => $grossProfit,
+            'profitMargin' => $profitMargin,
+            'profitChangePercent' => $this->percentChange($grossProfit, $prevProfit),
+            'totalPurchases' => $totalPurchases,
+            'purchasesChangePercent' => $this->percentChange($totalPurchases, $prevPurchases),
+            'inventoryValue' => $inventory['value'],
+            'inventoryUnits' => $inventory['units'],
             'itemsChangePercent' => $this->percentChange(
                 InventoryItem::where('created_at', '<=', $to)->count(),
                 InventoryItem::where('created_at', '<=', $prevTo)->count()
@@ -40,6 +69,237 @@ class DashboardRepository
             'salesChangePercent' => $this->percentChange($current['salesQty'], $previous['salesQty']),
             'recentSales' => $this->getRecentSales($dateRange, 5),
             'lowStockItems' => $this->getTopLowStockItems(5),
+            'bestSellers' => $this->getBestSellers($dateRange, 5),
+            'topCustomers' => $this->getTopCustomers($dateRange, 5),
+            'recentPurchases' => $this->getRecentPurchases($dateRange, 5),
+        ];
+    }
+
+    private function itemCostMap(): array
+    {
+        return DB::table('purchase_inventory_items')
+            ->select('inventory_item_id', DB::raw('AVG(rate) as avg_rate'))
+            ->groupBy('inventory_item_id')
+            ->pluck('avg_rate', 'inventory_item_id')
+            ->map(fn ($v) => (float) $v)
+            ->all();
+    }
+
+    private function computeCogs(array $dateRange, ?array $costMap = null): float
+    {
+        $costMap = $costMap ?? $this->itemCostMap();
+
+        $rows = DB::table('sales_products')
+            ->join('sales', 'sales.id', '=', 'sales_products.sales_id')
+            ->whereBetween('sales.created_at', $dateRange)
+            ->select('sales_products.product_id', DB::raw('SUM(sales_products.qty) as qty'))
+            ->groupBy('sales_products.product_id')
+            ->get();
+
+        $cogs = 0.0;
+        foreach ($rows as $row) {
+            $cogs += ($costMap[$row->product_id] ?? 0) * (int) $row->qty;
+        }
+
+        return $cogs;
+    }
+
+    private function purchaseCostForRange(array $dateRange): float
+    {
+        return (float) DB::table('purchase_inventory_items')
+            ->join('purchase_inventory', 'purchase_inventory.id', '=', 'purchase_inventory_items.purchase_inventory_id')
+            ->whereBetween('purchase_inventory.created_at', $dateRange)
+            ->sum(DB::raw('purchase_inventory_items.qty * purchase_inventory_items.rate'));
+    }
+
+    private function inventoryValuation(): array
+    {
+        $row = InventoryItem::query()
+            ->leftJoinSub($this->stockNetQtySubquery(), 'stock', function ($join) {
+                $join->on('stock.inventory_item_id', '=', 'inventory_items.id');
+            })
+            ->selectRaw('COALESCE(SUM(GREATEST(COALESCE(stock.net_qty, 0), 0) * inventory_items.price_per_unit), 0) as value')
+            ->selectRaw('COALESCE(SUM(GREATEST(COALESCE(stock.net_qty, 0), 0)), 0) as units')
+            ->first();
+
+        return [
+            'value' => (float) ($row->value ?? 0),
+            'units' => (int) ($row->units ?? 0),
+        ];
+    }
+
+    private function getBestSellers(array $dateRange, int $limit = 5): array
+    {
+        return DB::table('sales_products')
+            ->join('sales', 'sales.id', '=', 'sales_products.sales_id')
+            ->join('inventory_items', 'inventory_items.id', '=', 'sales_products.product_id')
+            ->whereBetween('sales.created_at', $dateRange)
+            ->select(
+                'inventory_items.title',
+                DB::raw('SUM(sales_products.qty) as qty'),
+                DB::raw('SUM(sales_products.qty * sales_products.price_per_unit) as amount')
+            )
+            ->groupBy('inventory_items.id', 'inventory_items.title')
+            ->orderByDesc('qty')
+            ->limit($limit)
+            ->get()
+            ->map(fn ($r) => [
+                'name' => $r->title,
+                'qty' => (int) $r->qty,
+                'amount' => (float) $r->amount,
+            ])
+            ->all();
+    }
+
+    private function getTopCustomers(array $dateRange, int $limit = 5): array
+    {
+        return DB::table('sales')
+            ->join('customers', 'customers.id', '=', 'sales.customer_id')
+            ->join('sales_products', 'sales_products.sales_id', '=', 'sales.id')
+            ->whereBetween('sales.created_at', $dateRange)
+            ->select(
+                'customers.name',
+                DB::raw('SUM(sales_products.qty * sales_products.price_per_unit) as spend'),
+                DB::raw('COUNT(DISTINCT sales.id) as orders')
+            )
+            ->groupBy('customers.id', 'customers.name')
+            ->orderByDesc('spend')
+            ->limit($limit)
+            ->get()
+            ->map(fn ($r) => [
+                'name' => $r->name,
+                'spend' => (float) $r->spend,
+                'orders' => (int) $r->orders,
+            ])
+            ->all();
+    }
+
+    private function getRecentPurchases(array $dateRange, int $limit = 5): array
+    {
+        return DB::table('purchase_inventory')
+            ->leftJoin('purchase_inventory_items', 'purchase_inventory_items.purchase_inventory_id', '=', 'purchase_inventory.id')
+            ->whereBetween('purchase_inventory.created_at', $dateRange)
+            ->select(
+                'purchase_inventory.id',
+                'purchase_inventory.vendor',
+                'purchase_inventory.bill_date',
+                DB::raw('SUM(purchase_inventory_items.qty * purchase_inventory_items.rate) as total')
+            )
+            ->groupBy('purchase_inventory.id', 'purchase_inventory.vendor', 'purchase_inventory.bill_date')
+            ->orderByDesc('purchase_inventory.id')
+            ->limit($limit)
+            ->get()
+            ->map(fn ($r) => [
+                'id' => $r->id,
+                'vendor' => $r->vendor,
+                'bill_date' => $r->bill_date ? Carbon::parse($r->bill_date)->format('Y-m-d') : '',
+                'total' => (float) ($r->total ?? 0),
+            ])
+            ->all();
+    }
+
+    public function getInventoryByCategory(): array
+    {
+        $rows = InventoryItem::query()
+            ->leftJoinSub($this->stockNetQtySubquery(), 'stock', function ($join) {
+                $join->on('stock.inventory_item_id', '=', 'inventory_items.id');
+            })
+            ->leftJoin('categories', 'categories.id', '=', 'inventory_items.category_id')
+            ->select(
+                DB::raw("COALESCE(categories.title, 'Uncategorized') as category"),
+                DB::raw('SUM(GREATEST(COALESCE(stock.net_qty, 0), 0) * inventory_items.price_per_unit) as value'),
+                DB::raw('SUM(GREATEST(COALESCE(stock.net_qty, 0), 0)) as units')
+            )
+            ->groupBy('category')
+            ->orderByDesc('value')
+            ->get()
+            ->map(fn ($r) => [
+                'category' => $r->category,
+                'value' => (float) $r->value,
+                'units' => (int) $r->units,
+            ])
+            ->all();
+
+        return ['categories' => $rows];
+    }
+
+    public function getPurchasesByVendor($filterType = null, $fromDate = null, $toDate = null, int $limit = 8): array
+    {
+        [$from, $to] = $this->resolveDateRange($filterType, $fromDate, $toDate);
+        $dateRange = [$from, $to];
+
+        $rows = DB::table('purchase_inventory')
+            ->leftJoin('purchase_inventory_items', 'purchase_inventory_items.purchase_inventory_id', '=', 'purchase_inventory.id')
+            ->whereBetween('purchase_inventory.created_at', $dateRange)
+            ->select('purchase_inventory.vendor', DB::raw('SUM(purchase_inventory_items.qty * purchase_inventory_items.rate) as total'))
+            ->groupBy('purchase_inventory.vendor')
+            ->orderByDesc('total')
+            ->limit($limit)
+            ->get()
+            ->map(fn ($r) => [
+                'vendor' => $r->vendor,
+                'total' => (float) $r->total,
+            ])
+            ->all();
+
+        return [
+            'from_date' => $from->format('Y-m-d'),
+            'to_date' => $to->format('Y-m-d'),
+            'vendors' => $rows,
+        ];
+    }
+
+    public function getProfitBreakdown($filterType = null, $fromDate = null, $toDate = null): array
+    {
+        [$from, $to] = $this->resolveDateRange($filterType, $fromDate, $toDate);
+        $dateRange = [$from, $to];
+        $costMap = $this->itemCostMap();
+
+        $rows = DB::table('sales_products')
+            ->join('sales', 'sales.id', '=', 'sales_products.sales_id')
+            ->join('inventory_items', 'inventory_items.id', '=', 'sales_products.product_id')
+            ->leftJoin('categories', 'categories.id', '=', 'inventory_items.category_id')
+            ->whereBetween('sales.created_at', $dateRange)
+            ->select(
+                DB::raw("COALESCE(categories.title, 'Uncategorized') as category"),
+                'sales_products.product_id',
+                DB::raw('SUM(sales_products.qty) as qty'),
+                DB::raw('SUM(sales_products.qty * sales_products.price_per_unit) as revenue')
+            )
+            ->groupBy('category', 'sales_products.product_id')
+            ->get();
+
+        $byCategory = [];
+        foreach ($rows as $row) {
+            $cat = $row->category;
+            if (!isset($byCategory[$cat])) {
+                $byCategory[$cat] = ['category' => $cat, 'revenue' => 0.0, 'cost' => 0.0];
+            }
+            $byCategory[$cat]['revenue'] += (float) $row->revenue;
+            $byCategory[$cat]['cost'] += ($costMap[$row->product_id] ?? 0) * (int) $row->qty;
+        }
+
+        $categories = array_map(function ($c) {
+            $profit = $c['revenue'] - $c['cost'];
+            $c['profit'] = $profit;
+            $c['margin'] = $c['revenue'] > 0 ? round($profit / $c['revenue'] * 100, 1) : 0.0;
+            return $c;
+        }, array_values($byCategory));
+
+        usort($categories, fn ($a, $b) => $b['profit'] <=> $a['profit']);
+
+        $totalRevenue = array_sum(array_column($categories, 'revenue'));
+        $totalCost = array_sum(array_column($categories, 'cost'));
+        $grossProfit = $totalRevenue - $totalCost;
+
+        return [
+            'from_date' => $from->format('Y-m-d'),
+            'to_date' => $to->format('Y-m-d'),
+            'total_revenue' => $totalRevenue,
+            'total_cost' => $totalCost,
+            'gross_profit' => $grossProfit,
+            'margin' => $totalRevenue > 0 ? round($grossProfit / $totalRevenue * 100, 1) : 0.0,
+            'categories' => $categories,
         ];
     }
 
@@ -339,6 +599,32 @@ class DashboardRepository
                 DB::raw('SUM(CASE WHEN purchase_inventory_id IS NOT NULL THEN qty ELSE 0 END) - SUM(CASE WHEN sales_id IS NOT NULL THEN qty ELSE 0 END) as net_qty')
             )
             ->groupBy('inventory_item_id');
+    }
+
+    private function outOfStockCount(): int
+    {
+        return (int) InventoryItem::query()
+            ->leftJoinSub($this->stockNetQtySubquery(), 'stock', function ($join) {
+                $join->on('stock.inventory_item_id', '=', 'inventory_items.id');
+            })
+            ->whereRaw('COALESCE(stock.net_qty, 0) <= 0')
+            ->count();
+    }
+
+    private function topVendorForRange(array $dateRange): array
+    {
+        $row = DB::table('purchase_inventory')
+            ->leftJoin('purchase_inventory_items', 'purchase_inventory_items.purchase_inventory_id', '=', 'purchase_inventory.id')
+            ->whereBetween('purchase_inventory.created_at', $dateRange)
+            ->select('purchase_inventory.vendor', DB::raw('SUM(purchase_inventory_items.qty * purchase_inventory_items.rate) as total'))
+            ->groupBy('purchase_inventory.vendor')
+            ->orderByDesc('total')
+            ->first();
+
+        return [
+            'name' => $row->vendor ?? '—',
+            'total' => (float) ($row->total ?? 0),
+        ];
     }
 
     private function getStockAlertCount(): int

@@ -191,6 +191,10 @@
     .shopora-stat-card.is-revenue { --accent: #008cff; }
     .shopora-stat-card.is-sales { --accent: #0d9488; }
     .shopora-stat-card.is-alerts { --accent: #f59e0b; }
+    .shopora-stat-card.is-profit { --accent: #16a34a; }
+    .shopora-stat-card.is-purchase { --accent: #4f46e5; }
+    .shopora-stat-card.is-inventory { --accent: #0d9488; }
+    .shopora-stat-card.is-info { --accent: #94a3b8; }
 
     .shopora-stat-inner {
         display: flex;
@@ -334,6 +338,75 @@
     .shopora-stat-icon.is-orange {
         background: #fff4e5;
         color: #ea580c;
+    }
+
+    .shopora-stat-icon.is-green {
+        background: #e7f7ec;
+        color: #16a34a;
+    }
+
+    .shopora-stat-icon.is-indigo {
+        background: #eef0ff;
+        color: #4f46e5;
+    }
+
+    .shopora-stat-icon.is-red {
+        background: #fdecec;
+        color: #dc2626;
+    }
+
+    .shopora-stat-card.is-danger { --accent: #dc2626; }
+
+    .shopora-stat-value.shopora-stat-value-sm,
+    .shopora-stat-value-sm {
+        font-size: 19px;
+        line-height: 1.25;
+        word-break: break-word;
+    }
+
+    /* ===== Dashboard tabs ===== */
+    .shopora-tabs {
+        display: flex;
+        gap: 4px;
+        border-bottom: 1px solid #e4e4e4;
+        margin: 18px 0 0;
+        padding: 0;
+        list-style: none;
+        flex-wrap: wrap;
+    }
+
+    .shopora-tab {
+        border: 0;
+        background: transparent;
+        padding: 10px 16px;
+        font-size: 14.5px;
+        font-weight: 600;
+        color: #6b7280;
+        border-bottom: 2px solid transparent;
+        margin-bottom: -1px;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        transition: color 0.15s ease, border-color 0.15s ease;
+    }
+
+    .shopora-tab i {
+        font-size: 18px;
+    }
+
+    .shopora-tab:hover {
+        color: #008cff;
+    }
+
+    .shopora-tab.active {
+        color: #008cff;
+        border-bottom-color: #008cff;
+    }
+
+    .shopora-tab-content {
+        margin-bottom: 8px;
+        padding-top: 20px;
     }
 
     /* ===== Revenue by Payment Method ===== */
@@ -673,6 +746,11 @@
     .shopora-panel-footer {
         margin-top: 12px;
         padding-top: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
     }
 
     .shopora-panel-link {
@@ -734,6 +812,8 @@
             $itemsChange = $data['itemsChangePercent'] ?? 0;
             $revenueChange = $data['revenueChangePercent'] ?? 0;
             $salesChange = $data['salesChangePercent'] ?? 0;
+            $profitChange = $data['profitChangePercent'] ?? 0;
+            $purchasesChange = $data['purchasesChangePercent'] ?? 0;
             $fmtChange = function ($pct) {
                 $sign = $pct > 0 ? '+' : '';
                 return $sign . number_format((float) $pct, 1) . '% vs previous period';
@@ -743,149 +823,261 @@
                 if ($pct < 0) return 'is-down';
                 return 'is-flat';
             };
+            $rs = fn ($v) => 'Rs ' . number_format((float) $v, 2);
+            // reusable KPI card renderer
+            $card = function ($label, $valueHtml, $valueClass, $iconClass, $iconHtml, $action = null, $metaHtml = '', $link = null, $typeClass = '') {
+                $role = in_array($action, ['purchases', 'inventory'], true) ? 'link' : 'button';
+                $clickable = $action ? ' is-clickable" data-stat-action="' . $action . '" role="' . $role . '" tabindex="0' : '';
+                $html = '<div class="col"><div class="shopora-stat-card ' . $typeClass . $clickable . '">';
+                $html .= '<div class="shopora-stat-inner"><div>';
+                $html .= '<p class="shopora-stat-label">' . $label . '</p>';
+                $html .= '<h3 class="shopora-stat-value ' . $valueClass . '">' . $valueHtml . '</h3>';
+                $html .= $metaHtml;
+                if ($link) {
+                    $html .= '<span class="shopora-stat-link">' . $link . '</span>';
+                }
+                $html .= '</div><div class="shopora-stat-icon ' . $iconClass . '" aria-hidden="true">' . $iconHtml . '</div>';
+                $html .= '</div></div></div>';
+                return $html;
+            };
+            $metaChange = fn ($pct, $cls) => '<p class="shopora-stat-meta ' . $changeClass($pct) . ' ' . $cls . '">' . $fmtChange($pct) . '</p>';
+            $metaText = fn ($html, $cls = 'is-flat') => '<p class="shopora-stat-meta ' . $cls . '">' . $html . '</p>';
         @endphp
-        <div class="row row-cols-1 row-cols-md-2 row-cols-xl-4 g-3 shopora-stats-row">
-            <div class="col">
-                <div class="shopora-stat-card is-items is-clickable" data-stat-action="items" role="link" tabindex="0" aria-label="View all inventory items">
-                    <div class="shopora-stat-inner">
-                        <div>
-                            <p class="shopora-stat-label">Total Items</p>
-                            <h3 class="shopora-stat-value" id="statTotalItems">{{ number_format($data['totalInventoryItems']) }}</h3>
-                            <p class="shopora-stat-meta {{ $changeClass($itemsChange) }}" id="statItemsChange">{{ $fmtChange($itemsChange) }}</p>
-                            <span class="shopora-stat-link">View inventory items →</span>
-                        </div>
-                        <div class="shopora-stat-icon is-teal" aria-hidden="true"><i class='bx bx-package'></i></div>
-                    </div>
-                </div>
-            </div>
-            <div class="col">
-                <div class="shopora-stat-card is-revenue is-clickable" data-stat-action="revenue" role="button" tabindex="0" aria-label="View revenue breakdown">
-                    <div class="shopora-stat-inner">
-                        <div>
-                            <p class="shopora-stat-label">Total Revenue</p>
-                            <h3 class="shopora-stat-value" id="statTotalRevenue">Rs {{ number_format($data['totalRevenue'], 2) }}</h3>
-                            <p class="shopora-stat-meta {{ $changeClass($revenueChange) }}" id="statRevenueChange">{{ $fmtChange($revenueChange) }}</p>
-                            <span class="shopora-stat-link">View revenue breakdown →</span>
-                        </div>
-                        <div class="shopora-stat-icon is-blue" aria-hidden="true">₹</div>
-                    </div>
-                </div>
-            </div>
-            <div class="col">
-                <div class="shopora-stat-card is-sales is-clickable" data-stat-action="sales" role="button" tabindex="0" aria-label="View sales summary">
-                    <div class="shopora-stat-inner">
-                        <div>
-                            <p class="shopora-stat-label">Total Sales (Qty)</p>
-                            <h3 class="shopora-stat-value" id="statTotalSales">{{ number_format($data['totalSales']) }}</h3>
-                            <p class="shopora-stat-meta {{ $changeClass($salesChange) }}" id="statSalesChange">{{ $fmtChange($salesChange) }}</p>
-                            <span class="shopora-stat-link">View sales summary →</span>
-                        </div>
-                        <div class="shopora-stat-icon is-teal" aria-hidden="true"><i class='bx bx-cart'></i></div>
-                    </div>
-                </div>
-            </div>
-            <div class="col">
-                <div class="shopora-stat-card is-alerts is-clickable" data-stat-action="stock" role="button" tabindex="0" aria-label="View low stock items">
-                    <div class="shopora-stat-inner">
-                        <div>
-                            <p class="shopora-stat-label">Stock Alerts</p>
-                            <h3 class="shopora-stat-value" id="statStockAlerts">{{ number_format($data['stockAlerts'] ?? 0) }}</h3>
-                            <p class="shopora-stat-meta is-warn">Low stock items</p>
-                            <span class="shopora-stat-link">View low stock items →</span>
-                        </div>
-                        <div class="shopora-stat-icon is-orange" aria-hidden="true"><i class='bx bxs-error'></i></div>
-                    </div>
-                </div>
-            </div>
-        </div><!--end row-->
+        <!-- Dashboard tabs -->
+        <ul class="nav shopora-tabs" id="dashTabs" role="tablist">
+            <li role="presentation">
+                <button class="shopora-tab active" data-bs-toggle="tab" data-bs-target="#tab-overview" type="button" role="tab">
+                    <i class='bx bx-line-chart'></i> Overview
+                </button>
+            </li>
+            <li role="presentation">
+                <button class="shopora-tab" data-bs-toggle="tab" data-bs-target="#tab-sales" type="button" role="tab">
+                    <i class='bx bx-cart'></i> Sales
+                </button>
+            </li>
+            <li role="presentation">
+                <button class="shopora-tab" data-bs-toggle="tab" data-bs-target="#tab-inventory" type="button" role="tab">
+                    <i class='bx bx-package'></i> Inventory
+                </button>
+            </li>
+            <li role="presentation">
+                <button class="shopora-tab" data-bs-toggle="tab" data-bs-target="#tab-purchases" type="button" role="tab">
+                    <i class='bx bx-receipt'></i> Purchases
+                </button>
+            </li>
+        </ul>
 
-        <!-- Revenue by Payment Method (Figma) -->
-        <div class="shopora-pay-revenue" id="shoporaPaymentRevenue">
-            <div class="shopora-pay-title">
-                <span>Revenue by</span>
-                <span>Payment Method</span>
+        <div class="tab-content shopora-tab-content">
+            <!-- ===== Overview: charts ===== -->
+            <div class="tab-pane fade show active" id="tab-overview" role="tabpanel">
+                <div class="row row-cols-1 row-cols-md-2 row-cols-xl-4 g-3 shopora-stats-row">
+                    {!! $card('Total Revenue', $rs($data['totalRevenue']), 'js-revenue', 'is-blue', '₹', 'revenue', $metaChange($revenueChange, 'js-revenue-change'), 'View revenue breakdown →', 'is-revenue') !!}
+                    {!! $card('Gross Profit', $rs($data['grossProfit'] ?? 0), 'js-profit', 'is-green', "<i class='bx bx-trending-up'></i>", 'profit', $metaChange($profitChange, 'js-profit-change'), '<span class="js-margin">' . number_format($data['profitMargin'] ?? 0, 1) . '</span>% margin · View breakdown →', 'is-profit') !!}
+                    {!! $card('Total Sales (Qty)', number_format($data['totalSales']), 'js-sales', 'is-teal', "<i class='bx bx-cart'></i>", 'sales', $metaChange($salesChange, 'js-sales-change'), 'View sales summary →', 'is-sales') !!}
+                    {!! $card('Stock Alerts', number_format($data['stockAlerts'] ?? 0), 'js-alerts', 'is-orange', "<i class='bx bxs-error'></i>", 'stock', $metaText('Low stock items', 'is-warn'), 'View low stock items →', 'is-alerts') !!}
+                </div>
+                <div class="row g-3 shopora-charts-row">
+                    <div class="col-12 col-xl-8">
+                        <div class="shopora-panel-card">
+                            <div class="shopora-chart-head">
+                                <h3 class="shopora-panel-title mb-0">Sales Trend</h3>
+                                <span class="shopora-chart-sub" id="salesTrendSub">Revenue over the selected period</span>
+                            </div>
+                            <div class="shopora-chart-body">
+                                <div id="salesTrendChart"></div>
+                                <div class="shopora-chart-empty" id="salesTrendEmpty" hidden>No sales in this period</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-xl-4">
+                        <div class="shopora-panel-card">
+                            <div class="shopora-chart-head">
+                                <h3 class="shopora-panel-title mb-0">Sales by Category</h3>
+                                <span class="shopora-chart-sub">Revenue share by category</span>
+                            </div>
+                            <div class="shopora-chart-body">
+                                <div id="categoryChart"></div>
+                                <div class="shopora-chart-empty" id="categoryEmpty" hidden>No category sales in this period</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="shopora-pay-items" id="shoporaPaymentRevenueItems">
-                <div class="shopora-pay-empty">Loading payment breakdown…</div>
-            </div>
-        </div>
 
-        <!-- Charts: Sales Trend + Sales by Category -->
-        <div class="row g-3 shopora-charts-row">
-            <div class="col-12 col-xl-8">
-                <div class="shopora-panel-card">
-                    <div class="shopora-chart-head">
-                        <h3 class="shopora-panel-title mb-0">Sales Trend</h3>
-                        <span class="shopora-chart-sub" id="salesTrendSub">Revenue over the selected period</span>
+            <!-- ===== Sales: recent invoices + best sellers + top customers ===== -->
+            <div class="tab-pane fade" id="tab-sales" role="tabpanel">
+                <div class="row row-cols-1 row-cols-md-2 row-cols-xl-4 g-3 shopora-stats-row">
+                    {!! $card('Total Revenue', $rs($data['totalRevenue']), 'js-revenue', 'is-blue', '₹', 'revenue', $metaChange($revenueChange, 'js-revenue-change'), 'View revenue breakdown →', 'is-revenue') !!}
+                    {!! $card('Gross Profit', $rs($data['grossProfit'] ?? 0), 'js-profit', 'is-green', "<i class='bx bx-trending-up'></i>", 'profit', $metaChange($profitChange, 'js-profit-change'), '<span class="js-margin">' . number_format($data['profitMargin'] ?? 0, 1) . '</span>% margin · View breakdown →', 'is-profit') !!}
+                    {!! $card('Total Sales (Qty)', number_format($data['totalSales']), 'js-sales', 'is-teal', "<i class='bx bx-cart'></i>", 'sales', $metaChange($salesChange, 'js-sales-change'), 'View sales summary →', 'is-sales') !!}
+                    {!! $card('Avg Order Value', $rs($data['avgOrderValue'] ?? 0), 'js-aov', 'is-indigo', "<i class='bx bx-receipt'></i>", null, $metaText('<span class="js-invcount">' . number_format($data['invoiceCount'] ?? 0) . '</span> invoices'), null, 'is-purchase') !!}
+                </div>
+                <div class="row g-3">
+                    <div class="col-12">
+                        <div class="shopora-panel-card">
+                            <h3 class="shopora-panel-title">Recent Sales / Invoices</h3>
+                            <div class="shopora-panel-table-wrap">
+                                <table class="shopora-panel-table">
+                                    <thead>
+                                        <tr>
+                                            <th class="col-num">#</th>
+                                            <th>Invoice No.</th>
+                                            <th>Date &amp; Time</th>
+                                            <th>Customer</th>
+                                            <th>Payment Method</th>
+                                            <th class="col-qty">Qty</th>
+                                            <th class="col-amount">Amount (Rs)</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="recentSalesBody">
+                                        <tr><td colspan="8" class="shopora-panel-empty">Loading…</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="shopora-panel-footer">
+                                <a href="{{ route('admin.invoice.index') }}" class="shopora-panel-link">View all invoices →</a>
+                            </div>
+                        </div>
                     </div>
-                    <div class="shopora-chart-body">
-                        <div id="salesTrendChart"></div>
-                        <div class="shopora-chart-empty" id="salesTrendEmpty" hidden>No sales in this period</div>
+                    <div class="col-12 col-lg-6">
+                        <div class="shopora-panel-card">
+                            <h3 class="shopora-panel-title">Best-Selling Products</h3>
+                            <div class="shopora-panel-table-wrap">
+                                <table class="shopora-panel-table compact">
+                                    <thead>
+                                        <tr>
+                                            <th>Product</th>
+                                            <th class="col-qty">Qty Sold</th>
+                                            <th class="col-amount">Amount (Rs)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="bestSellersBody">
+                                        <tr><td colspan="3" class="shopora-panel-empty">Loading…</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-lg-6">
+                        <div class="shopora-panel-card">
+                            <h3 class="shopora-panel-title">Top Customers</h3>
+                            <div class="shopora-panel-table-wrap">
+                                <table class="shopora-panel-table compact">
+                                    <thead>
+                                        <tr>
+                                            <th>Customer</th>
+                                            <th class="col-qty">Orders</th>
+                                            <th class="col-amount">Spent (Rs)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="topCustomersBody">
+                                        <tr><td colspan="3" class="shopora-panel-empty">Loading…</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="shopora-panel-footer">
+                                <a href="{{ route('admin.customer') }}" class="shopora-panel-link">View all customers →</a>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
-            <div class="col-12 col-xl-4">
-                <div class="shopora-panel-card">
-                    <div class="shopora-chart-head">
-                        <h3 class="shopora-panel-title mb-0">Sales by Category</h3>
-                        <span class="shopora-chart-sub">Revenue share by category</span>
-                    </div>
-                    <div class="shopora-chart-body">
-                        <div id="categoryChart"></div>
-                        <div class="shopora-chart-empty" id="categoryEmpty" hidden>No category sales in this period</div>
-                    </div>
-                </div>
-            </div>
-        </div>
 
-        <!-- Recent Sales + Low Stock (Figma) -->
-        <div class="row g-3 shopora-panels-row">
-            <div class="col-12 col-xl-8">
-                <div class="shopora-panel-card">
-                    <h3 class="shopora-panel-title">Recent Sales / Invoices</h3>
-                    <div class="shopora-panel-table-wrap">
-                        <table class="shopora-panel-table">
-                            <thead>
-                                <tr>
-                                    <th class="col-num">#</th>
-                                    <th>Invoice No.</th>
-                                    <th>Date &amp; Time</th>
-                                    <th>Customer</th>
-                                    <th>Payment Method</th>
-                                    <th class="col-qty">Qty</th>
-                                    <th class="col-amount">Amount (Rs)</th>
-                                    <th>Status</th>
-                                </tr>
-                            </thead>
-                            <tbody id="recentSalesBody">
-                                <tr><td colspan="8" class="shopora-panel-empty">Loading…</td></tr>
-                            </tbody>
-                        </table>
+            <!-- ===== Inventory: low stock ===== -->
+            <div class="tab-pane fade" id="tab-inventory" role="tabpanel">
+                <div class="row row-cols-1 row-cols-md-2 row-cols-xl-4 g-3 shopora-stats-row">
+                    {!! $card('Inventory Value', $rs($data['inventoryValue'] ?? 0), 'js-invvalue', 'is-teal', "<i class='bx bx-package'></i>", 'inventory', $metaText('Stock on hand at sell price'), 'View inventory items →', 'is-inventory') !!}
+                    {!! $card('Units in Stock', number_format($data['inventoryUnits'] ?? 0), 'js-invunits', 'is-blue', "<i class='bx bx-cube'></i>", null, $metaText('Across all products'), null, 'is-revenue') !!}
+                    {!! $card('Low Stock', number_format($data['stockAlerts'] ?? 0), 'js-alerts', 'is-orange', "<i class='bx bxs-error'></i>", 'stock', $metaText('At or below reorder level', 'is-warn'), 'View low stock items →', 'is-alerts') !!}
+                    {!! $card('Out of Stock', number_format($data['outOfStock'] ?? 0), 'js-outofstock', 'is-red', "<i class='bx bx-x-circle'></i>", null, $metaText('Items with zero stock', 'is-down'), null, 'is-danger') !!}
+                </div>
+                <div class="row g-3">
+                    <div class="col-12 col-xl-5">
+                        <div class="shopora-panel-card">
+                            <div class="shopora-chart-head">
+                                <h3 class="shopora-panel-title mb-0">Stock Value by Category</h3>
+                                <span class="shopora-chart-sub">Current stock on hand at sell price</span>
+                            </div>
+                            <div class="shopora-chart-body">
+                                <div id="invCategoryChart"></div>
+                                <div class="shopora-chart-empty" id="invCategoryEmpty" hidden>No stock on hand</div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="shopora-panel-footer">
-                        <a href="{{ route('admin.invoice.index') }}" class="shopora-panel-link">View all invoices →</a>
+                    <div class="col-12 col-xl-7">
+                        <div class="shopora-panel-card">
+                            <div class="shopora-chart-head">
+                                <h3 class="shopora-panel-title mb-0">Low Stock Items</h3>
+                                <span class="shopora-chart-sub">Items at or below the {{ 10 }}-unit reorder level</span>
+                            </div>
+                            <div class="shopora-panel-table-wrap">
+                                <table class="shopora-panel-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Item Name</th>
+                                            <th class="col-stock">In Stock</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="lowStockBody">
+                                        <tr><td colspan="3" class="shopora-panel-empty">Loading…</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="shopora-panel-footer">
+                                <button type="button" class="shopora-panel-link" id="viewAllLowStockBtn">View all low stock items →</button>
+                                <a href="{{ route('admin.inventoryItem') }}" class="shopora-panel-link">Go to inventory →</a>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
-            <div class="col-12 col-xl-4">
-                <div class="shopora-panel-card">
-                    <h3 class="shopora-panel-title">Top Low Stock Items</h3>
-                    <div class="shopora-panel-table-wrap">
-                        <table class="shopora-panel-table compact">
-                            <thead>
-                                <tr>
-                                    <th>Item Name</th>
-                                    <th class="col-stock">In Stock</th>
-                                    <th>Status</th>
-                                </tr>
-                            </thead>
-                            <tbody id="lowStockBody">
-                                <tr><td colspan="3" class="shopora-panel-empty">Loading…</td></tr>
-                            </tbody>
-                        </table>
+
+            <!-- ===== Purchases: recent purchases ===== -->
+            <div class="tab-pane fade" id="tab-purchases" role="tabpanel">
+                <div class="row row-cols-1 row-cols-md-2 row-cols-xl-4 g-3 shopora-stats-row">
+                    {!! $card('Total Purchases', $rs($data['totalPurchases'] ?? 0), 'js-purchases', 'is-indigo', "<i class='bx bx-receipt'></i>", 'purchases', $metaChange($purchasesChange, 'js-purchases-change'), 'View purchases →', 'is-purchase') !!}
+                    {!! $card('Purchase Bills', number_format($data['purchaseCount'] ?? 0), 'js-purchasecount', 'is-blue', "<i class='bx bx-file'></i>", null, $metaText('In selected period'), null, 'is-revenue') !!}
+                    {!! $card('Avg per Bill', $rs($data['avgPurchase'] ?? 0), 'js-avgpurchase', 'is-teal', "<i class='bx bx-calculator'></i>", null, $metaText('Average purchase value'), null, 'is-sales') !!}
+                    {!! $card('Top Vendor', '<span class="js-topvendor">' . e($data['topVendorName'] ?? '—') . '</span>', 'shopora-stat-value-sm', 'is-green', "<i class='bx bx-store'></i>", null, $metaText('Rs <span class="js-topvendor-amount">' . number_format($data['topVendorAmount'] ?? 0, 2) . '</span>'), null, 'is-profit') !!}
+                </div>
+                <div class="row g-3">
+                    <div class="col-12 col-xl-5">
+                        <div class="shopora-panel-card">
+                            <div class="shopora-chart-head">
+                                <h3 class="shopora-panel-title mb-0">Top Vendors</h3>
+                                <span class="shopora-chart-sub">Purchase amount by vendor</span>
+                            </div>
+                            <div class="shopora-chart-body">
+                                <div id="vendorChart"></div>
+                                <div class="shopora-chart-empty" id="vendorEmpty" hidden>No purchases in this period</div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="shopora-panel-footer">
-                        <button type="button" class="shopora-panel-link" id="viewAllLowStockBtn">View all low stock items →</button>
+                    <div class="col-12 col-xl-7">
+                        <div class="shopora-panel-card">
+                            <h3 class="shopora-panel-title">Recent Purchases</h3>
+                            <div class="shopora-panel-table-wrap">
+                                <table class="shopora-panel-table">
+                                    <thead>
+                                        <tr>
+                                            <th class="col-num">#</th>
+                                            <th>Vendor</th>
+                                            <th>Bill Date</th>
+                                            <th class="col-amount">Total (Rs)</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="recentPurchasesBody">
+                                        <tr><td colspan="5" class="shopora-panel-empty">Loading…</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="shopora-panel-footer">
+                                <a href="{{ route('admin.purchaseInventory') }}" class="shopora-panel-link">View all purchases →</a>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1076,6 +1268,16 @@
             }
         });
 
+        // render lazy charts when their tab first becomes visible (correct width)
+        $('#dashTabs button[data-bs-toggle="tab"]').on('shown.bs.tab', function (e) {
+            const target = $(e.target).data('bs-target');
+            if (target === '#tab-inventory') {
+                renderInvCategoryChart();
+            } else if (target === '#tab-purchases') {
+                renderVendorChart();
+            }
+        });
+
         bindInvoiceViewer();
         updateDashboard({ loader: false });
     });
@@ -1223,17 +1425,132 @@
         body.html(html);
     }
 
-    function handleStatCardAction(action) {
-        if (action === 'items') {
-            window.location.href = "{{ route('admin.inventoryItem') }}";
+    function renderBestSellers(rows) {
+        const body = $('#bestSellersBody');
+        if (!rows || !rows.length) {
+            body.html('<tr><td colspan="3" class="shopora-panel-empty">No sales in this period</td></tr>');
             return;
         }
+        let html = '';
+        rows.forEach(function(r) {
+            html += '<tr>' +
+                '<td class="col-name">' + escapeHtml(r.name) + '</td>' +
+                '<td class="col-qty">' + Number(r.qty || 0).toLocaleString() + '</td>' +
+                '<td class="col-amount">' + Number(r.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</td>' +
+            '</tr>';
+        });
+        body.html(html);
+    }
+
+    function renderTopCustomers(rows) {
+        const body = $('#topCustomersBody');
+        if (!rows || !rows.length) {
+            body.html('<tr><td colspan="3" class="shopora-panel-empty">No customer sales in this period</td></tr>');
+            return;
+        }
+        let html = '';
+        rows.forEach(function(r) {
+            html += '<tr>' +
+                '<td class="col-name">' + escapeHtml(r.name) + '</td>' +
+                '<td class="col-qty">' + Number(r.orders || 0).toLocaleString() + '</td>' +
+                '<td class="col-amount">' + Number(r.spend || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</td>' +
+            '</tr>';
+        });
+        body.html(html);
+    }
+
+    function renderRecentPurchases(rows) {
+        const body = $('#recentPurchasesBody');
+        if (!rows || !rows.length) {
+            body.html('<tr><td colspan="5" class="shopora-panel-empty">No purchases in this period</td></tr>');
+            return;
+        }
+        const base = "{{ url('admin/purchaseInventory/view') }}";
+        let html = '';
+        rows.forEach(function(r, i) {
+            html += '<tr>' +
+                '<td class="col-num">' + (i + 1) + '</td>' +
+                '<td class="col-name">' + escapeHtml(r.vendor) + '</td>' +
+                '<td>' + escapeHtml(r.bill_date || '-') + '</td>' +
+                '<td class="col-amount">' + Number(r.total || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</td>' +
+                '<td><a href="' + base + '/' + r.id + '" class="shopora-panel-link">View →</a></td>' +
+            '</tr>';
+        });
+        body.html(html);
+    }
+
+    function showProfitModal() {
+        const modalEl = document.getElementById('profitModal');
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        showModalLoader('#profitContent');
+        modal.show();
+
+        $.ajax({
+            url: "{{ route('admin.dashboard.profitBreakdown') }}",
+            method: 'GET',
+            data: { from_date: $('#fromDate').val(), to_date: $('#toDate').val() },
+            success: function(response) { renderProfitModal(response.data || {}); },
+            error: function() { $('#profitContent').html('<p class="text-center text-muted py-4">Unable to load profit summary</p>'); }
+        });
+    }
+
+    function renderProfitModal(data) {
+        const cats = data.categories || [];
+        const revenue = parseFloat(data.total_revenue || 0);
+        const cost = parseFloat(data.total_cost || 0);
+        const profit = parseFloat(data.gross_profit || 0);
+        const margin = parseFloat(data.margin || 0);
+        const from = data.from_date || $('#fromDate').val();
+        const to = data.to_date || $('#toDate').val();
+
+        let html = '<p class="shopora-dash-modal-period">Period: <strong>' + escapeHtml(from) + '</strong> to <strong>' + escapeHtml(to) + '</strong></p>';
+        html += '<div class="shopora-dash-modal-summary">';
+        html += dashModalSummaryStat('Revenue', formatRs(revenue));
+        html += dashModalSummaryStat('Cost of Goods', formatRs(cost));
+        html += dashModalSummaryStat('Gross Profit', formatRs(profit), true);
+        html += dashModalSummaryStat('Margin', margin.toFixed(1) + '%', true);
+        html += '</div>';
+
+        html += '<div class="table-responsive"><table class="table shopora-dash-modal-table mb-0">';
+        html += '<thead><tr><th>Category</th><th class="col-amount">Revenue</th><th class="col-amount">Cost</th><th class="col-amount">Profit</th><th class="col-amount">Margin</th></tr></thead><tbody>';
+        if (cats.length) {
+            cats.forEach(function(c) {
+                html += '<tr>' +
+                    '<td>' + escapeHtml(c.category) + '</td>' +
+                    '<td class="col-amount">' + Number(c.revenue || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</td>' +
+                    '<td class="col-amount">' + Number(c.cost || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</td>' +
+                    '<td class="col-amount">' + Number(c.profit || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</td>' +
+                    '<td class="col-amount">' + Number(c.margin || 0).toFixed(1) + '%</td>' +
+                '</tr>';
+            });
+        } else {
+            html += '<tr><td colspan="5" class="text-center text-muted py-3">No sales in this period</td></tr>';
+        }
+        html += '</tbody></table></div>';
+        html += '<p class="mt-3 mb-0 small text-muted">Gross profit = revenue − cost of goods sold. Cost is the average purchase rate per item × quantity sold.</p>';
+
+        $('#profitContent').html(html);
+    }
+
+    function handleStatCardAction(action) {
         if (action === 'revenue') {
             showPaymentMethodRevenue();
             return;
         }
+        if (action === 'profit') {
+            showProfitModal();
+            return;
+        }
         if (action === 'sales') {
             showSalesSummaryModal();
+            return;
+        }
+        if (action === 'purchases') {
+            window.location.href = "{{ route('admin.purchaseInventory') }}";
+            return;
+        }
+        if (action === 'inventory') {
+            window.location.href = "{{ route('admin.inventoryItem') }}";
             return;
         }
         if (action === 'stock') {
@@ -1503,12 +1820,86 @@
         });
     }
 
+    // ---- Inventory & Purchases bar charts (lazy: containers start in hidden tabs) ----
+    let invCategoryChart = null, invCategoryData = null;
+    let vendorChart = null, vendorData = null;
+
+    function chartHidden(sel) {
+        const el = document.querySelector(sel);
+        return !el || el.offsetParent === null;
+    }
+
+    function horizontalBarOptions(data) {
+        return {
+            chart: { type: 'bar', height: 300, fontFamily: 'inherit', toolbar: { show: false } },
+            series: [{ name: 'Amount', data: data }],
+            colors: [CHART_BRAND],
+            plotOptions: { bar: { horizontal: true, borderRadius: 4, barHeight: '62%' } },
+            dataLabels: { enabled: false },
+            grid: { borderColor: '#eef0f3', strokeDashArray: 4 },
+            xaxis: { tickAmount: 3, labels: { style: { colors: '#9ca3af', fontSize: '11px' }, formatter: v => fmtRsShort(v) }, axisBorder: { show: false }, axisTicks: { show: false } },
+            yaxis: { labels: { style: { colors: '#4b5563', fontSize: '12px' } } },
+            tooltip: { y: { formatter: v => 'Rs ' + Number(v).toLocaleString() } },
+        };
+    }
+
+    function renderInvCategoryChart() {
+        if (!invCategoryData) return;
+        const cats = invCategoryData.categories || [];
+        const hasData = cats.some(c => Number(c.value) > 0);
+        $('#invCategoryEmpty').prop('hidden', hasData);
+        if (chartHidden('#invCategoryChart')) return;
+
+        const data = cats.map(c => ({ x: c.category, y: Math.round(Number(c.value) || 0) }));
+        if (invCategoryChart) {
+            invCategoryChart.updateSeries([{ name: 'Stock Value', data: data }], true);
+        } else {
+            invCategoryChart = new ApexCharts(document.querySelector('#invCategoryChart'), horizontalBarOptions(data));
+            invCategoryChart.render();
+        }
+    }
+
+    function renderVendorChart() {
+        if (!vendorData) return;
+        const vendors = vendorData.vendors || [];
+        const hasData = vendors.some(v => Number(v.total) > 0);
+        $('#vendorEmpty').prop('hidden', hasData);
+        if (chartHidden('#vendorChart')) return;
+
+        const data = vendors.map(v => ({ x: v.vendor, y: Math.round(Number(v.total) || 0) }));
+        if (vendorChart) {
+            vendorChart.updateSeries([{ name: 'Purchases', data: data }], true);
+        } else {
+            vendorChart = new ApexCharts(document.querySelector('#vendorChart'), horizontalBarOptions(data));
+            vendorChart.render();
+        }
+    }
+
+    function fetchInvCategory(done) {
+        $.ajax({
+            url: "{{ route('admin.dashboard.inventoryByCategory') }}",
+            success: function (res) { invCategoryData = res.data || {}; renderInvCategoryChart(); },
+            error: function () { $('#invCategoryEmpty').prop('hidden', false).text('Unable to load stock data'); },
+            complete: function () { if (done) done(); }
+        });
+    }
+
+    function fetchVendors(done) {
+        $.ajax({
+            url: "{{ route('admin.dashboard.purchasesByVendor') }}",
+            data: { from_date: $('#fromDate').val(), to_date: $('#toDate').val() },
+            success: function (res) { vendorData = res.data || {}; renderVendorChart(); },
+            error: function () { $('#vendorEmpty').prop('hidden', false).text('Unable to load vendor data'); },
+            complete: function () { if (done) done(); }
+        });
+    }
+
     function updateDashboard(options) {
         options = options || {};
         const withLoader = options.loader === true;
         const fromDate = $('#fromDate').val();
         const toDate = $('#toDate').val();
-        let pending = 4;
+        let pending = 5;
 
         if (withLoader) {
             showDashboardLoader();
@@ -1528,20 +1919,35 @@
                 to_date: toDate
             },
             success: function(response) {
-                $('#statTotalItems').text(Number(response.totalInventoryItems || 0).toLocaleString());
-                $('#statTotalRevenue').text('Rs ' + parseFloat(response.totalRevenue || 0).toLocaleString(undefined, {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2
-                }));
-                $('#statTotalSales').text(Number(response.totalSales || 0).toLocaleString());
-                $('#statStockAlerts').text(Number(response.stockAlerts || 0).toLocaleString());
+                const rs2 = v => 'Rs ' + parseFloat(v || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                const num = v => Number(v || 0).toLocaleString();
 
-                setStatChange('#statItemsChange', response.itemsChangePercent);
-                setStatChange('#statRevenueChange', response.revenueChangePercent);
-                setStatChange('#statSalesChange', response.salesChangePercent);
+                $('.js-revenue').text(rs2(response.totalRevenue));
+                $('.js-profit').text(rs2(response.grossProfit));
+                $('.js-margin').text(Number(response.profitMargin || 0).toFixed(1));
+                $('.js-sales').text(num(response.totalSales));
+                $('.js-aov').text(rs2(response.avgOrderValue));
+                $('.js-invcount').text(num(response.invoiceCount));
+                $('.js-alerts').text(num(response.stockAlerts));
+                $('.js-invvalue').text(rs2(response.inventoryValue));
+                $('.js-invunits').text(num(response.inventoryUnits));
+                $('.js-outofstock').text(num(response.outOfStock));
+                $('.js-purchases').text(rs2(response.totalPurchases));
+                $('.js-purchasecount').text(num(response.purchaseCount));
+                $('.js-avgpurchase').text(rs2(response.avgPurchase));
+                $('.js-topvendor').text(response.topVendorName || '—');
+                $('.js-topvendor-amount').text(parseFloat(response.topVendorAmount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+
+                setStatChange('.js-revenue-change', response.revenueChangePercent);
+                setStatChange('.js-profit-change', response.profitChangePercent);
+                setStatChange('.js-sales-change', response.salesChangePercent);
+                setStatChange('.js-purchases-change', response.purchasesChangePercent);
 
                 renderRecentSales(response.recentSales || []);
                 renderLowStockItems(response.lowStockItems || []);
+                renderBestSellers(response.bestSellers || []);
+                renderTopCustomers(response.topCustomers || []);
+                renderRecentPurchases(response.recentPurchases || []);
             },
             error: function() {
                 $('#recentSalesBody').html('<tr><td colspan="8" class="shopora-panel-empty">Unable to load recent sales</td></tr>');
@@ -1550,13 +1956,31 @@
             complete: markDone
         });
 
-        fetchPaymentMethodRevenue(markDone);
         fetchSalesTrend(markDone);
         fetchCategoryBreakdown(markDone);
+        fetchInvCategory(markDone);
+        fetchVendors(markDone);
     }
 </script>
 
 <!-- Payment Method Revenue Modal -->
+<div class="modal fade" id="profitModal" tabindex="-1" aria-labelledby="profitModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="profitModalLabel">Profit Summary</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="profitContent"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="modal fade" id="paymentMethodRevenueModal" tabindex="-1" aria-labelledby="paymentMethodRevenueModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">

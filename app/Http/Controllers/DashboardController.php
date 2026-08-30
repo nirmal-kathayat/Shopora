@@ -110,4 +110,43 @@ class DashboardController extends Controller
             return response()->json(['error' => 'Something went wrong'], 500);
         }
     }
+
+    public function getProfitBreakdown(Request $request)
+    {
+        try {
+            return response()->json([
+                'data' => $this->repo->getProfitBreakdown(
+                    null,
+                    $request->query('from_date'),
+                    $request->query('to_date')
+                ),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Something went wrong'], 500);
+        }
+    }
+
+    public function getInventoryByCategory(Request $request)
+    {
+        try {
+            return response()->json(['data' => $this->repo->getInventoryByCategory()]);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Something went wrong'], 500);
+        }
+    }
+
+    public function getPurchasesByVendor(Request $request)
+    {
+        try {
+            return response()->json([
+                'data' => $this->repo->getPurchasesByVendor(
+                    null,
+                    $request->query('from_date'),
+                    $request->query('to_date')
+                ),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Something went wrong'], 500);
+        }
+    }
 }

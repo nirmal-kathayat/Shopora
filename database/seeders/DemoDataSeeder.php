@@ -118,22 +118,24 @@ class DemoDataSeeder extends Seeder
 
         $purchaseIds = [];
         foreach ($vendors as $i => $vendor) {
-            $billDate = Carbon::now()->subDays(40 - ($i * 4))->toDateString();
+            // spread purchases across the last ~45 days, ending today
+            $pDaysAgo = (int) round(45 * (count($vendors) - 1 - $i) / max(count($vendors) - 1, 1));
+            $billDate = Carbon::now()->subDays($pDaysAgo)->toDateString();
             $purchaseId = DB::table('purchase_inventory')->insertGetId([
                 'vendor' => $vendor['vendor'],
                 'bill_date' => $billDate,
                 'address' => $vendor['address'],
                 'pan_number' => $vendor['pan_number'],
                 'vat_amount' => rand(500, 3500),
-                'created_at' => $now->copy()->subDays(40 - ($i * 4)),
+                'created_at' => $now->copy()->subDays($pDaysAgo),
                 'updated_at' => $now,
             ]);
             $purchaseIds[] = $purchaseId;
 
             // 3-4 line items per purchase
-            $picked = collect($itemIds)->shuffle()->take(rand(3, 4));
+            $picked = collect($itemIds)->shuffle()->take(rand(3, 5));
             foreach ($picked as $itemId) {
-                $qty = rand(10, 80);
+                $qty = rand(30, 120);
                 $rate = DB::table('inventory_items')->where('id', $itemId)->value('price_per_unit');
                 $purchaseRate = round($rate * 0.7, 2);
 
@@ -152,7 +154,7 @@ class DemoDataSeeder extends Seeder
                     'sales_id' => null,
                     'qty' => $qty,
                     'remarks' => 'Purchase from ' . $vendor['vendor'],
-                    'created_at' => $now->copy()->subDays(40 - ($i * 4)),
+                    'created_at' => $now->copy()->subDays($pDaysAgo),
                     'updated_at' => $now,
                 ]);
 
@@ -161,7 +163,7 @@ class DemoDataSeeder extends Seeder
                     'qty' => $qty,
                     'purchase_inventory_id' => $purchaseId,
                     'type' => 'purchase',
-                    'created_at' => $now->copy()->subDays(40 - ($i * 4)),
+                    'created_at' => $now->copy()->subDays($pDaysAgo),
                     'updated_at' => $now,
                 ]);
 
@@ -171,16 +173,28 @@ class DemoDataSeeder extends Seeder
 
         // Sales (+ stock out) — feeds Sales, Invoice, Dashboard, Reports
         $orderBys = ['Walk-in', 'Phone Order', 'Counter', 'Online', 'Dealer'];
-        for ($s = 0; $s < 15; $s++) {
-            $saleDate = Carbon::now()->subDays(30 - $s * 2);
-            // Approximate BS-like dates for display (YYYY-MM-DD stored in date column)
-            $nepaliDate = sprintf('2082-%02d-%02d', (($s % 12) + 1), min(28, 5 + $s));
+
+        // Spread ~50 sales across the last 35 days, guaranteeing recent activity incl. today.
+        $saleOffsets = [0, 0, 0, 1, 1, 2, 2, 3, 4];
+        for ($k = 0; $k < 41; $k++) {
+            $saleOffsets[] = rand(0, 35);
+        }
+        sort($saleOffsets); // recent-first so today's sales get stock priority
+
+        foreach ($saleOffsets as $s => $offset) {
+            $saleDate = Carbon::now()->subDays($offset)->setTime(rand(9, 19), rand(0, 59), rand(0, 59));
+
+            try {
+                $nepaliDate = \NepaliDate\Facades\NepaliDate::create($saleDate)->toBS();
+            } catch (\Throwable $e) {
+                $nepaliDate = $saleDate->format('Y-m-d');
+            }
 
             $salesId = DB::table('sales')->insertGetId([
                 'order_by' => $orderBys[$s % count($orderBys)],
                 'nepali_date' => $nepaliDate,
-                'customer_id' => $customerIds[$s % count($customerIds)],
-                'discount' => $s % 3 === 0 ? 50 : 0,
+                'customer_id' => $customerIds[array_rand($customerIds)],
+                'discount' => $s % 3 === 0 ? rand(0, 4) * 50 : 0,
                 'created_at' => $saleDate,
                 'updated_at' => $saleDate,
             ]);
@@ -193,11 +207,11 @@ class DemoDataSeeder extends Seeder
                 continue;
             }
 
-            $lineItems = $availableItems->shuffle()->take(rand(2, min(4, $availableItems->count())));
+            $lineItems = $availableItems->shuffle()->take(rand(2, min(5, $availableItems->count())));
             $totalAmount = 0;
-            $firstPaymentMode = $paymentModes[$s % count($paymentModes)];
+            $firstPaymentMode = $paymentModes[array_rand($paymentModes)];
 
-            foreach ($lineItems as $idx => $itemId) {
+            foreach ($lineItems as $itemId) {
                 $available = (int) ($itemStock[$itemId] ?? 0);
                 if ($available <= 0) {
                     continue;
