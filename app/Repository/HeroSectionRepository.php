@@ -3,11 +3,13 @@
 namespace App\Repository;
 
 use App\Models\HeroSection;
-use Illuminate\Http\UploadedFile;
+use App\Repository\Concerns\StoresPublicImages;
 use Illuminate\Support\Facades\DB;
 
 class HeroSectionRepository
 {
+    use StoresPublicImages;
+
     private HeroSection $query;
 
     public function __construct(HeroSection $query)
@@ -130,29 +132,8 @@ class HeroSectionRepository
         ];
     }
 
-    public function storeImageFile(UploadedFile $file): string
+    protected function imagePrefix(): string
     {
-        $directory = public_path('image');
-        if (! is_dir($directory)) {
-            mkdir($directory, 0755, true);
-        }
-
-        $extension = strtolower($file->getClientOriginalExtension() ?: 'jpg');
-        $filename = 'hero_' . time() . '_' . uniqid() . '.' . $extension;
-        $file->move($directory, $filename);
-
-        return $filename;
-    }
-
-    public function deleteImageFile(?string $filename): void
-    {
-        if (empty($filename)) {
-            return;
-        }
-
-        $path = public_path('image/' . ltrim($filename, '/'));
-        if (is_file($path)) {
-            unlink($path);
-        }
+        return 'hero';
     }
 }
