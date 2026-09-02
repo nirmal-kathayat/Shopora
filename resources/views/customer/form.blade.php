@@ -24,8 +24,8 @@ $url = isset($customer) ? route('admin.customer.update',['id' => $customer->id])
                     <input type="text" class="form-control" value="{{isset($customer) ? $customer->address : ''}}" name="address" id="address" placeholder="Address" >
                 </div>
                 <div class="col-md-6">
-                    <label for="ph_number" class="form-label">Phone Number</label>
-                    <input type="text" name="ph_number" value="{{isset($customer) ? $customer->ph_number: ''}}" class="form-control" id="ph_number" placeholder="Phone Number">
+                    <label for="ph_number" class="form-label required">Phone Number</label>
+                    <input type="text" name="ph_number" value="{{isset($customer) ? $customer->ph_number: ''}}" class="form-control" id="ph_number" placeholder="Phone Number" data-validation="required">
                 </div>
                 <div class="col-12 justify-item-end">
                     <a href="{{route('admin.customer')}}" class="btn btn-secondary px-5">Cancel</a>
