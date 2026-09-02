@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\DealSectionResource;
 use App\Http\Resources\HeroSectionResource;
+use App\Repository\DealSectionRepository;
 use App\Repository\HeroSectionRepository;
 use Illuminate\Http\JsonResponse;
 
@@ -14,10 +16,12 @@ use Illuminate\Http\JsonResponse;
 class HomeController extends Controller
 {
     private HeroSectionRepository $heroRepo;
+    private DealSectionRepository $dealRepo;
 
-    public function __construct(HeroSectionRepository $heroRepo)
+    public function __construct(HeroSectionRepository $heroRepo, DealSectionRepository $dealRepo)
     {
         $this->heroRepo = $heroRepo;
+        $this->dealRepo = $dealRepo;
     }
 
     public function hero(): JsonResponse
@@ -28,6 +32,15 @@ class HomeController extends Controller
         // so having no active hero is not an error.
         return response()->json([
             'hero' => $hero ? new HeroSectionResource($hero) : null,
+        ]);
+    }
+
+    public function deals(): JsonResponse
+    {
+        $section = $this->dealRepo->activeDealSection();
+
+        return response()->json([
+            'deals' => $section ? new DealSectionResource($section) : null,
         ]);
     }
 }

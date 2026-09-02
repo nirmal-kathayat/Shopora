@@ -29,4 +29,5 @@ Route::prefix('auth')->group(function () {
 // Public homepage content - no token, this is what a first-time visitor sees.
 Route::prefix('home')->group(function () {
     Route::get('hero', [HomeController::class, 'hero']);
+    Route::get('deals', [HomeController::class, 'deals']);
 });

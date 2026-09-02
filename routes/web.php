@@ -4,6 +4,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DealSectionController;
 use App\Http\Controllers\HeroSectionController;
 use App\Http\Controllers\InventoryItemController;
 use App\Http\Controllers\InvoiceController;
@@ -104,6 +105,15 @@ Route::group(['prefix' => 'admin'], function () {
         Route::get('/edit/{id}', [HeroSectionController::class, 'edit'])->name('admin.heroSection.edit');
         Route::post('/edit/{id}', [HeroSectionController::class, 'update'])->name('admin.heroSection.update');
         Route::get('/delete/{id}', [HeroSectionController::class, 'delete'])->name('admin.heroSection.delete');
+    });
+    // deals section (storefront homepage)
+    Route::group(['prefix' => 'dealSection'], function () {
+        Route::get('/', [DealSectionController::class, 'index'])->name('admin.dealSection');
+        Route::get('/create', [DealSectionController::class, 'create'])->name('admin.dealSection.create');
+        Route::post('/store', [DealSectionController::class, 'store'])->name('admin.dealSection.store');
+        Route::get('/edit/{id}', [DealSectionController::class, 'edit'])->name('admin.dealSection.edit');
+        Route::post('/edit/{id}', [DealSectionController::class, 'update'])->name('admin.dealSection.update');
+        Route::get('/delete/{id}', [DealSectionController::class, 'delete'])->name('admin.dealSection.delete');
     });
     // permission
     Route::group(['prefix' => 'permission'], function () {

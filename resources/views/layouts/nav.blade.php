@@ -457,7 +457,8 @@
     $isCustomers = request()->routeIs('admin.customer*');
     $isTradeSection = $isInventoryItems || $isPurchase || $isInventoryRecords || $isSales || $isInvoice;
     $isHeroSection = request()->routeIs('admin.heroSection*');
-    $isStorefrontSection = $isHeroSection;
+    $isDealSection = request()->routeIs('admin.dealSection*');
+    $isStorefrontSection = $isHeroSection || $isDealSection;
     $isSettingsSection = request()->routeIs('admin.permission*', 'admin.role*', 'admin.user*');
 
     $showDashboard = auth()->guard(config('permission.guard'))->check();
@@ -477,7 +478,8 @@
     $showTrade = $showInventoryItems || $showPurchase || $showInventoryRecords
         || $showSales || $showInvoice;
     $showHeroSection = canAccessRoute('admin.heroSection');
-    $showStorefront = $showHeroSection;
+    $showDealSection = canAccessRoute('admin.dealSection');
+    $showStorefront = $showHeroSection || $showDealSection;
     $showPermission = canAccessRoute('admin.permission');
     $showRole = canAccessRoute('admin.role');
     $showUser = canAccessRoute('admin.user');
@@ -611,6 +613,13 @@
                     <li>
                         <a href="{{ route('admin.heroSection') }}" class="{{ $isHeroSection ? 'active' : '' }}">
                             <i class="bx bx-right-arrow-alt"></i>Hero Section
+                        </a>
+                    </li>
+                    @endif
+                    @if($showDealSection)
+                    <li>
+                        <a href="{{ route('admin.dealSection') }}" class="{{ $isDealSection ? 'active' : '' }}">
+                            <i class="bx bx-right-arrow-alt"></i>Deals Section
                         </a>
                     </li>
                     @endif
