@@ -22,6 +22,7 @@ class CustomerController extends Controller
                 $customer = $this->customerRepo->getCustomers();
                 return DataTables::of($customer)
                     ->addIndexColumn()
+                    ->editColumn('created_at', fn ($customer) => $customer->created_at?->format('d M Y'))
                     ->rawColumns([])
                     ->make(true);
             }

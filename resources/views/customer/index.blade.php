@@ -36,8 +36,12 @@
                             <tr>
                                 <th>S.no</th>
                                 <th>Name</th>
-                                <th>Address</th>
+                                <th>Email</th>
                                 <th>Phone Number</th>
+                                <th>Address</th>
+                                <th>PAN Number</th>
+                                <th>Account</th>
+                                <th>Added</th>
                                 <th>Action</th>
                             </tr>
                         </thead>
@@ -53,6 +57,11 @@
 <script src="{{asset('assets/plugins/datatable/js/jquery.dataTables.min.js')}}"></script>
 <script src="{{asset('assets/plugins/datatable/js/dataTables.bootstrap5.min.js')}}"></script>
 <script>
+    // Empty cells read better as a dash than as a blank or "null".
+    function dash(data) {
+        return (data === null || data === '') ? '<span class="text-muted">&mdash;</span>' : data;
+    }
+
     $(document).ready(function() {
         const table = $('#customerTable').DataTable({
             processing: true,
@@ -72,14 +81,46 @@
                     orderable: false,
                 },
                 {
-                    data: 'address',
-                    name: 'address',
+                    data: 'email',
+                    name: 'email',
                     orderable: false,
+                    render: dash
                 },
                 {
                     data: 'ph_number',
                     name: 'ph_number',
                     orderable: false,
+                },
+                {
+                    data: 'address',
+                    name: 'address',
+                    orderable: false,
+                    render: dash
+                },
+                {
+                    data: 'pan_number',
+                    name: 'pan_number',
+                    orderable: false,
+                    render: dash
+                },
+                {
+                    // Signed up on the storefront, or typed in at the counter?
+                    data: 'is_registered',
+                    name: 'is_registered',
+                    orderable: false,
+                    searchable: false,
+                    render: function(data) {
+                        return Number(data)
+                            ? '<span class="badge bg-success">Registered</span>'
+                            : '<span class="badge bg-secondary">Walk-in</span>';
+                    }
+                },
+                {
+                    data: 'created_at',
+                    name: 'created_at',
+                    orderable: false,
+                    searchable: false,
+                    render: dash
                 },
                 {
                     data: 'action',
