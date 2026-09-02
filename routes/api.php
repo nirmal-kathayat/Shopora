@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\CustomerAuthController;
 use App\Http\Controllers\Api\HomeController;
+use App\Http\Controllers\Api\ProductController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -25,6 +26,9 @@ Route::prefix('auth')->group(function () {
         Route::post('logout-all', [CustomerAuthController::class, 'logoutAll']);
     });
 });
+
+// The public catalogue.
+Route::get('products', [ProductController::class, 'index']);
 
 // Public homepage content - no token, this is what a first-time visitor sees.
 Route::prefix('home')->group(function () {

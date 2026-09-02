@@ -29,6 +29,7 @@ class InventoryItemRepository
                 'inventory_items.code',
                 'inventory_items.unit',
                 'inventory_items.price_per_unit',
+                'inventory_items.compare_at_price',
                 'inventory_items.category_id',
                 'inventory_items.image',
                 'categories.title as category_title'
@@ -49,6 +50,7 @@ class InventoryItemRepository
             'code' => $data['code'],
             'category_id' => $data['category_id'],
             'price_per_unit' => $data['price_per_unit'],
+            'compare_at_price' => $data['compare_at_price'] ?? null,
             'image' => $data['image'] ?? null,
         ]);
     }
@@ -66,6 +68,7 @@ class InventoryItemRepository
             'code' => $data['code'],
             'category_id' => $data['category_id'],
             'price_per_unit' => $data['price_per_unit'],
+            'compare_at_price' => $data['compare_at_price'] ?? null,
         ];
 
         if (array_key_exists('image', $data)) {

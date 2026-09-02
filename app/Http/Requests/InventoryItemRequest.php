@@ -25,7 +25,10 @@ class InventoryItemRequest extends FormRequest
             'title' => 'required',
             'unit' => 'required',
             'category_id' => 'required',
-            'price_per_unit' => 'required',
+            'price_per_unit' => 'required|numeric|min:0',
+            // Optional "was" price; the storefront only shows it as a discount
+            // when it is above the selling price, so it need not exceed it here.
+            'compare_at_price' => 'nullable|numeric|min:0',
             'code' => 'required',
             'image' => 'nullable|image|mimes:jpeg,jpg,png,webp,gif|max:2048',
         ];

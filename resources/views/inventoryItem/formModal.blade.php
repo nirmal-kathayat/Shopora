@@ -41,6 +41,11 @@
                             <input type="number" name="price_per_unit" id="inv_modal_price_per_unit" class="form-control" data-validation="required" step="0.01" placeholder="Enter price">
                         </div>
                         <div class="col-md-6">
+                            <label for="inv_modal_compare_at_price" class="form-label">Compare-at Price</label>
+                            <input type="number" name="compare_at_price" id="inv_modal_compare_at_price" class="form-control" step="0.01" placeholder="Original price (optional)">
+                            <small class="text-muted">The "was" price. Shown struck-through with a discount badge when above the selling price.</small>
+                        </div>
+                        <div class="col-md-6">
                             <label for="inv_modal_image" class="form-label">Product Image</label>
                             <input type="file" name="image" id="inv_modal_image" class="form-control" accept="image/jpeg,image/png,image/webp,image/gif">
                             <small class="text-muted">Optional. JPG, PNG, WEBP or GIF (max 2MB)</small>
@@ -142,6 +147,7 @@
             $('#inv_modal_unit').val(row.unit);
             $('#inv_modal_code').val(row.code);
             $('#inv_modal_price_per_unit').val(row.price_per_unit);
+            $('#inv_modal_compare_at_price').val(row.compare_at_price || '');
             $('#inv_modal_category_id').val(row.category_id).trigger('change');
             resetInventoryImagePreview();
 
@@ -190,6 +196,7 @@
                     unit: $btn.data('unit'),
                     code: $btn.data('code'),
                     price_per_unit: $btn.data('price'),
+                    compare_at_price: $btn.data('compare'),
                     category_id: $btn.data('categoryId'),
                     image: $btn.data('image'),
                     image_url: $btn.data('imageUrl'),
@@ -303,6 +310,7 @@
             formData.append('code', $('#inv_modal_code').val());
             formData.append('category_id', $('#inv_modal_category_id').val());
             formData.append('price_per_unit', $('#inv_modal_price_per_unit').val());
+            formData.append('compare_at_price', $('#inv_modal_compare_at_price').val());
             formData.append('_token', $('input[name="_token"]').val());
 
             const imageFile = $('#inv_modal_image')[0].files[0];
