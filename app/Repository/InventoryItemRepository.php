@@ -3,6 +3,7 @@
 namespace App\Repository;
 
 use App\Models\InventoryItem;
+use App\Models\ProductImage;
 use Illuminate\Http\UploadedFile;
 
 class InventoryItemRepository
@@ -30,6 +31,10 @@ class InventoryItemRepository
                 'inventory_items.unit',
                 'inventory_items.price_per_unit',
                 'inventory_items.compare_at_price',
+                'inventory_items.description',
+                'inventory_items.brand',
+                'inventory_items.net_volume',
+                'inventory_items.country_of_origin',
                 'inventory_items.category_id',
                 'inventory_items.image',
                 'categories.title as category_title'
@@ -51,6 +56,12 @@ class InventoryItemRepository
             'category_id' => $data['category_id'],
             'price_per_unit' => $data['price_per_unit'],
             'compare_at_price' => $data['compare_at_price'] ?? null,
+            'description' => $data['description'] ?? null,
+            'brand' => $data['brand'] ?? null,
+            'net_volume' => $data['net_volume'] ?? null,
+            'country_of_origin' => $data['country_of_origin'] ?? null,
+            'highlights' => $data['highlights'] ?? [],
+            'features' => $data['features'] ?? [],
             'image' => $data['image'] ?? null,
         ]);
     }
@@ -69,6 +80,12 @@ class InventoryItemRepository
             'category_id' => $data['category_id'],
             'price_per_unit' => $data['price_per_unit'],
             'compare_at_price' => $data['compare_at_price'] ?? null,
+            'description' => $data['description'] ?? null,
+            'brand' => $data['brand'] ?? null,
+            'net_volume' => $data['net_volume'] ?? null,
+            'country_of_origin' => $data['country_of_origin'] ?? null,
+            'highlights' => $data['highlights'] ?? [],
+            'features' => $data['features'] ?? [],
         ];
 
         if (array_key_exists('image', $data)) {
@@ -83,7 +100,55 @@ class InventoryItemRepository
         $item = $this->query->findOrFail($id);
         $this->deleteImageFile($item->image);
 
+        // The rows cascade with the item; the files on disk do not.
+        foreach ($item->productImages as $image) {
+            $this->deleteImageFile($image->image);
+        }
+
         return $this->query->where('id', $id)->delete();
+    }
+
+    /**
+     * Append uploaded gallery photos to an item, continuing the sort order.
+     *
+     * @param  array<int, \Illuminate\Http\UploadedFile>  $files
+     */
+    public function addGalleryImages(int $itemId, array $files): void
+    {
+        $next = (int) ProductImage::where('inventory_item_id', $itemId)->max('sort_order');
+
+        foreach ($files as $file) {
+            if (! $file instanceof UploadedFile) {
+                continue;
+            }
+            ProductImage::create([
+                'inventory_item_id' => $itemId,
+                'image' => $this->storeImageFile($file),
+                'sort_order' => ++$next,
+            ]);
+        }
+    }
+
+    /**
+     * Remove specific gallery images (by id) belonging to this item, files and
+     * rows both.
+     *
+     * @param  array<int, int|string>  $imageIds
+     */
+    public function removeGalleryImages(int $itemId, array $imageIds): void
+    {
+        $ids = array_filter(array_map('intval', $imageIds));
+        if (empty($ids)) {
+            return;
+        }
+
+        ProductImage::where('inventory_item_id', $itemId)
+            ->whereIn('id', $ids)
+            ->get()
+            ->each(function (ProductImage $image) {
+                $this->deleteImageFile($image->image);
+                $image->delete();
+            });
     }
 
     public function storeImageFile(UploadedFile $file): string

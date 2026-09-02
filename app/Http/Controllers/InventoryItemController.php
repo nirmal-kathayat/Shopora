@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\InventoryItemRequest;
 use App\Models\InventoryItem;
+use App\Models\StoreSetting;
 use App\Repository\CategoryRepository;
 use App\Repository\InventoryItemRepository;
 use DataTables;
@@ -52,7 +53,17 @@ class InventoryItemController extends Controller
 
     public function create()
     {
-        return redirect()->route('admin.inventoryItem');
+        try {
+            return view('inventoryItem.form', [
+                'categories' => $this->categoryRepo->getCategory(),
+                'trustBadges' => StoreSetting::productTrustBadges(),
+                'trustIcons' => StoreSetting::TRUST_ICONS,
+                'highlightIcons' => InventoryItem::HIGHLIGHT_ICONS,
+            ]);
+        } catch (\Exception $e) {
+            return redirect()->route('admin.inventoryItem')
+                ->with(['message' => 'Something went wrong!', 'type' => 'error']);
+        }
     }
 
     public function store(InventoryItemRequest $request)
@@ -64,6 +75,12 @@ class InventoryItemController extends Controller
             }
 
             $item = $this->inventoryItemRepo->storeInventoryItem($data);
+
+            if ($request->hasFile('gallery')) {
+                $this->inventoryItemRepo->addGalleryImages($item->id, $request->file('gallery'));
+            }
+
+            $this->saveTrustBadges($request);
 
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([
@@ -84,7 +101,18 @@ class InventoryItemController extends Controller
 
     public function edit($id)
     {
-        return redirect()->route('admin.inventoryItem');
+        try {
+            return view('inventoryItem.form', [
+                'item' => $this->inventoryItemRepo->find($id),
+                'categories' => $this->categoryRepo->getCategory(),
+                'trustBadges' => StoreSetting::productTrustBadges(),
+                'trustIcons' => StoreSetting::TRUST_ICONS,
+                'highlightIcons' => InventoryItem::HIGHLIGHT_ICONS,
+            ]);
+        } catch (\Exception $e) {
+            return redirect()->route('admin.inventoryItem')
+                ->with(['message' => 'That inventory item no longer exists.', 'type' => 'error']);
+        }
     }
 
     public function update(InventoryItemRequest $request, $id)
@@ -96,9 +124,21 @@ class InventoryItemController extends Controller
             if ($request->hasFile('image')) {
                 $this->inventoryItemRepo->deleteImageFile($existing->image);
                 $data['image'] = $this->inventoryItemRepo->storeImageFile($request->file('image'));
+            } elseif ($request->boolean('remove_image')) {
+                $this->inventoryItemRepo->deleteImageFile($existing->image);
+                $data['image'] = null;
             }
 
             $this->inventoryItemRepo->updateInventoryItem($data, $id);
+
+            if ($request->filled('remove_gallery')) {
+                $this->inventoryItemRepo->removeGalleryImages((int) $id, (array) $request->input('remove_gallery'));
+            }
+            if ($request->hasFile('gallery')) {
+                $this->inventoryItemRepo->addGalleryImages((int) $id, $request->file('gallery'));
+            }
+
+            $this->saveTrustBadges($request);
 
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([
@@ -125,6 +165,24 @@ class InventoryItemController extends Controller
         } catch (\Exception $e) {
             return redirect()->back()->with(['message' => 'Something went wrong!', 'type' => 'error']);
         }
+    }
+
+    /**
+     * Trust badges are store-wide (the same on every product page), edited from
+     * this form for convenience. Only saved when the form actually submitted
+     * the fields, so the AJAX quick paths never wipe them.
+     */
+    private function saveTrustBadges(Request $request): void
+    {
+        if (! $request->has('badge_title')) {
+            return;
+        }
+
+        StoreSetting::saveTrustBadgesFromRequest(
+            (array) $request->input('badge_icon', []),
+            (array) $request->input('badge_title', []),
+            (array) $request->input('badge_subtitle', []),
+        );
     }
 
     private function formatInventoryItem(InventoryItem $item): array

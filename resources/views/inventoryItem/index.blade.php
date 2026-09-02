@@ -21,9 +21,9 @@
             </div>
             <div class="ms-auto">
                 <div class="btn-group">
-                    <button type="button" id="btnNewInventoryItem" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#inventoryItemFormModal">
+                    <a href="{{ route('admin.inventoryItem.create') }}" class="btn btn-primary">
                         <i class="bx bx-plus me-1"></i> New Inventory Item
-                    </button>
+                    </a>
                 </div>
             </div>
         </div>
@@ -61,7 +61,6 @@
     </div>
 </div>
 
-@include('inventoryItem.formModal')
 
 @endsection
 
@@ -181,7 +180,8 @@
                     searchable: false,
                     render: function(data, type, full, meta) {
                         var imageUrl = full.image ? "{{ asset('image') }}/" + encodeURIComponent(full.image) : '';
-                        var editButton = '<button type="button" class="btn btn-primary btn-sm editInventoryItem" data-id="' + full.id + '" data-title="' + (full.title || '').replace(/"/g, '&quot;') + '" data-unit="' + (full.unit || '').replace(/"/g, '&quot;') + '" data-code="' + (full.code || '').replace(/"/g, '&quot;') + '" data-price="' + (full.price_per_unit || '') + ' data-compare="' + (full.compare_at_price || '') + '" data-category-id="' + (full.category_id || '') + '" data-image="' + (full.image || '') + '" data-image-url="' + imageUrl + '"><i class="bx bx-edit"></i></button>';
+                        var editUrl = "{{ route('admin.inventoryItem.edit', ['id' => ':id']) }}".replace(':id', full.id);
+                        var editButton = '<a href="' + editUrl + '" class="btn btn-primary btn-sm"><i class="bx bx-edit"></i></a>';
                         var deleteButton = '<a class="btn btn-danger deleteAction btn-sm" href="javascript:void(0)" data-id="' + full.id + '"><i class="bx bx-trash"></i></a>';
                         var actionButtons = '<div class="d-flex gap-sm-2">' + editButton + deleteButton + '</div>';
                         return actionButtons;
