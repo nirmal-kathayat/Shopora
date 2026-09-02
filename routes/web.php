@@ -4,6 +4,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\HeroSectionController;
 use App\Http\Controllers\InventoryItemController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\PermissionController;
@@ -94,6 +95,15 @@ Route::group(['prefix' => 'admin'], function () {
         Route::get('/edit/{id}', [CustomerController::class, 'edit'])->name('admin.customer.edit');
         Route::post('/edit/{id}', [CustomerController::class, 'update'])->name('admin.customer.update');
         Route::get('/delete/{id}', [CustomerController::class, 'delete'])->name('admin.customer.delete');
+    });
+    // hero section (storefront homepage)
+    Route::group(['prefix' => 'heroSection'], function () {
+        Route::get('/', [HeroSectionController::class, 'index'])->name('admin.heroSection');
+        Route::get('/create', [HeroSectionController::class, 'create'])->name('admin.heroSection.create');
+        Route::post('/store', [HeroSectionController::class, 'store'])->name('admin.heroSection.store');
+        Route::get('/edit/{id}', [HeroSectionController::class, 'edit'])->name('admin.heroSection.edit');
+        Route::post('/edit/{id}', [HeroSectionController::class, 'update'])->name('admin.heroSection.update');
+        Route::get('/delete/{id}', [HeroSectionController::class, 'delete'])->name('admin.heroSection.delete');
     });
     // permission
     Route::group(['prefix' => 'permission'], function () {

@@ -451,6 +451,8 @@
     $isSales = request()->routeIs('admin.sales*');
     $isInvoice = request()->routeIs('admin.invoice*');
     $isCustomers = request()->routeIs('admin.customer*');
+    $isHeroSection = request()->routeIs('admin.heroSection*');
+    $isStorefrontSection = $isHeroSection;
     $isSettingsSection = request()->routeIs('admin.permission*', 'admin.role*', 'admin.user*');
 
     $showDashboard = auth()->guard(config('permission.guard'))->check();
@@ -465,6 +467,8 @@
     $showSales = canAccessRoute('admin.sales.index');
     $showInvoice = canAccessRoute('admin.invoice.index');
     $showCustomers = canAccessRoute('admin.customer');
+    $showHeroSection = canAccessRoute('admin.heroSection');
+    $showStorefront = $showHeroSection;
     $showPermission = canAccessRoute('admin.permission');
     $showRole = canAccessRoute('admin.role');
     $showUser = canAccessRoute('admin.user');
@@ -581,6 +585,25 @@
                     <div class="parent-icon"><i class='bx bx-user'></i></div>
                     <div class="menu-title">Customers</div>
                 </a>
+            </li>
+            @endif
+
+            @if($showStorefront)
+            <li class="has-submenu {{ $isStorefrontSection ? 'open' : '' }}">
+                <a href="javascript:;" class="has-arrow {{ $isStorefrontSection ? 'mm-active' : '' }}" onclick="toggleDropdown(this)">
+                    <div class="parent-icon"><i class='bx bx-layout'></i></div>
+                    <div class="menu-title">Storefront</div>
+                    <i class="bx bx-chevron-right shopora-submenu-chevron"></i>
+                </a>
+                <ul class="submenu shopora-submenu {{ $isStorefrontSection ? 'active' : '' }}">
+                    @if($showHeroSection)
+                    <li>
+                        <a href="{{ route('admin.heroSection') }}" class="{{ $isHeroSection ? 'active' : '' }}">
+                            <i class="bx bx-right-arrow-alt"></i>Hero Section
+                        </a>
+                    </li>
+                    @endif
+                </ul>
             </li>
             @endif
 
