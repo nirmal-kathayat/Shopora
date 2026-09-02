@@ -50,6 +50,17 @@ class ProductController extends Controller
         ]);
     }
 
+    public function show(int $id): JsonResponse
+    {
+        $product = $this->products->find($id);
+
+        if (! $product) {
+            return response()->json(['message' => 'Product not found.'], 404);
+        }
+
+        return response()->json(['product' => new ProductResource($product)]);
+    }
+
     /** "in,low" -> ['in', 'low']; anything empty -> []. */
     private function splitList($value): array
     {

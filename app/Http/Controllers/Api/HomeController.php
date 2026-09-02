@@ -8,6 +8,7 @@ use App\Http\Resources\DealSectionResource;
 use App\Http\Resources\HeroSectionResource;
 use App\Repository\CategoryRepository;
 use App\Repository\DealSectionRepository;
+use App\Models\StoreSetting;
 use App\Repository\HeroSectionRepository;
 use Illuminate\Http\JsonResponse;
 
@@ -55,6 +56,13 @@ class HomeController extends Controller
     {
         return response()->json([
             'categories' => CategoryResource::collection($this->categoryRepo->getActiveCategories()),
+        ]);
+    }
+
+    public function productTrust(): JsonResponse
+    {
+        return response()->json([
+            'trust_badges' => StoreSetting::get(StoreSetting::PRODUCT_TRUST, []),
         ]);
     }
 }

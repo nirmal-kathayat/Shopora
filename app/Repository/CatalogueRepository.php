@@ -49,6 +49,23 @@ class CatalogueRepository
         return $query->paginate($perPage)->withQueryString();
     }
 
+    /** One product for the detail page, with the extra detail columns. */
+    public function find(int $id): ?object
+    {
+        return $this->baseQuery()
+            ->addSelect([
+                'inventory_items.description',
+                'inventory_items.brand',
+                'inventory_items.net_volume',
+                'inventory_items.country_of_origin',
+                'inventory_items.highlights',
+                'inventory_items.features',
+            ])
+            ->where('inventory_items.id', $id)
+            ->with('productImages')
+            ->first();
+    }
+
     /** The item ids that exist, so an unknown category slug can 404 cleanly. */
     public function categoryExists(string $slug): bool
     {

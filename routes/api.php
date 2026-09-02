@@ -29,10 +29,12 @@ Route::prefix('auth')->group(function () {
 
 // The public catalogue.
 Route::get('products', [ProductController::class, 'index']);
+Route::get('products/{id}', [ProductController::class, 'show'])->whereNumber('id');
 
 // Public homepage content - no token, this is what a first-time visitor sees.
 Route::prefix('home')->group(function () {
     Route::get('hero', [HomeController::class, 'hero']);
     Route::get('deals', [HomeController::class, 'deals']);
     Route::get('categories', [HomeController::class, 'categories']);
+    Route::get('product-trust', [HomeController::class, 'productTrust']);
 });
