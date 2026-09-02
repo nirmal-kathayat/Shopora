@@ -14,6 +14,7 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SalesController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 
@@ -92,6 +93,11 @@ Route::group(['prefix' => 'admin'], function () {
         Route::get('/getReport', [ReportController::class, 'getReport'])->name('admin.reports.getReport');
         Route::get('/getSalesReport', [ReportController::class, 'getSalesReport'])->name('admin.reports.getSalesReport');
         Route::get('/getInventoryReport', [ReportController::class, 'getInventoryReport'])->name('admin.reports.getInventoryReport');
+    });
+    // product reviews (moderation)
+    Route::group(['prefix' => 'review'], function () {
+        Route::get('/', [ReviewController::class, 'index'])->name('admin.review');
+        Route::get('/delete/{id}', [ReviewController::class, 'delete'])->name('admin.review.delete');
     });
     // customer
     Route::group(['prefix' => 'customer'], function () {

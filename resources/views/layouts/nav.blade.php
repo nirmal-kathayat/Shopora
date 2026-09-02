@@ -454,9 +454,10 @@
         || request()->routeIs('admin.purchaseInventory.viewRecord');
     $isSales = request()->routeIs('admin.sales*');
     $isInvoice = request()->routeIs('admin.invoice*');
+    $isReviews = request()->routeIs('admin.review*');
     $isCustomers = request()->routeIs('admin.customer*');
     $isCategories = request()->routeIs('admin.category', 'admin.category.create', 'admin.category.edit');
-    $isTradeSection = $isCategories || $isInventoryItems || $isPurchase || $isInventoryRecords || $isSales || $isInvoice;
+    $isTradeSection = $isCategories || $isInventoryItems || $isPurchase || $isInventoryRecords || $isSales || $isInvoice || $isReviews;
     $isHeroSection = request()->routeIs('admin.heroSection*');
     $isDealSection = request()->routeIs('admin.dealSection*');
     $isStorefrontSection = $isHeroSection || $isDealSection;
@@ -473,12 +474,13 @@
     $showInventoryRecords = canAccessRoute('admin.purchaseInventory.storeRecords');
     $showSales = canAccessRoute('admin.sales.index');
     $showInvoice = canAccessRoute('admin.invoice.index');
+    $showReviews = canAccessRoute('admin.review');
     $showCustomers = canAccessRoute('admin.customer');
     // The parent only appears when at least one child does, so a role with no
     // operations permissions does not get an empty menu to open.
     $showCategories = canAccessRoute('admin.category');
     $showTrade = $showCategories || $showInventoryItems || $showPurchase || $showInventoryRecords
-        || $showSales || $showInvoice;
+        || $showSales || $showInvoice || $showReviews;
     $showHeroSection = canAccessRoute('admin.heroSection');
     $showDealSection = canAccessRoute('admin.dealSection');
     $showStorefront = $showHeroSection || $showDealSection;
@@ -594,6 +596,13 @@
                     <li>
                         <a href="{{ route('admin.invoice.index') }}" class="{{ $isInvoice ? 'active' : '' }}">
                             <i class="bx bx-right-arrow-alt"></i>Invoice
+                        </a>
+                    </li>
+                    @endif
+                    @if($showReviews)
+                    <li>
+                        <a href="{{ route('admin.review') }}" class="{{ $isReviews ? 'active' : '' }}">
+                            <i class="bx bx-right-arrow-alt"></i>Reviews
                         </a>
                     </li>
                     @endif

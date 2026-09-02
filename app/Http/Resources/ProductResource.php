@@ -52,10 +52,10 @@ class ProductResource extends JsonResource
                 'highlights' => $this->normalizeHighlights(),
                 'features' => array_values(array_filter((array) ($this->features ?? []))),
             ]),
-            // No reviews yet - the storefront hides the rating row when these
-            // are null rather than showing a made-up score.
-            'rating' => null,
-            'reviews' => null,
+            // The real average and count; null when the product has no reviews,
+            // so the storefront shows "no reviews yet" rather than a zero.
+            'rating' => $this->review_count > 0 ? round((float) $this->review_avg, 1) : null,
+            'reviews' => $this->review_count > 0 ? (int) $this->review_count : null,
         ];
     }
 

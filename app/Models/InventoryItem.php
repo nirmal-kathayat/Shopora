@@ -40,4 +40,9 @@ class InventoryItem extends Model
     {
         return $this->hasMany(ProductImage::class)->orderBy('sort_order')->orderBy('id');
     }
+
+    public function reviews()
+    {
+        return $this->hasMany(ProductReview::class)->latest();
+    }
 }

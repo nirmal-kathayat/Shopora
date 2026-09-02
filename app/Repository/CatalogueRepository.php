@@ -89,6 +89,14 @@ class CatalogueRepository
             ->selectRaw('COALESCE(SUM(qty), 0)')
             ->whereColumn('sales_products.product_id', 'inventory_items.id');
 
+        $reviewAvg = DB::table('product_reviews')
+            ->selectRaw('AVG(rating)')
+            ->whereColumn('product_reviews.inventory_item_id', 'inventory_items.id');
+
+        $reviewCount = DB::table('product_reviews')
+            ->selectRaw('COUNT(*)')
+            ->whereColumn('product_reviews.inventory_item_id', 'inventory_items.id');
+
         return $this->query->newQuery()
             ->leftJoin('categories', 'categories.id', '=', 'inventory_items.category_id')
             ->select([
@@ -104,7 +112,9 @@ class CatalogueRepository
                 'categories.slug as category_slug',
             ])
             ->selectSub($netStock, 'stock_qty')
-            ->selectSub($unitsSold, 'units_sold');
+            ->selectSub($unitsSold, 'units_sold')
+            ->selectSub($reviewAvg, 'review_avg')
+            ->selectSub($reviewCount, 'review_count');
     }
 
     private function applyCategory(Builder $query, ?string $slug): void

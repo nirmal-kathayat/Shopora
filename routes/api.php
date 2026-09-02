@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\CustomerAuthController;
 use App\Http\Controllers\Api\HomeController;
 use App\Http\Controllers\Api\ProductController;
+use App\Http\Controllers\Api\ProductReviewController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -30,6 +31,10 @@ Route::prefix('auth')->group(function () {
 // The public catalogue.
 Route::get('products', [ProductController::class, 'index']);
 Route::get('products/{id}', [ProductController::class, 'show'])->whereNumber('id');
+Route::get('products/{id}/reviews', [ProductReviewController::class, 'index'])->whereNumber('id');
+Route::post('products/{id}/reviews', [ProductReviewController::class, 'store'])
+    ->whereNumber('id')
+    ->middleware(['auth:sanctum', 'abilities:customer']);
 
 // Public homepage content - no token, this is what a first-time visitor sees.
 Route::prefix('home')->group(function () {
