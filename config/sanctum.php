@@ -33,7 +33,9 @@ return [
     |
     */
 
-    'guard' => ['web'],
+    // Empty on purpose: these API routes are token-only, so a browser session
+    // for some other guard must never authenticate them.
+    'guard' => [],
 
     /*
     |--------------------------------------------------------------------------
@@ -46,7 +48,21 @@ return [
     |
     */
 
-    'expiration' => null,
+    'expiration' => (int) env('SANCTUM_EXPIRATION', 60 * 24 * 30),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Idle Timeout
+    |--------------------------------------------------------------------------
+    |
+    | Minutes a token may go unused before it is revoked, enforced in
+    | AppServiceProvider. Unlike "expiration" above - which caps a token's
+    | total life - this one resets on every authenticated request. Set to 0
+    | to turn it off.
+    |
+    */
+
+    'idle_timeout' => (int) env('SANCTUM_IDLE_TIMEOUT', 30),
 
     /*
     |--------------------------------------------------------------------------

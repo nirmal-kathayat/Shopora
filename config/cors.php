@@ -19,7 +19,12 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['*'],
+    // Only the storefront may call the API from a browser. Widening this to
+    // '*' would let any page on the internet drive these endpoints.
+    'allowed_origins' => array_filter(explode(',', (string) env(
+        'FRONTEND_URLS',
+        'http://localhost:3000,http://127.0.0.1:3000'
+    ))),
 
     'allowed_origins_patterns' => [],
 

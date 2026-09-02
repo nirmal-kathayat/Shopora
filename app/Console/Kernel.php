@@ -12,7 +12,9 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule): void
     {
-        // $schedule->command('inspire')->hourly();
+        // Clears tokens that expired more than a day ago, so the table does
+        // not grow without bound.
+        $schedule->command('sanctum:prune-expired --hours=24')->daily();
     }
 
     /**
