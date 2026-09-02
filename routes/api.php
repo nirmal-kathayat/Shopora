@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\CustomerAuthController;
 use App\Http\Controllers\Api\HomeController;
 use App\Http\Controllers\Api\ProductController;
+use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\ProductReviewController;
 use Illuminate\Support\Facades\Route;
 
@@ -26,6 +27,15 @@ Route::prefix('auth')->group(function () {
         Route::post('logout', [CustomerAuthController::class, 'logout']);
         Route::post('logout-all', [CustomerAuthController::class, 'logoutAll']);
     });
+});
+
+// The signed-in customer's cart.
+Route::prefix('cart')->middleware(['auth:sanctum', 'abilities:customer'])->group(function () {
+    Route::get('/', [CartController::class, 'index']);
+    Route::post('/', [CartController::class, 'store']);
+    Route::post('merge', [CartController::class, 'merge']);
+    Route::put('{productId}', [CartController::class, 'updateQty'])->whereNumber('productId');
+    Route::delete('{productId}', [CartController::class, 'destroy'])->whereNumber('productId');
 });
 
 // The public catalogue.

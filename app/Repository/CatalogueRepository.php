@@ -66,6 +66,18 @@ class CatalogueRepository
             ->first();
     }
 
+    /** Several products by id, with stock and category, for the cart. */
+    public function findMany(array $ids)
+    {
+        if (empty($ids)) {
+            return collect();
+        }
+
+        return $this->baseQuery()
+            ->whereIn('inventory_items.id', $ids)
+            ->get();
+    }
+
     /** The item ids that exist, so an unknown category slug can 404 cleanly. */
     public function categoryExists(string $slug): bool
     {
