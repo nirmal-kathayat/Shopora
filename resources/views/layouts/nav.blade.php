@@ -455,7 +455,8 @@
     $isSales = request()->routeIs('admin.sales*');
     $isInvoice = request()->routeIs('admin.invoice*');
     $isCustomers = request()->routeIs('admin.customer*');
-    $isTradeSection = $isInventoryItems || $isPurchase || $isInventoryRecords || $isSales || $isInvoice;
+    $isCategories = request()->routeIs('admin.category', 'admin.category.create', 'admin.category.edit');
+    $isTradeSection = $isCategories || $isInventoryItems || $isPurchase || $isInventoryRecords || $isSales || $isInvoice;
     $isHeroSection = request()->routeIs('admin.heroSection*');
     $isDealSection = request()->routeIs('admin.dealSection*');
     $isStorefrontSection = $isHeroSection || $isDealSection;
@@ -475,7 +476,8 @@
     $showCustomers = canAccessRoute('admin.customer');
     // The parent only appears when at least one child does, so a role with no
     // operations permissions does not get an empty menu to open.
-    $showTrade = $showInventoryItems || $showPurchase || $showInventoryRecords
+    $showCategories = canAccessRoute('admin.category');
+    $showTrade = $showCategories || $showInventoryItems || $showPurchase || $showInventoryRecords
         || $showSales || $showInvoice;
     $showHeroSection = canAccessRoute('admin.heroSection');
     $showDealSection = canAccessRoute('admin.dealSection');
@@ -553,6 +555,13 @@
                     <i class="bx bx-chevron-right shopora-submenu-chevron"></i>
                 </a>
                 <ul class="submenu shopora-submenu {{ $isTradeSection ? 'active' : '' }}">
+                    @if($showCategories)
+                    <li>
+                        <a href="{{ route('admin.category') }}" class="{{ $isCategories ? 'active' : '' }}">
+                            <i class="bx bx-right-arrow-alt"></i>Categories
+                        </a>
+                    </li>
+                    @endif
                     @if($showInventoryItems)
                     <li>
                         <a href="{{ route('admin.inventoryItem') }}" class="{{ $isInventoryItems ? 'active' : '' }}">

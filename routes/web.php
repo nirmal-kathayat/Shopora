@@ -44,7 +44,12 @@ Route::group(['prefix' => 'admin'], function () {
         ->name('admin.dashboard.purchasesByVendor');
     // category
     Route::group(['prefix' => 'category'], function () {
+        Route::get('/', [CategoryController::class, 'index'])->name('admin.category');
+        Route::get('/create', [CategoryController::class, 'create'])->name('admin.category.create');
         Route::post('/store', [CategoryController::class, 'storeCategory'])->name('admin.category.store');
+        Route::get('/edit/{id}', [CategoryController::class, 'edit'])->name('admin.category.edit');
+        Route::post('/edit/{id}', [CategoryController::class, 'update'])->name('admin.category.update');
+        Route::get('/delete/{id}', [CategoryController::class, 'delete'])->name('admin.category.delete');
     });
     // inventory items
     Route::group(['prefix' => 'inventoryItem'], function () {

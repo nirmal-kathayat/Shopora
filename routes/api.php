@@ -30,4 +30,5 @@ Route::prefix('auth')->group(function () {
 Route::prefix('home')->group(function () {
     Route::get('hero', [HomeController::class, 'hero']);
     Route::get('deals', [HomeController::class, 'deals']);
+    Route::get('categories', [HomeController::class, 'categories']);
 });
