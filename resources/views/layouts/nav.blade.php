@@ -208,7 +208,7 @@
     }
 
     .shopora-sidebar .submenu.shopora-submenu.active {
-        max-height: 220px;
+        max-height: 340px;
         opacity: 1;
         transform: translateY(0);
         padding: 4px 0 6px;
@@ -225,7 +225,11 @@
         align-items: center;
         gap: 8px;
         margin: 2px 0 2px 8px;
-        padding: 8px 12px !important;
+        padding: 8px 10px !important;
+        /* one line per item — "Purchase Inventory" was breaking in two and
+           making its row taller than the rest */
+        white-space: nowrap;
+        overflow: hidden;
         border-radius: 8px;
         color: #4b5563 !important;
         font-size: 13.5px;
@@ -451,6 +455,7 @@
     $isSales = request()->routeIs('admin.sales*');
     $isInvoice = request()->routeIs('admin.invoice*');
     $isCustomers = request()->routeIs('admin.customer*');
+    $isTradeSection = $isInventoryItems || $isPurchase || $isInventoryRecords || $isSales || $isInvoice;
     $isHeroSection = request()->routeIs('admin.heroSection*');
     $isStorefrontSection = $isHeroSection;
     $isSettingsSection = request()->routeIs('admin.permission*', 'admin.role*', 'admin.user*');
@@ -467,6 +472,10 @@
     $showSales = canAccessRoute('admin.sales.index');
     $showInvoice = canAccessRoute('admin.invoice.index');
     $showCustomers = canAccessRoute('admin.customer');
+    // The parent only appears when at least one child does, so a role with no
+    // operations permissions does not get an empty menu to open.
+    $showTrade = $showInventoryItems || $showPurchase || $showInventoryRecords
+        || $showSales || $showInvoice;
     $showHeroSection = canAccessRoute('admin.heroSection');
     $showStorefront = $showHeroSection;
     $showPermission = canAccessRoute('admin.permission');
@@ -534,48 +543,50 @@
             </li>
             @endif
 
-            @if($showInventoryItems)
-            <li class="{{ $isInventoryItems ? 'active-link' : '' }}">
-                <a href="{{ route('admin.inventoryItem') }}">
-                    <div class="parent-icon"><i class='bx bx-package'></i></div>
-                    <div class="menu-title">Inventory Items</div>
+            @if($showTrade)
+            <li class="has-submenu {{ $isTradeSection ? 'open' : '' }}">
+                <a href="javascript:;" class="has-arrow {{ $isTradeSection ? 'mm-active' : '' }}" onclick="toggleDropdown(this)">
+                    <div class="parent-icon"><i class='bx bx-store-alt'></i></div>
+                    <div class="menu-title">Inventory &amp; Sales</div>
+                    <i class="bx bx-chevron-right shopora-submenu-chevron"></i>
                 </a>
-            </li>
-            @endif
-
-            @if($showPurchase)
-            <li class="{{ $isPurchase ? 'active-link' : '' }}">
-                <a href="{{ route('admin.purchaseInventory') }}">
-                    <div class="parent-icon"><i class='bx bx-cart'></i></div>
-                    <div class="menu-title">Purchase Inventory</div>
-                </a>
-            </li>
-            @endif
-
-            @if($showInventoryRecords)
-            <li class="{{ $isInventoryRecords ? 'active-link' : '' }}">
-                <a href="{{ route('admin.purchaseInventory.storeRecords') }}">
-                    <div class="parent-icon"><i class='bx bx-list-plus'></i></div>
-                    <div class="menu-title">Inventory Records</div>
-                </a>
-            </li>
-            @endif
-
-            @if($showSales)
-            <li class="{{ $isSales ? 'active-link' : '' }}">
-                <a href="{{ route('admin.sales.index') }}">
-                    <div class="parent-icon"><i class='bx bx-shopping-bag'></i></div>
-                    <div class="menu-title">Sales</div>
-                </a>
-            </li>
-            @endif
-
-            @if($showInvoice)
-            <li class="{{ $isInvoice ? 'active-link' : '' }}">
-                <a href="{{ route('admin.invoice.index') }}">
-                    <div class="parent-icon"><i class='bx bx-receipt'></i></div>
-                    <div class="menu-title">Invoice</div>
-                </a>
+                <ul class="submenu shopora-submenu {{ $isTradeSection ? 'active' : '' }}">
+                    @if($showInventoryItems)
+                    <li>
+                        <a href="{{ route('admin.inventoryItem') }}" class="{{ $isInventoryItems ? 'active' : '' }}">
+                            <i class="bx bx-right-arrow-alt"></i>Inventory Items
+                        </a>
+                    </li>
+                    @endif
+                    @if($showPurchase)
+                    <li>
+                        <a href="{{ route('admin.purchaseInventory') }}" class="{{ $isPurchase ? 'active' : '' }}">
+                            <i class="bx bx-right-arrow-alt"></i>Purchase Inventory
+                        </a>
+                    </li>
+                    @endif
+                    @if($showInventoryRecords)
+                    <li>
+                        <a href="{{ route('admin.purchaseInventory.storeRecords') }}" class="{{ $isInventoryRecords ? 'active' : '' }}">
+                            <i class="bx bx-right-arrow-alt"></i>Inventory Records
+                        </a>
+                    </li>
+                    @endif
+                    @if($showSales)
+                    <li>
+                        <a href="{{ route('admin.sales.index') }}" class="{{ $isSales ? 'active' : '' }}">
+                            <i class="bx bx-right-arrow-alt"></i>Sales
+                        </a>
+                    </li>
+                    @endif
+                    @if($showInvoice)
+                    <li>
+                        <a href="{{ route('admin.invoice.index') }}" class="{{ $isInvoice ? 'active' : '' }}">
+                            <i class="bx bx-right-arrow-alt"></i>Invoice
+                        </a>
+                    </li>
+                    @endif
+                </ul>
             </li>
             @endif
 
