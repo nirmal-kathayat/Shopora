@@ -40,6 +40,7 @@ class DashboardRepository
         $invoiceCount = (int) Sales::counted()->whereBetween('created_at', $dateRange)->count();
         $purchaseCount = (int) DB::table('purchase_inventory')->whereBetween('created_at', $dateRange)->count();
         $topVendor = $this->topVendorForRange($dateRange);
+        $customers = $this->customerStats($dateRange, $prevRange, $current['revenue']);
 
         return [
             'totalInventoryItems' => InventoryItem::count(),
@@ -71,8 +72,9 @@ class DashboardRepository
             'lowStockItems' => $this->getTopLowStockItems(5),
             'bestSellers' => $this->getBestSellers($dateRange, 5),
             'topCustomers' => $this->getTopCustomers($dateRange, 5),
+            'recentCustomers' => $this->getRecentCustomers(6),
             'recentPurchases' => $this->getRecentPurchases($dateRange, 5),
-        ];
+        ] + $customers;
     }
 
     private function itemCostMap(): array
@@ -175,6 +177,125 @@ class DashboardRepository
                 'orders' => (int) $r->orders,
             ])
             ->all();
+    }
+
+    /**
+     * Who is buying, not just how much. "Active" is a customer with a counted
+     * sale inside the period; "repeat" looks at their whole history instead,
+     * because a second visit is a second visit whenever it happened.
+     */
+    private function customerStats(array $dateRange, array $prevRange, float $periodRevenue): array
+    {
+        $new = (int) Customer::whereBetween('created_at', $dateRange)->count();
+        $prevNew = (int) Customer::whereBetween('created_at', $prevRange)->count();
+
+        $active = (int) Sales::counted()
+            ->whereNotNull('sales.customer_id')
+            ->whereBetween('sales.created_at', $dateRange)
+            ->distinct()
+            ->count('sales.customer_id');
+
+        $ordersPerCustomer = Sales::counted()
+            ->whereNotNull('sales.customer_id')
+            ->select('sales.customer_id', DB::raw('COUNT(*) as orders'))
+            ->groupBy('sales.customer_id')
+            ->pluck('orders', 'customer_id');
+
+        $buyers = $ordersPerCustomer->count();
+        $repeat = $ordersPerCustomer->filter(fn ($orders) => (int) $orders > 1)->count();
+
+        return [
+            'totalCustomers' => (int) Customer::count(),
+            'registeredCustomers' => (int) Customer::whereNotNull('password')->count(),
+            'newCustomers' => $new,
+            'newCustomersChangePercent' => $this->percentChange($new, $prevNew),
+            'activeCustomers' => $active,
+            'buyingCustomers' => $buyers,
+            'repeatCustomers' => $repeat,
+            'repeatRate' => $buyers > 0 ? round($repeat / $buyers * 100, 1) : 0.0,
+            'avgCustomerValue' => $active > 0 ? round($periodRevenue / $active, 2) : 0.0,
+        ];
+    }
+
+    /**
+     * The newest customers with their lifetime orders and spend. Deliberately
+     * not filtered by the date range: the point is who just arrived, and their
+     * history is what says whether they came back.
+     */
+    private function getRecentCustomers(int $limit = 6): array
+    {
+        return DB::table('customers')
+            ->leftJoin('sales', function ($join) {
+                $join->on('sales.customer_id', '=', 'customers.id')
+                    ->where('sales.status', '!=', 'cancelled');
+            })
+            ->leftJoin('sales_products', 'sales_products.sales_id', '=', 'sales.id')
+            ->select(
+                'customers.id',
+                'customers.name',
+                'customers.email',
+                'customers.ph_number',
+                'customers.created_at',
+                // the hash itself never leaves the database, only the fact of it
+                DB::raw('CASE WHEN customers.password IS NULL THEN 0 ELSE 1 END as registered'),
+                DB::raw('COUNT(DISTINCT sales.id) as orders'),
+                DB::raw('COALESCE(SUM(sales_products.qty * sales_products.price_per_unit), 0) as spend')
+            )
+            ->groupBy('customers.id', 'customers.name', 'customers.email', 'customers.ph_number', 'customers.created_at', 'registered')
+            ->orderByDesc('customers.id')
+            ->limit($limit)
+            ->get()
+            ->map(fn ($row) => [
+                'id' => (int) $row->id,
+                'name' => $row->name,
+                'contact' => $row->email ?: ($row->ph_number ?: '—'),
+                'registered' => (bool) $row->registered,
+                'joined' => $row->created_at ? Carbon::parse($row->created_at)->format('Y-m-d') : '—',
+                'orders' => (int) $row->orders,
+                'spend' => (float) $row->spend,
+            ])
+            ->all();
+    }
+
+    /**
+     * New sign-ups bucketed the same way the sales trend is, so the two charts
+     * can be read side by side.
+     */
+    public function getCustomerGrowth($filterType = null, $fromDate = null, $toDate = null): array
+    {
+        [$from, $to] = $this->resolveDateRange($filterType, $fromDate, $toDate);
+        $days = (int) $from->copy()->startOfDay()->diffInDays($to->copy()->startOfDay());
+        $monthly = $days > 62;
+
+        $counts = DB::table('customers')
+            ->whereBetween('created_at', [$from, $to])
+            ->select(
+                DB::raw(($monthly ? "DATE_FORMAT(created_at, '%Y-%m-01')" : 'DATE(created_at)') . ' as bucket'),
+                DB::raw('COUNT(*) as total')
+            )
+            ->groupBy('bucket')
+            ->pluck('total', 'bucket');
+
+        $points = [];
+        $cursor = $from->copy()->startOfDay();
+        $end = $to->copy()->startOfDay();
+
+        while ($cursor->lte($end)) {
+            $key = $monthly ? $cursor->format('Y-m-01') : $cursor->format('Y-m-d');
+            $points[] = [
+                'date' => $key,
+                'label' => $monthly ? $cursor->format('M Y') : $cursor->format('M j'),
+                'customers' => (int) ($counts[$key] ?? 0),
+            ];
+            $monthly ? $cursor->addMonthNoOverflow()->startOfMonth() : $cursor->addDay();
+        }
+
+        return [
+            'from_date' => $from->format('Y-m-d'),
+            'to_date' => $to->format('Y-m-d'),
+            'granularity' => $monthly ? 'monthly' : 'daily',
+            'points' => $points,
+        ];
     }
 
     private function getRecentPurchases(array $dateRange, int $limit = 5): array

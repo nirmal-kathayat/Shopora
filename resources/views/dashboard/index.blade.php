@@ -703,6 +703,14 @@
         min-width: 120px;
     }
 
+    /* second line under a name cell: contact, joined date, that sort of thing */
+    .shopora-cell-sub {
+        display: block;
+        font-size: 11px;
+        font-weight: 400;
+        color: #9ca3af;
+    }
+
     .shopora-inv-link {
         color: #008cff;
         font-weight: 600;
@@ -930,6 +938,7 @@
             $salesChange = $data['salesChangePercent'] ?? 0;
             $profitChange = $data['profitChangePercent'] ?? 0;
             $purchasesChange = $data['purchasesChangePercent'] ?? 0;
+            $newCustomersChange = $data['newCustomersChangePercent'] ?? 0;
             $fmtChange = function ($pct) {
                 $sign = $pct > 0 ? '+' : '';
                 return $sign . number_format((float) $pct, 1) . '% vs previous period';
@@ -942,7 +951,7 @@
             $rs = fn ($v) => 'Rs ' . number_format((float) $v, 2);
             // reusable KPI card renderer
             $card = function ($label, $valueHtml, $valueClass, $iconClass, $iconHtml, $action = null, $metaHtml = '', $link = null, $typeClass = '') {
-                $role = in_array($action, ['purchases', 'inventory'], true) ? 'link' : 'button';
+                $role = in_array($action, ['purchases', 'inventory', 'customers'], true) ? 'link' : 'button';
                 $clickable = $action ? ' is-clickable" data-stat-action="' . $action . '" role="' . $role . '" tabindex="0' : '';
                 $html = '<div class="col"><div class="shopora-stat-card ' . $typeClass . $clickable . '">';
                 $html .= '<div class="shopora-stat-inner"><div>';
@@ -969,6 +978,11 @@
             <li role="presentation">
                 <button class="shopora-tab" data-bs-toggle="tab" data-bs-target="#tab-sales" type="button" role="tab">
                     <i class='bx bx-cart'></i> Sales
+                </button>
+            </li>
+            <li role="presentation">
+                <button class="shopora-tab" data-bs-toggle="tab" data-bs-target="#tab-customers" type="button" role="tab">
+                    <i class='bx bx-group'></i> Customers
                 </button>
             </li>
             <li role="presentation">
@@ -1094,6 +1108,57 @@
                             </div>
                             <div class="shopora-panel-footer">
                                 <a href="{{ route('admin.customer') }}" class="shopora-panel-link">View all customers →</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== Customers: who is buying, and who just arrived ===== -->
+            <div class="tab-pane fade" id="tab-customers" role="tabpanel">
+                <div class="row row-cols-1 row-cols-md-2 row-cols-xl-4 g-3 shopora-stats-row">
+                    {!! $card('Total Customers', number_format($data['totalCustomers'] ?? 0), 'js-custtotal', 'is-blue', "<i class='bx bx-group'></i>", 'customers', $metaText('<span class="js-custregistered">' . number_format($data['registeredCustomers'] ?? 0) . '</span> with a storefront account'), 'View customers &rarr;', 'is-revenue') !!}
+                    {!! $card('New Customers', number_format($data['newCustomers'] ?? 0), 'js-custnew', 'is-teal', "<i class='bx bx-user-plus'></i>", null, $metaChange($newCustomersChange, 'js-custnew-change'), null, 'is-sales') !!}
+                    {!! $card('Repeat Rate', '<span class="js-repeatrate">' . number_format($data['repeatRate'] ?? 0, 1) . '</span>%', '', 'is-green', "<i class='bx bx-refresh'></i>", null, $metaText('<span class="js-repeatcount">' . number_format($data['repeatCustomers'] ?? 0) . '</span> of <span class="js-buyercount">' . number_format($data['buyingCustomers'] ?? 0) . '</span> buyers came back'), null, 'is-profit') !!}
+                    {!! $card('Avg Customer Value', $rs($data['avgCustomerValue'] ?? 0), 'js-custvalue', 'is-indigo', "<i class='bx bx-wallet'></i>", null, $metaText('<span class="js-activecust">' . number_format($data['activeCustomers'] ?? 0) . '</span> bought in this period'), null, 'is-purchase') !!}
+                </div>
+                <div class="row g-3">
+                    <div class="col-12 col-xl-5">
+                        <div class="shopora-panel-card">
+                            <div class="shopora-chart-head">
+                                <h3 class="shopora-panel-title mb-0">New Customers</h3>
+                                <span class="shopora-chart-sub" id="customerTrendSub">Sign-ups over the selected period</span>
+                            </div>
+                            <div class="shopora-chart-body">
+                                <div id="customerTrendChart"></div>
+                                <div class="shopora-chart-empty" id="customerTrendEmpty" hidden>No new customers in this period</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-xl-7">
+                        <div class="shopora-panel-card">
+                            <div class="shopora-chart-head">
+                                <h3 class="shopora-panel-title mb-0">Newest Customers</h3>
+                                <span class="shopora-chart-sub">Lifetime orders and spend</span>
+                            </div>
+                            <div class="shopora-panel-table-wrap">
+                                <table class="shopora-panel-table compact">
+                                    <thead>
+                                        <tr>
+                                            <th>Customer</th>
+                                            <th>Type</th>
+                                            <th class="col-qty">Orders</th>
+                                            <th class="col-amount">Spent (Rs)</th>
+                                            <th>Joined</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="recentCustomersBody">
+                                        <tr><td colspan="5" class="shopora-panel-empty">Loading&hellip;</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="shopora-panel-footer">
+                                <a href="{{ route('admin.customer') }}" class="shopora-panel-link">Go to customers &rarr;</a>
                             </div>
                         </div>
                     </div>
@@ -1391,6 +1456,8 @@
                 renderInvCategoryChart();
             } else if (target === '#tab-purchases') {
                 renderVendorChart();
+            } else if (target === '#tab-customers') {
+                renderCustomerTrend();
             }
         });
 
@@ -1580,6 +1647,29 @@
         body.html(html);
     }
 
+    function renderRecentCustomers(rows) {
+        const body = $('#recentCustomersBody');
+        if (!rows || !rows.length) {
+            body.html('<tr><td colspan="5" class="shopora-panel-empty">No customers yet</td></tr>');
+            return;
+        }
+        let html = '';
+        rows.forEach(function(r) {
+            const pill = r.registered
+                ? '<span class="shopora-pill is-paid">Online</span>'
+                : '<span class="shopora-pill is-default">Walk-in</span>';
+            html += '<tr>' +
+                '<td class="col-name">' + escapeHtml(r.name) +
+                    '<span class="shopora-cell-sub">' + escapeHtml(r.contact || '') + '</span></td>' +
+                '<td>' + pill + '</td>' +
+                '<td class="col-qty">' + Number(r.orders || 0).toLocaleString() + '</td>' +
+                '<td class="col-amount">' + Number(r.spend || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</td>' +
+                '<td>' + escapeHtml(r.joined || '-') + '</td>' +
+            '</tr>';
+        });
+        body.html(html);
+    }
+
     function renderRecentPurchases(rows) {
         const body = $('#recentPurchasesBody');
         if (!rows || !rows.length) {
@@ -1672,6 +1762,10 @@
         }
         if (action === 'inventory') {
             window.location.href = "{{ route('admin.inventoryItem') }}";
+            return;
+        }
+        if (action === 'customers') {
+            window.location.href = "{{ route('admin.customer') }}";
             return;
         }
         if (action === 'stock') {
@@ -1872,7 +1966,7 @@
 
     function reThemeCharts() {
         const t = chartTheme();
-        [salesTrendChart, categoryChart, invCategoryChart, vendorChart].forEach(function (c) {
+        [salesTrendChart, categoryChart, invCategoryChart, vendorChart, customerTrendChart].forEach(function (c) {
             if (c) {
                 c.updateOptions({ grid: { borderColor: t.grid }, tooltip: { theme: t.tooltip } }, false, false);
             }
@@ -1963,6 +2057,7 @@
     // ---- Inventory & Purchases bar charts (lazy: containers start in hidden tabs) ----
     let invCategoryChart = null, invCategoryData = null;
     let vendorChart = null, vendorData = null;
+    let customerTrendChart = null, customerTrendData = null;
 
     function chartHidden(sel) {
         const el = document.querySelector(sel);
@@ -2015,6 +2110,49 @@
         }
     }
 
+    function renderCustomerTrend() {
+        if (!customerTrendData) return;
+        const points = customerTrendData.points || [];
+        const hasData = points.some(p => Number(p.customers) > 0);
+        $('#customerTrendEmpty').prop('hidden', hasData);
+        $('#customerTrendSub').text(customerTrendData.granularity === 'monthly'
+            ? 'Sign-ups per month over the selected period'
+            : 'Sign-ups per day over the selected period');
+        if (chartHidden('#customerTrendChart')) return;
+
+        const categories = points.map(p => p.label);
+        const data = points.map(p => Number(p.customers) || 0);
+        const options = {
+            chart: { type: 'bar', height: 300, fontFamily: 'inherit', toolbar: { show: false } },
+            series: [{ name: 'New customers', data: data }],
+            colors: [CHART_BRAND],
+            plotOptions: { bar: { borderRadius: 4, columnWidth: '55%' } },
+            dataLabels: { enabled: false },
+            grid: { borderColor: chartTheme().grid, strokeDashArray: 4 },
+            xaxis: { categories: categories, labels: { style: { colors: '#9ca3af', fontSize: '11px' }, rotate: -35, hideOverlappingLabels: true }, axisBorder: { show: false }, axisTicks: { show: false } },
+            yaxis: { labels: { style: { colors: '#9ca3af', fontSize: '11px' }, formatter: v => Math.round(v) } },
+            tooltip: { theme: chartTheme().tooltip, y: { formatter: v => Number(v).toLocaleString() + (Number(v) === 1 ? ' customer' : ' customers') } },
+        };
+
+        if (customerTrendChart) {
+            customerTrendChart.updateOptions({ xaxis: { categories: categories } }, false, false);
+            customerTrendChart.updateSeries([{ name: 'New customers', data: data }], true);
+        } else {
+            customerTrendChart = new ApexCharts(document.querySelector('#customerTrendChart'), options);
+            customerTrendChart.render();
+        }
+    }
+
+    function fetchCustomerGrowth(done) {
+        $.ajax({
+            url: "{{ route('admin.dashboard.customerGrowth') }}",
+            data: { from_date: $('#fromDate').val(), to_date: $('#toDate').val() },
+            success: function (res) { customerTrendData = res.data || {}; renderCustomerTrend(); },
+            error: function () { $('#customerTrendEmpty').prop('hidden', false).text('Unable to load customer data'); },
+            complete: function () { if (done) done(); }
+        });
+    }
+
     function fetchInvCategory(done) {
         $.ajax({
             url: "{{ route('admin.dashboard.inventoryByCategory') }}",
@@ -2039,7 +2177,7 @@
         const withLoader = options.loader === true;
         const fromDate = $('#fromDate').val();
         const toDate = $('#toDate').val();
-        let pending = 5;
+        let pending = 6;
 
         if (withLoader) {
             showDashboardLoader();
@@ -2075,6 +2213,14 @@
                 $('.js-purchases').text(rs2(response.totalPurchases));
                 $('.js-purchasecount').text(num(response.purchaseCount));
                 $('.js-avgpurchase').text(rs2(response.avgPurchase));
+                $('.js-custtotal').text(num(response.totalCustomers));
+                $('.js-custregistered').text(num(response.registeredCustomers));
+                $('.js-custnew').text(num(response.newCustomers));
+                $('.js-repeatrate').text(Number(response.repeatRate || 0).toFixed(1));
+                $('.js-repeatcount').text(num(response.repeatCustomers));
+                $('.js-buyercount').text(num(response.buyingCustomers));
+                $('.js-custvalue').text(rs2(response.avgCustomerValue));
+                $('.js-activecust').text(num(response.activeCustomers));
                 $('.js-topvendor').text(response.topVendorName || '—');
                 $('.js-topvendor-amount').text(parseFloat(response.topVendorAmount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
 
@@ -2082,12 +2228,14 @@
                 setStatChange('.js-profit-change', response.profitChangePercent);
                 setStatChange('.js-sales-change', response.salesChangePercent);
                 setStatChange('.js-purchases-change', response.purchasesChangePercent);
+                setStatChange('.js-custnew-change', response.newCustomersChangePercent);
 
                 renderRecentSales(response.recentSales || []);
                 renderLowStockItems(response.lowStockItems || []);
                 renderBestSellers(response.bestSellers || []);
                 renderTopCustomers(response.topCustomers || []);
                 renderRecentPurchases(response.recentPurchases || []);
+                renderRecentCustomers(response.recentCustomers || []);
             },
             error: function() {
                 $('#recentSalesBody').html('<tr><td colspan="8" class="shopora-panel-empty">Unable to load recent sales</td></tr>');
@@ -2100,6 +2248,7 @@
         fetchCategoryBreakdown(markDone);
         fetchInvCategory(markDone);
         fetchVendors(markDone);
+        fetchCustomerGrowth(markDone);
     }
 </script>
 

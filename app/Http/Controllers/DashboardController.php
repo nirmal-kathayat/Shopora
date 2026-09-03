@@ -126,6 +126,21 @@ class DashboardController extends Controller
         }
     }
 
+    public function getCustomerGrowth(Request $request)
+    {
+        try {
+            return response()->json([
+                'data' => $this->repo->getCustomerGrowth(
+                    null,
+                    $request->query('from_date'),
+                    $request->query('to_date')
+                ),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Something went wrong'], 500);
+        }
+    }
+
     public function getInventoryByCategory(Request $request)
     {
         try {

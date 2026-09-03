@@ -42,6 +42,8 @@ Route::group(['prefix' => 'admin'], function () {
         ->name('admin.dashboard.profitBreakdown');
     Route::get('/dashboard/inventory-by-category', [DashboardController::class, 'getInventoryByCategory'])
         ->name('admin.dashboard.inventoryByCategory');
+    Route::get('/dashboard/customer-growth', [DashboardController::class, 'getCustomerGrowth'])
+        ->name('admin.dashboard.customerGrowth');
     Route::get('/dashboard/purchases-by-vendor', [DashboardController::class, 'getPurchasesByVendor'])
         ->name('admin.dashboard.purchasesByVendor');
     // category
