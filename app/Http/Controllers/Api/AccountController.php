@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\UpdatePasswordRequest;
 use App\Http\Requests\Api\UpdateProfilePhotoRequest;
 use App\Http\Requests\Api\UpdateProfileRequest;
 use App\Http\Resources\CustomerResource;
@@ -12,6 +13,8 @@ use App\Models\ProductReview;
 use App\Repository\CustomerPhotoRepository;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\ValidationException;
 
 /**
  * The signed-in customer's own record - what the storefront account page
@@ -52,6 +55,31 @@ class AccountController extends Controller
     public function deletePhoto(Request $request): JsonResponse
     {
         return $this->profileResponse($this->photos->remove($request->user()));
+    }
+
+    /**
+     * Change the password, proving the current one first. Every other device
+     * is signed out afterwards: if the change was made because someone else
+     * had the old password, they lose their session with it.
+     */
+    public function updatePassword(UpdatePasswordRequest $request): JsonResponse
+    {
+        $customer = $request->user();
+
+        if (! Hash::check($request->input('current_password'), $customer->password)) {
+            throw ValidationException::withMessages([
+                'current_password' => 'That is not your current password.',
+            ]);
+        }
+
+        // The model's 'hashed' cast turns this into a bcrypt hash on the way in.
+        $customer->password = $request->input('password');
+        $customer->save();
+
+        $current = $request->user()->currentAccessToken();
+        $customer->tokens()->whereKeyNot($current->getKey())->delete();
+
+        return response()->json(['message' => 'Your password has been changed.']);
     }
 
     /**

@@ -39,6 +39,8 @@ Route::prefix('account')->middleware(['auth:sanctum', 'abilities:customer'])->gr
     Route::post('photo', [AccountController::class, 'uploadPhoto']);
     Route::delete('photo', [AccountController::class, 'deletePhoto']);
 
+    Route::put('password', [AccountController::class, 'updatePassword']);
+
     // The reviews this customer has written, across every product.
     Route::get('reviews', [AccountController::class, 'reviews']);
     Route::delete('reviews/{id}', [AccountController::class, 'deleteReview'])->whereNumber('id');
