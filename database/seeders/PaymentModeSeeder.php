@@ -13,13 +13,15 @@ class PaymentModeSeeder extends Seeder
      */
     public function run(): void
     {
-        // payment mode seeder 
-        DB::table('payment_modes')->insert([
-            ['payment_title' => 'Cash'],
-            ['payment_title' => 'Fonepay'],
-            ['payment_title' => 'eSewa'],
-            ['payment_title' => 'Bank'],
-            ['payment_title' => 'Khalti'],
-        ]);
+        // payment mode seeder - updateOrInsert so re-seeding an existing
+        // database adds what is missing instead of duplicating the list.
+        $modes = ['Cash', 'Fonepay', 'eSewa', 'Bank', 'Khalti', 'Cash on Delivery'];
+
+        foreach ($modes as $title) {
+            DB::table('payment_modes')->updateOrInsert(
+                ['payment_title' => $title],
+                ['updated_at' => now(), 'created_at' => now()]
+            );
+        }
     }
 }

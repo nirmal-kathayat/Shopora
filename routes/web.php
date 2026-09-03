@@ -8,6 +8,7 @@ use App\Http\Controllers\DealSectionController;
 use App\Http\Controllers\HeroSectionController;
 use App\Http\Controllers\InventoryItemController;
 use App\Http\Controllers\InvoiceController;
+use App\Http\Controllers\OrderController;
 use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\PurchaseInventoryController;
 use App\Http\Controllers\ReportController;
@@ -100,6 +101,13 @@ Route::group(['prefix' => 'admin'], function () {
         Route::get('/', [ReviewController::class, 'index'])->name('admin.review');
         Route::get('/delete/{id}', [ReviewController::class, 'delete'])->name('admin.review.delete');
     });
+    // storefront orders
+    Route::group(['prefix' => 'order'], function () {
+        Route::get('/', [OrderController::class, 'index'])->name('admin.order');
+        Route::get('/show/{id}', [OrderController::class, 'show'])->name('admin.order.show');
+        Route::post('/status/{id}', [OrderController::class, 'updateStatus'])->name('admin.order.status');
+    });
+
     // customer
     Route::group(['prefix' => 'customer'], function () {
         Route::get('/', [CustomerController::class, 'index'])->name('admin.customer');

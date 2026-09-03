@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AccountController;
 use App\Http\Controllers\Api\CustomerAddressController;
 use App\Http\Controllers\Api\CustomerAuthController;
 use App\Http\Controllers\Api\HomeController;
+use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\ProductReviewController;
@@ -60,6 +61,14 @@ Route::prefix('cart')->middleware(['auth:sanctum', 'abilities:customer'])->group
     Route::post('merge', [CartController::class, 'merge']);
     Route::put('{productId}', [CartController::class, 'updateQty'])->whereNumber('productId');
     Route::delete('{productId}', [CartController::class, 'destroy'])->whereNumber('productId');
+});
+
+// The signed-in customer's orders.
+Route::prefix('orders')->middleware(['auth:sanctum', 'abilities:customer'])->group(function () {
+    Route::get('/', [OrderController::class, 'index']);
+    Route::post('/', [OrderController::class, 'store']);
+    Route::get('{id}', [OrderController::class, 'show'])->whereNumber('id');
+    Route::post('{id}/cancel', [OrderController::class, 'cancel'])->whereNumber('id');
 });
 
 // The signed-in customer's saved products.
