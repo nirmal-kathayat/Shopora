@@ -54,12 +54,15 @@ class HeroSectionRequest extends FormRequest
             'heading' => ['required', 'string', 'max:300'],
             'subheading' => ['nullable', 'string', 'max:500'],
 
+            'author_name' => ['nullable', 'string', 'max:100'],
+            'author_image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:1024'],
+
             'primary_label' => ['nullable', 'string', 'max:100'],
             'primary_url' => ['nullable', 'string', 'max:191'],
             'secondary_label' => ['nullable', 'string', 'max:100'],
             'secondary_url' => ['nullable', 'string', 'max:191'],
 
-            'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:3072'],
+            'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
             'image_alt' => ['nullable', 'string', 'max:191'],
 
             'popular_searches' => ['array', 'max:8'],
@@ -88,6 +91,10 @@ class HeroSectionRequest extends FormRequest
     {
         return [
             'heading.required' => 'The hero needs a heading.',
+            'image.uploaded' => 'The hero image must be 2 MB or smaller.',
+            'image.max' => 'The hero image must be 2 MB or smaller.',
+            'author_image.uploaded' => 'The author photo must be 1 MB or smaller.',
+            'author_image.max' => 'The author photo must be 1 MB or smaller.',
             'popular_searches.max' => 'Keep the popular list to 8 chips - more will not fit on a phone.',
         ];
     }

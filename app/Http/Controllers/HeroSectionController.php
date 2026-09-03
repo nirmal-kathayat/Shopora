@@ -50,17 +50,20 @@ class HeroSectionController extends Controller
         try {
             $data = $request->validated();
 
-            if ($request->hasFile('image')) {
-                $data['image'] = $this->heroRepo->storeImageFile($request->file('image'));
-            } else {
-                unset($data['image']);
+            foreach (['image', 'author_image'] as $file) {
+                if ($request->hasFile($file)) {
+                    $data[$file] = $this->heroRepo->storeImageFile($request->file($file));
+                } else {
+                    unset($data[$file]);
+                }
             }
 
             try {
                 $this->heroRepo->storeHeroSection($data);
             } catch (\Exception $e) {
-                // Do not leave the just-uploaded file behind if the row never saved.
+                // Do not leave the just-uploaded files behind if the row never saved.
                 $this->heroRepo->deleteImageFile($data['image'] ?? null);
+                $this->heroRepo->deleteImageFile($data['author_image'] ?? null);
                 throw $e;
             }
 
@@ -90,15 +93,17 @@ class HeroSectionController extends Controller
             $data = $request->validated();
             $existing = $this->heroRepo->find($id);
 
-            if ($request->hasFile('image')) {
-                $this->heroRepo->deleteImageFile($existing->image);
-                $data['image'] = $this->heroRepo->storeImageFile($request->file('image'));
-            } elseif ($request->boolean('remove_image')) {
-                $this->heroRepo->deleteImageFile($existing->image);
-                $data['image'] = null;
-            } else {
-                // No key at all means "leave the stored filename alone".
-                unset($data['image']);
+            foreach (['image' => 'remove_image', 'author_image' => 'remove_author_image'] as $file => $removeFlag) {
+                if ($request->hasFile($file)) {
+                    $this->heroRepo->deleteImageFile($existing->{$file});
+                    $data[$file] = $this->heroRepo->storeImageFile($request->file($file));
+                } elseif ($request->boolean($removeFlag)) {
+                    $this->heroRepo->deleteImageFile($existing->{$file});
+                    $data[$file] = null;
+                } else {
+                    // No key at all means "leave the stored filename alone".
+                    unset($data[$file]);
+                }
             }
 
             $this->heroRepo->updateHeroSection($data, (int) $id);

@@ -20,6 +20,7 @@
     }
 
     $currentImage = $isEdit ? inventoryItemImageUrl($heroSection->image) : null;
+    $currentAuthorImage = $isEdit ? inventoryItemImageUrl($heroSection->author_image) : null;
 @endphp
 
 @section("style")
@@ -113,6 +114,35 @@
                                       placeholder="From your morning coffee to the cable you need today...">{{ old('subheading', $isEdit ? $heroSection->subheading : '') }}</textarea>
                             @error('subheading')<span class="validation-error">{{ $message }}</span>@enderror
                         </div>
+
+                        <div class="col-md-4">
+                            <label for="author_name" class="form-label">Byline name</label>
+                            <input type="text" name="author_name" id="author_name" class="form-control"
+                                   value="{{ old('author_name', $isEdit ? $heroSection->author_name : '') }}"
+                                   placeholder="Nirmal Kathayat">
+                            <div class="field-hint">Shown under the supporting text as "By ...". Leave empty to hide the byline.</div>
+                            @error('author_name')<span class="validation-error">{{ $message }}</span>@enderror
+                        </div>
+
+                        <div class="col-md-5">
+                            <label for="author_image" class="form-label">Byline photo</label>
+                            <input type="file" name="author_image" id="author_image"
+                                   class="form-control @error('author_image') is-invalid @enderror"
+                                   accept="image/png,image/jpeg,image/webp">
+                            <div class="field-hint">A square headshot reads best - it is cropped to a circle. Up to 1 MB.</div>
+                            @error('author_image')<span class="validation-error">{{ $message }}</span>@enderror
+                        </div>
+
+                        <div class="col-md-3">
+                            @if($currentAuthorImage)
+                                <label class="form-label d-block">Current</label>
+                                <img src="{{ $currentAuthorImage }}" alt="" class="hero-image-preview mb-2">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="remove_author_image" value="1" id="remove_author_image">
+                                    <label class="form-check-label small" for="remove_author_image">Remove this photo</label>
+                                </div>
+                            @endif
+                        </div>
                     </div>
                 </div>
             </div>
@@ -165,7 +195,7 @@
                                    class="form-control @error('image') is-invalid @enderror"
                                    accept="image/png,image/jpeg,image/webp">
                             <div class="field-hint">
-                                PNG with a transparent background works best. Up to 3 MB.
+                                PNG with a transparent background works best. Up to 2 MB.
                                 Leave empty to keep the storefront's built-in basket image.
                             </div>
                             @error('image')<span class="validation-error">{{ $message }}</span>@enderror

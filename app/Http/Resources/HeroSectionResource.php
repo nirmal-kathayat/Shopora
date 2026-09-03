@@ -21,6 +21,12 @@ class HeroSectionResource extends JsonResource
             'heading' => $this->heading,
             'subheading' => $this->subheading,
 
+            // The byline is only worth drawing when it has a name.
+            'author' => $this->author_name ? [
+                'name' => $this->author_name,
+                'image' => inventoryItemImageUrl($this->author_image),
+            ] : null,
+
             'primary_action' => $this->action($this->primary_label, $this->primary_url),
             'secondary_action' => $this->action($this->secondary_label, $this->secondary_url),
 

@@ -16,6 +16,8 @@ class HeroSection extends Model
         'badge_text',
         'heading',
         'subheading',
+        'author_name',
+        'author_image',
         'primary_label',
         'primary_url',
         'secondary_label',

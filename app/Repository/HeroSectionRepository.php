@@ -64,9 +64,11 @@ class HeroSectionRepository
             $hero = $this->find($id);
             $attributes = $this->attributes($data);
 
-            // Leave the stored filename alone unless a new file came in.
-            if (! array_key_exists('image', $data)) {
-                unset($attributes['image']);
+            // Leave a stored filename alone unless a new file came in.
+            foreach (['image', 'author_image'] as $file) {
+                if (! array_key_exists($file, $data)) {
+                    unset($attributes[$file]);
+                }
             }
 
             $attributes['updated_by'] = $this->currentAdminId();
@@ -85,6 +87,7 @@ class HeroSectionRepository
             $hero = $this->find($id);
 
             $this->deleteImageFile($hero->image);
+            $this->deleteImageFile($hero->author_image);
             $hero->delete();
         });
     }
@@ -116,6 +119,8 @@ class HeroSectionRepository
             'badge_text' => $data['badge_text'] ?? null,
             'heading' => $data['heading'],
             'subheading' => $data['subheading'] ?? null,
+            'author_name' => $data['author_name'] ?? null,
+            'author_image' => $data['author_image'] ?? null,
             'primary_label' => $data['primary_label'] ?? null,
             'primary_url' => $data['primary_url'] ?? null,
             'secondary_label' => $data['secondary_label'] ?? null,
