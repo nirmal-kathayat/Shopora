@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\CustomerAddressController;
 use App\Http\Controllers\Api\CustomerAuthController;
 use App\Http\Controllers\Api\HomeController;
 use App\Http\Controllers\Api\OrderController;
+use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\ProductReviewController;
@@ -69,6 +70,16 @@ Route::prefix('orders')->middleware(['auth:sanctum', 'abilities:customer'])->gro
     Route::post('/', [OrderController::class, 'store']);
     Route::get('{id}', [OrderController::class, 'show'])->whereNumber('id');
     Route::post('{id}/cancel', [OrderController::class, 'cancel'])->whereNumber('id');
+});
+
+// Online payment. Starting a payment is the customer's own action; the two
+// callbacks are public because eSewa redirects the browser to them with no
+// token to offer - they are secured by the signed payload instead.
+Route::prefix('payment')->group(function () {
+    Route::post('esewa/initiate', [PaymentController::class, 'initiateEsewa'])
+        ->middleware(['auth:sanctum', 'abilities:customer']);
+    Route::get('esewa/success', [PaymentController::class, 'esewaSuccess'])->name('payment.esewa.success');
+    Route::get('esewa/failure', [PaymentController::class, 'esewaFailure'])->name('payment.esewa.failure');
 });
 
 // The signed-in customer's saved products.

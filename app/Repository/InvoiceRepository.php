@@ -28,7 +28,7 @@ class InvoiceRepository
         $data = DB::table('sales')
             ->leftJoin('admins', 'admins.id', '=', 'sales.order_by')
             ->leftJoin('customers', 'customers.id', '=', 'sales.customer_id')
-            ->where('sales.status', '!=', 'cancelled')
+            ->whereNotIn('sales.status', ['cancelled', 'pending_payment'])
             ->select('sales.*', 'admins.name as order_by_name', 'customers.name as customer_title')
             ->whereBetween('sales.created_at', $dateRange)
             ->orderBy('sales.id', 'desc');

@@ -46,6 +46,7 @@
                                 <th>Customer</th>
                                 <th>Items</th>
                                 <th>Total</th>
+                                <th>Payment</th>
                                 <th>Status</th>
                                 <th>Placed</th>
                                 <th>Action</th>
@@ -133,6 +134,27 @@
                     orderable: false,
                     searchable: false,
                     render: (data) => money(data)
+                },
+                {
+                    data: 'payment_method',
+                    name: 'sales.payment_method',
+                    orderable: false,
+                    searchable: false,
+                    render: function(data, type, full) {
+                        const label = data === 'esewa' ? 'eSewa' : 'Cash on Delivery';
+                        let badge;
+                        if (full.payment_status === 'paid') {
+                            badge = '<span class="badge bg-success">Paid</span>';
+                        } else if (data === 'cod') {
+                            // COD is collected by the rider, so "unpaid" here just
+                            // means the cash is due on delivery, not that anything failed.
+                            badge = '<span class="badge bg-secondary">On delivery</span>';
+                        } else {
+                            badge = '<span class="badge bg-danger">Unpaid</span>';
+                        }
+                        return '<span class="fw-medium">' + escapeText(label) + '</span>'
+                            + '<div class="mt-1">' + badge + '</div>';
+                    }
                 },
                 {
                     data: 'status',

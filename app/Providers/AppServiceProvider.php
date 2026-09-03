@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Services\EsewaPaymentService;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Sanctum\PersonalAccessToken;
@@ -17,6 +18,10 @@ class AppServiceProvider extends ServiceProvider
         foreach (glob(app_path() . '/Library/Helper/*.php') as $filename) {
             require_once $filename;
         }
+
+        // The eSewa client takes its credentials as constructor scalars, so the
+        // container needs to be told how to build it.
+        $this->app->singleton(EsewaPaymentService::class, fn () => EsewaPaymentService::fromConfig());
     }
 
     /**

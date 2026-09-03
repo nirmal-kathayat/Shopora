@@ -93,7 +93,7 @@ class DashboardRepository
 
         $rows = DB::table('sales_products')
             ->join('sales', 'sales.id', '=', 'sales_products.sales_id')
-            ->where('sales.status', '!=', 'cancelled')
+            ->whereNotIn('sales.status', ['cancelled', 'pending_payment'])
             ->whereBetween('sales.created_at', $dateRange)
             ->select('sales_products.product_id', DB::raw('SUM(sales_products.qty) as qty'))
             ->groupBy('sales_products.product_id')
@@ -135,7 +135,7 @@ class DashboardRepository
     {
         return DB::table('sales_products')
             ->join('sales', 'sales.id', '=', 'sales_products.sales_id')
-            ->where('sales.status', '!=', 'cancelled')
+            ->whereNotIn('sales.status', ['cancelled', 'pending_payment'])
             ->join('inventory_items', 'inventory_items.id', '=', 'sales_products.product_id')
             ->whereBetween('sales.created_at', $dateRange)
             ->select(
@@ -160,7 +160,7 @@ class DashboardRepository
         return DB::table('sales')
             ->join('customers', 'customers.id', '=', 'sales.customer_id')
             ->join('sales_products', 'sales_products.sales_id', '=', 'sales.id')
-            ->where('sales.status', '!=', 'cancelled')
+            ->whereNotIn('sales.status', ['cancelled', 'pending_payment'])
             ->whereBetween('sales.created_at', $dateRange)
             ->select(
                 'customers.name',
@@ -227,7 +227,7 @@ class DashboardRepository
         return DB::table('customers')
             ->leftJoin('sales', function ($join) {
                 $join->on('sales.customer_id', '=', 'customers.id')
-                    ->where('sales.status', '!=', 'cancelled');
+                    ->whereNotIn('sales.status', ['cancelled', 'pending_payment']);
             })
             ->leftJoin('sales_products', 'sales_products.sales_id', '=', 'sales.id')
             ->select(
@@ -381,7 +381,7 @@ class DashboardRepository
 
         $rows = DB::table('sales_products')
             ->join('sales', 'sales.id', '=', 'sales_products.sales_id')
-            ->where('sales.status', '!=', 'cancelled')
+            ->whereNotIn('sales.status', ['cancelled', 'pending_payment'])
             ->join('inventory_items', 'inventory_items.id', '=', 'sales_products.product_id')
             ->leftJoin('categories', 'categories.id', '=', 'inventory_items.category_id')
             ->whereBetween('sales.created_at', $dateRange)
@@ -440,14 +440,14 @@ class DashboardRepository
 
         $gross = DB::table('sales_products')
             ->join('sales', 'sales.id', '=', 'sales_products.sales_id')
-            ->where('sales.status', '!=', 'cancelled')
+            ->whereNotIn('sales.status', ['cancelled', 'pending_payment'])
             ->whereBetween('sales.created_at', $dateRange)
             ->select(DB::raw("$sqlDate as bucket"), DB::raw('SUM(sales_products.qty * sales_products.price_per_unit) as gross'))
             ->groupBy('bucket')
             ->pluck('gross', 'bucket');
 
         $discount = DB::table('sales')
-            ->where('sales.status', '!=', 'cancelled')
+            ->whereNotIn('sales.status', ['cancelled', 'pending_payment'])
             ->whereBetween('created_at', $dateRange)
             ->select(DB::raw(($monthly ? "DATE_FORMAT(created_at, '%Y-%m-01')" : "DATE(created_at)") . ' as bucket'), DB::raw('SUM(discount) as disc'))
             ->groupBy('bucket')
@@ -484,7 +484,7 @@ class DashboardRepository
 
         $rows = DB::table('sales_products')
             ->join('sales', 'sales.id', '=', 'sales_products.sales_id')
-            ->where('sales.status', '!=', 'cancelled')
+            ->whereNotIn('sales.status', ['cancelled', 'pending_payment'])
             ->join('inventory_items', 'inventory_items.id', '=', 'sales_products.product_id')
             ->leftJoin('categories', 'categories.id', '=', 'inventory_items.category_id')
             ->whereBetween('sales.created_at', $dateRange)
@@ -521,7 +521,7 @@ class DashboardRepository
         $data = DB::table('sales_payment_mode')
             ->join('payment_modes', 'sales_payment_mode.payment_mode_id', '=', 'payment_modes.id')
             ->join('sales', 'sales_payment_mode.sales_id', '=', 'sales.id')
-            ->where('sales.status', '!=', 'cancelled')
+            ->whereNotIn('sales.status', ['cancelled', 'pending_payment'])
             ->whereBetween('sales.created_at', $dateRange)
             ->select(
                 'payment_modes.payment_title',
@@ -555,7 +555,7 @@ class DashboardRepository
 
         $topProducts = DB::table('sales_products')
             ->join('sales', 'sales.id', '=', 'sales_products.sales_id')
-            ->where('sales.status', '!=', 'cancelled')
+            ->whereNotIn('sales.status', ['cancelled', 'pending_payment'])
             ->join('inventory_items', 'inventory_items.id', '=', 'sales_products.product_id')
             ->whereBetween('sales.created_at', $dateRange)
             ->select(
@@ -627,7 +627,7 @@ class DashboardRepository
     {
         $sales = DB::table('sales')
             ->leftJoin('customers', 'customers.id', '=', 'sales.customer_id')
-            ->where('sales.status', '!=', 'cancelled')
+            ->whereNotIn('sales.status', ['cancelled', 'pending_payment'])
             ->select(
                 'sales.id',
                 'sales.created_at',

@@ -11,6 +11,16 @@ use Illuminate\Http\Resources\Json\JsonResource;
  */
 class OrderResource extends JsonResource
 {
+    private const LABELS = [
+        'cod' => 'Cash on Delivery',
+        'esewa' => 'eSewa',
+    ];
+
+    private function payment_label(): string
+    {
+        return self::LABELS[$this->payment_method] ?? 'Cash on Delivery';
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -32,7 +42,11 @@ class OrderResource extends JsonResource
             'code' => $this->code,
             'status' => $this->status,
             'placed_at' => $this->created_at?->toIso8601String(),
-            'payment_method' => $this->payment_method ?? 'Cash on Delivery',
+            // 'cod' / 'esewa' as stored, plus a label the storefront can show
+            // as-is, and whether the money is actually in.
+            'payment_method' => $this->payment_label(),
+            'payment_status' => $this->payment_status ?? 'unpaid',
+            'is_paid' => ($this->payment_status ?? 'unpaid') === 'paid',
 
             'items' => $items->values(),
             'item_count' => (int) $items->sum('qty'),

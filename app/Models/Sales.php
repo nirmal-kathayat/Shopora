@@ -25,6 +25,10 @@ class Sales extends Model
         'delivery_address',
         'delivery_landmark',
         'delivery_fee',
+        'payment_method',
+        'payment_status',
+        'payment_ref',
+        'payment_uuid',
     ];
     protected $guarded = [];
     protected $table = 'sales';
@@ -43,6 +47,13 @@ class Sales extends Model
     /** A cancelled order puts its units back; a delivered one is done. */
     public const OPEN_STATUSES = ['placed', 'confirmed', 'shipped'];
 
+    /**
+     * Statuses that are not a completed sale: a cancelled order took no money
+     * and gave its units back, and a pending_payment order has not been paid
+     * for yet. Revenue, quantities and cost leave both out.
+     */
+    public const UNCOUNTED_STATUSES = ['cancelled', 'pending_payment'];
+
     public function customer()
     {
         return $this->belongsTo(Customer::class);
@@ -59,12 +70,12 @@ class Sales extends Model
     }
 
     /**
-     * A cancelled order is not a sale: it took no money and its units went
-     * back on the shelf, so revenue, quantities and cost leave it out.
+     * The money-side filter: only orders that actually count as a sale, i.e.
+     * not cancelled and not still awaiting payment. See UNCOUNTED_STATUSES.
      */
     public function scopeCounted(Builder $query): Builder
     {
-        return $query->where('sales.status', '!=', 'cancelled');
+        return $query->whereNotIn('sales.status', self::UNCOUNTED_STATUSES);
     }
 
     /**
