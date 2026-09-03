@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\InventoryItemRequest;
 use App\Models\InventoryItem;
+use App\Models\WishlistItem;
 use App\Models\StoreSetting;
 use App\Repository\CategoryRepository;
 use App\Repository\InventoryItemRepository;
@@ -36,6 +37,40 @@ class InventoryItemController extends Controller
             return view('inventoryItem.index', compact('categories'));
         } catch (\Exception $e) {
             return redirect()->back()->with(['message' => 'Something went wrong!', 'type' => 'error']);
+        }
+    }
+
+    /**
+     * Who has this product on their wishlist. Read-only, and only ever the
+     * customer's name and how to reach them - the modal on the product list.
+     */
+    public function wishlist($id)
+    {
+        try {
+            $product = $this->inventoryItemRepo->find($id);
+
+            $customers = WishlistItem::where('inventory_item_id', $product->id)
+                ->join('customers', 'customers.id', '=', 'wishlist_items.customer_id')
+                ->orderByDesc('wishlist_items.id')
+                ->get([
+                    'customers.name',
+                    'customers.email',
+                    'customers.ph_number',
+                    'wishlist_items.created_at',
+                ])
+                ->map(fn ($row) => [
+                    'name' => $row->name,
+                    'email' => $row->email,
+                    'ph_number' => $row->ph_number,
+                    'saved_at' => $row->created_at?->format('d M Y, g:i a'),
+                ]);
+
+            return response()->json([
+                'product' => $product->title,
+                'customers' => $customers,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Something went wrong!'], 500);
         }
     }
 

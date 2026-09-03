@@ -61,15 +61,14 @@ class AccountController extends Controller
     }
 
     /**
-     * The counters on the account header. Orders are real - every counter sale
-     * and storefront order is a sales row against the customer. There is no
-     * wishlist table yet, so that one is honestly zero until there is.
+     * The counters on the account header. Every counter sale and storefront
+     * order is a sales row against the customer, so orders counts those.
      */
     private function stats(Customer $customer): array
     {
         return [
             'orders' => $customer->sales()->count(),
-            'wishlist' => 0,
+            'wishlist' => $customer->wishlistItems()->count(),
         ];
     }
 }

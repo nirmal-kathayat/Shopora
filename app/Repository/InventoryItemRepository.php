@@ -5,6 +5,7 @@ namespace App\Repository;
 use App\Models\InventoryItem;
 use App\Models\ProductImage;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 
 class InventoryItemRepository
 {
@@ -38,6 +39,14 @@ class InventoryItemRepository
                 'inventory_items.category_id',
                 'inventory_items.image',
                 'categories.title as category_title'
+            )
+            // How many customers have this saved. A subquery keeps the row
+            // count honest - a join here would multiply the product rows.
+            ->selectSub(
+                DB::table('wishlist_items')
+                    ->selectRaw('count(*)')
+                    ->whereColumn('wishlist_items.inventory_item_id', 'inventory_items.id'),
+                'wishlist_count'
             );
 
         if ($categoryId && $categoryId !== '') {

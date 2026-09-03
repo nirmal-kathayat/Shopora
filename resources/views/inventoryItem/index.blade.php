@@ -51,6 +51,7 @@
                                 <th>Unit</th>
                                 <th>Price Per Unit</th>
                                 <th>Code</th>
+                                <th>Wishlist</th>
                                 <th>Action</th>
                             </tr>
                         </thead>
@@ -61,6 +62,34 @@
     </div>
 </div>
 
+<!-- who has this product saved -->
+<div class="modal fade" id="wishlistModal" tabindex="-1" aria-labelledby="wishlistModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="wishlistModalLabel">Wishlisted by</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted mb-3" id="wishlistModalProduct"></p>
+                <div class="table-responsive">
+                    <table class="table table-striped mb-0">
+                        <thead>
+                            <tr>
+                                <th>S.no</th>
+                                <th>Customer</th>
+                                <th>Phone</th>
+                                <th>Email</th>
+                                <th>Saved on</th>
+                            </tr>
+                        </thead>
+                        <tbody id="wishlistModalRows"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
 @endsection
 
@@ -174,6 +203,17 @@
                     orderable: false,
                 },
                 {
+                    data: 'wishlist_count',
+                    name: 'wishlist_count',
+                    orderable: false,
+                    searchable: false,
+                    render: function(data, type, full, meta) {
+                        var count = Number(full.wishlist_count || 0);
+                        var tone = count > 0 ? 'bg-danger' : 'bg-secondary';
+                        return '<span class="badge ' + tone + '">' + count + '</span>';
+                    }
+                },
+                {
                     data: 'action',
                     name: 'action',
                     orderable: false,
@@ -183,7 +223,10 @@
                         var editUrl = "{{ route('admin.inventoryItem.edit', ['id' => ':id']) }}".replace(':id', full.id);
                         var editButton = '<a href="' + editUrl + '" class="btn btn-primary btn-sm"><i class="bx bx-edit"></i></a>';
                         var deleteButton = '<a class="btn btn-danger deleteAction btn-sm" href="javascript:void(0)" data-id="' + full.id + '"><i class="bx bx-trash"></i></a>';
-                        var actionButtons = '<div class="d-flex gap-sm-2">' + editButton + deleteButton + '</div>';
+                        var disabled = Number(full.wishlist_count || 0) > 0 ? '' : ' disabled';
+                        var wishlistButton = '<a class="btn btn-outline-danger wishlistAction btn-sm' + disabled +
+                            '" href="javascript:void(0)" title="Wishlisted by" data-id="' + full.id + '"><i class="bx bx-heart"></i></a>';
+                        var actionButtons = '<div class="d-flex gap-sm-2">' + editButton + wishlistButton + deleteButton + '</div>';
                         return actionButtons;
                     }
                 }
@@ -198,6 +241,42 @@
         // Category filter change event
         $('#categoryFilter').on('change', function() {
             table.draw();
+        });
+
+        // who saved this product
+        $('#inventoryItemTable').on('click', '.wishlistAction', function(e) {
+            e.preventDefault();
+            if ($(this).hasClass('disabled')) return;
+
+            var url = "{{ route('admin.inventoryItem.wishlist', ['id' => ':id']) }}".replace(':id', $(this).data('id'));
+            var rows = $('#wishlistModalRows');
+
+            rows.html('<tr><td colspan="5" class="text-center text-muted py-4">Loading...</td></tr>');
+            $('#wishlistModalProduct').text('');
+            new bootstrap.Modal(document.getElementById('wishlistModal')).show();
+
+            $.get(url)
+                .done(function(response) {
+                    $('#wishlistModalProduct').text(response.product || '');
+
+                    if (!response.customers || !response.customers.length) {
+                        rows.html('<tr><td colspan="5" class="text-center text-muted py-4">No one has saved this product yet.</td></tr>');
+                        return;
+                    }
+
+                    rows.html(response.customers.map(function(customer, index) {
+                        return '<tr>' +
+                            '<td>' + (index + 1) + '</td>' +
+                            '<td>' + $('<div>').text(customer.name || '-').html() + '</td>' +
+                            '<td>' + $('<div>').text(customer.ph_number || '-').html() + '</td>' +
+                            '<td>' + $('<div>').text(customer.email || '-').html() + '</td>' +
+                            '<td>' + $('<div>').text(customer.saved_at || '-').html() + '</td>' +
+                            '</tr>';
+                    }).join(''));
+                })
+                .fail(function() {
+                    rows.html('<tr><td colspan="5" class="text-center text-danger py-4">Could not load that list.</td></tr>');
+                });
         });
 
         // delete action

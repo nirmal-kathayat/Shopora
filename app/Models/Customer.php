@@ -46,6 +46,12 @@ class Customer extends Authenticatable
         return $this->hasMany(Sales::class, 'customer_id');
     }
 
+    /** Products saved for later from the storefront. */
+    public function wishlistItems(): HasMany
+    {
+        return $this->hasMany(WishlistItem::class, 'customer_id');
+    }
+
     /**
      * Has this customer ever registered on the storefront, as opposed to being
      * typed in at the counter?

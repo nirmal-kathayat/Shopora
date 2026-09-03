@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\HomeController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\ProductReviewController;
+use App\Http\Controllers\Api\WishlistController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -45,6 +46,13 @@ Route::prefix('cart')->middleware(['auth:sanctum', 'abilities:customer'])->group
     Route::post('merge', [CartController::class, 'merge']);
     Route::put('{productId}', [CartController::class, 'updateQty'])->whereNumber('productId');
     Route::delete('{productId}', [CartController::class, 'destroy'])->whereNumber('productId');
+});
+
+// The signed-in customer's saved products.
+Route::prefix('wishlist')->middleware(['auth:sanctum', 'abilities:customer'])->group(function () {
+    Route::get('/', [WishlistController::class, 'index']);
+    Route::post('/', [WishlistController::class, 'store']);
+    Route::delete('{productId}', [WishlistController::class, 'destroy'])->whereNumber('productId');
 });
 
 // The public catalogue.

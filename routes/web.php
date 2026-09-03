@@ -56,6 +56,7 @@ Route::group(['prefix' => 'admin'], function () {
     Route::group(['prefix' => 'inventoryItem'], function () {
         Route::get('/', [InventoryItemController::class, 'index'])->name('admin.inventoryItem');
         Route::get('/categories', [InventoryItemController::class, 'getCategories'])->name('admin.inventoryItem.categories');
+        Route::get('/wishlist/{id}', [InventoryItemController::class, 'wishlist'])->name('admin.inventoryItem.wishlist');
         Route::get('/create', [InventoryItemController::class, 'create'])->name('admin.inventoryItem.create');
         Route::post('/store', [InventoryItemController::class, 'store'])->name('admin.inventoryItem.store');
         Route::get('/edit/{id}', [InventoryItemController::class, 'edit'])->name('admin.inventoryItem.edit');
