@@ -31,6 +31,35 @@ class CustomerController extends Controller
             return redirect()->back()->with(['message' => 'Something went wrong', 'type' => 'error']);
         }
     }
+    /**
+     * Every delivery address this customer keeps. The list column shows the
+     * default one; this is the rest, for the modal on the customer list.
+     */
+    public function addresses($id)
+    {
+        try {
+            $customer = $this->customerRepo->find($id);
+
+            return response()->json([
+                'customer' => $customer->name,
+                'addresses' => $customer->addresses()
+                    ->orderByDesc('is_default')
+                    ->orderByDesc('id')
+                    ->get()
+                    ->map(fn ($address) => [
+                        'label' => $address->label,
+                        'recipient_name' => $address->recipient_name,
+                        'ph_number' => $address->ph_number,
+                        'single_line' => $address->single_line,
+                        'landmark' => $address->landmark,
+                        'is_default' => (bool) $address->is_default,
+                    ]),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Something went wrong!'], 500);
+        }
+    }
+
     public function create()
     {
         try {

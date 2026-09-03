@@ -46,6 +46,12 @@ class Customer extends Authenticatable
         return $this->hasMany(Sales::class, 'customer_id');
     }
 
+    /** Delivery addresses; one of them is the default. */
+    public function addresses(): HasMany
+    {
+        return $this->hasMany(CustomerAddress::class, 'customer_id');
+    }
+
     /** Products saved for later from the storefront. */
     public function wishlistItems(): HasMany
     {

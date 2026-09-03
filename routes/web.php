@@ -103,6 +103,7 @@ Route::group(['prefix' => 'admin'], function () {
     // customer
     Route::group(['prefix' => 'customer'], function () {
         Route::get('/', [CustomerController::class, 'index'])->name('admin.customer');
+        Route::get('/addresses/{id}', [CustomerController::class, 'addresses'])->name('admin.customer.addresses');
         Route::get('/create', [CustomerController::class, 'create'])->name('admin.customer.create');
         Route::post('/store', [CustomerController::class, 'store'])->name('admin.customer.store');
         Route::get('/edit/{id}', [CustomerController::class, 'edit'])->name('admin.customer.edit');

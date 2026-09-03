@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\UpdateProfilePhotoRequest;
 use App\Http\Requests\Api\UpdateProfileRequest;
 use App\Http\Resources\CustomerResource;
+use App\Http\Resources\ProductReviewResource;
 use App\Models\Customer;
+use App\Models\ProductReview;
 use App\Repository\CustomerPhotoRepository;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -50,6 +52,40 @@ class AccountController extends Controller
     public function deletePhoto(Request $request): JsonResponse
     {
         return $this->profileResponse($this->photos->remove($request->user()));
+    }
+
+    /**
+     * Everything this customer has reviewed, newest first, each with enough of
+     * the product to link back to it.
+     */
+    public function reviews(Request $request): JsonResponse
+    {
+        $reviews = ProductReview::where('customer_id', $request->user()->id)
+            ->with(['customer:id,name', 'inventoryItem:id,title,image'])
+            ->latest()
+            ->get();
+
+        return response()->json([
+            'reviews' => $reviews->map(fn ($review) => [
+                'review' => (new ProductReviewResource($review))->toArray($request),
+                'product' => [
+                    'id' => $review->inventory_item_id,
+                    'name' => $review->inventoryItem?->title,
+                    'image' => inventoryItemImageUrl($review->inventoryItem?->image),
+                ],
+            ])->values(),
+        ]);
+    }
+
+    /** A customer may take their own review back down. */
+    public function deleteReview(Request $request, int $id): JsonResponse
+    {
+        ProductReview::where('customer_id', $request->user()->id)
+            ->whereKey($id)
+            ->firstOrFail()
+            ->delete();
+
+        return $this->reviews($request);
     }
 
     private function profileResponse(Customer $customer): JsonResponse

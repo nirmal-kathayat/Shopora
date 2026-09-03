@@ -39,6 +39,7 @@
                                 <th>Email</th>
                                 <th>Phone Number</th>
                                 <th>Address</th>
+                                <th>Saved</th>
                                 <th>PAN Number</th>
                                 <th>Account</th>
                                 <th>Added</th>
@@ -51,6 +52,35 @@
         </div>
     </div>
 </div>
+<!-- every delivery address this customer keeps -->
+<div class="modal fade" id="addressModal" tabindex="-1" aria-labelledby="addressModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addressModalLabel">Delivery addresses</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted mb-3" id="addressModalCustomer"></p>
+                <div class="table-responsive">
+                    <table class="table table-striped mb-0">
+                        <thead>
+                            <tr>
+                                <th>S.no</th>
+                                <th>Label</th>
+                                <th>Address</th>
+                                <th>Receiver</th>
+                                <th>Phone</th>
+                            </tr>
+                        </thead>
+                        <tbody id="addressModalRows"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 @endsection
 
 @section("script")
@@ -123,6 +153,17 @@
                     render: dash
                 },
                 {
+                    data: 'address_count',
+                    name: 'address_count',
+                    orderable: false,
+                    searchable: false,
+                    render: function(data, type, full, meta) {
+                        var count = Number(full.address_count || 0);
+                        var tone = count > 0 ? 'bg-primary' : 'bg-secondary';
+                        return `<span class="badge ${tone}">${count}</span>`;
+                    }
+                },
+                {
                     data: 'action',
                     name: 'action',
                     orderable: false,
@@ -131,13 +172,59 @@
                         var editUrl = "{{route('admin.customer.edit', ['id' => ':id'])}}".replace(':id', full.id);
                         var deleteButton = `<a class="btn btn-danger deleteAction btn-sm" href="javascript:void(0)" data-id="${full.id}"><i class="bx bx-trash"></i></a>`;
                         var editButton = `<a class="btn btn-primary btn-sm" href="${editUrl}"><i class="bx bx-edit"></i></a>`;
-                        return `<div class="d-flex gap-sm">${editButton} ${deleteButton}</div>`;
+                        var disabled = Number(full.address_count || 0) > 0 ? '' : ' disabled';
+                        var addressButton = `<a class="btn btn-outline-primary addressAction btn-sm${disabled}" href="javascript:void(0)" title="Delivery addresses" data-id="${full.id}"><i class="bx bx-map"></i></a>`;
+                        return `<div class="d-flex gap-sm">${editButton} ${addressButton} ${deleteButton}</div>`;
                     }
                 }
             ]
         });
 
         // Delete action using AJAX
+        // the customer's saved delivery addresses
+        $('#customerTable').on('click', '.addressAction', function(e) {
+            e.preventDefault();
+            if ($(this).hasClass('disabled')) return;
+
+            var url = "{{ route('admin.customer.addresses', ['id' => ':id']) }}".replace(':id', $(this).data('id'));
+            var rows = $('#addressModalRows');
+
+            rows.html('<tr><td colspan="5" class="text-center text-muted py-4">Loading...</td></tr>');
+            $('#addressModalCustomer').text('');
+            new bootstrap.Modal(document.getElementById('addressModal')).show();
+
+            $.get(url)
+                .done(function(response) {
+                    $('#addressModalCustomer').text(response.customer || '');
+
+                    if (!response.addresses || !response.addresses.length) {
+                        rows.html('<tr><td colspan="5" class="text-center text-muted py-4">No saved addresses.</td></tr>');
+                        return;
+                    }
+
+                    rows.html(response.addresses.map(function(address, index) {
+                        var text = function(value) {
+                            return $('<div>').text(value || '-').html();
+                        };
+                        var label = text(address.label || 'Address') +
+                            (address.is_default ? ' <span class="badge bg-success">Default</span>' : '');
+                        var line = text(address.single_line) +
+                            (address.landmark ? '<div class="text-muted small">Landmark: ' + text(address.landmark) + '</div>' : '');
+
+                        return '<tr>' +
+                            '<td>' + (index + 1) + '</td>' +
+                            '<td>' + label + '</td>' +
+                            '<td>' + line + '</td>' +
+                            '<td>' + text(address.recipient_name) + '</td>' +
+                            '<td>' + text(address.ph_number) + '</td>' +
+                            '</tr>';
+                    }).join(''));
+                })
+                .fail(function() {
+                    rows.html('<tr><td colspan="5" class="text-center text-danger py-4">Could not load those addresses.</td></tr>');
+                });
+        });
+
         $('#customerTable').on('click', '.deleteAction', function(e) {
             e.preventDefault();
             var customerId = $(this).data('id');

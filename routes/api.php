@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AccountController;
+use App\Http\Controllers\Api\CustomerAddressController;
 use App\Http\Controllers\Api\CustomerAuthController;
 use App\Http\Controllers\Api\HomeController;
 use App\Http\Controllers\Api\ProductController;
@@ -37,6 +38,17 @@ Route::prefix('account')->middleware(['auth:sanctum', 'abilities:customer'])->gr
     Route::put('profile', [AccountController::class, 'update']);
     Route::post('photo', [AccountController::class, 'uploadPhoto']);
     Route::delete('photo', [AccountController::class, 'deletePhoto']);
+
+    // The reviews this customer has written, across every product.
+    Route::get('reviews', [AccountController::class, 'reviews']);
+    Route::delete('reviews/{id}', [AccountController::class, 'deleteReview'])->whereNumber('id');
+
+    // Delivery addresses.
+    Route::get('addresses', [CustomerAddressController::class, 'index']);
+    Route::post('addresses', [CustomerAddressController::class, 'store']);
+    Route::put('addresses/{id}', [CustomerAddressController::class, 'update'])->whereNumber('id');
+    Route::post('addresses/{id}/default', [CustomerAddressController::class, 'setDefault'])->whereNumber('id');
+    Route::delete('addresses/{id}', [CustomerAddressController::class, 'destroy'])->whereNumber('id');
 });
 
 // The signed-in customer's cart.

@@ -27,6 +27,13 @@ class CustomerRepository
                 // password hash out of the database to find out.
                 DB::raw('(customers.password IS NOT NULL) as is_registered'),
             ])
+            // A subquery, so the customer row is not multiplied by addresses.
+            ->selectSub(
+                DB::table('customer_addresses')
+                    ->selectRaw('count(*)')
+                    ->whereColumn('customer_addresses.customer_id', 'customers.id'),
+                'address_count'
+            )
             ->orderBy('customers.id', 'desc');
     }
 
