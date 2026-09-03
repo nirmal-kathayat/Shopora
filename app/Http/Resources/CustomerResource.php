@@ -19,6 +19,7 @@ class CustomerResource extends JsonResource
             'ph_number' => $this->ph_number,
             'address' => $this->address,
             'pan_number' => $this->pan_number,
+            'image' => inventoryItemImageUrl($this->image),
             'email_verified' => $this->email_verified_at !== null,
             'created_at' => $this->created_at?->toIso8601String(),
         ];

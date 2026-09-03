@@ -21,7 +21,8 @@ class Customer extends Authenticatable
     protected $table = 'customers';
 
     // 'password' is deliberately absent: it is only ever set explicitly, so a
-    // stray create($request->all()) can never hand someone an account.
+    // stray create($request->all()) can never hand someone an account. So is
+    // 'image' - that one is only ever written by the photo upload.
     protected $fillable = [
         'name',
         'email',

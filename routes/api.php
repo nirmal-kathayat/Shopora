@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AccountController;
 use App\Http\Controllers\Api\CustomerAuthController;
 use App\Http\Controllers\Api\HomeController;
 use App\Http\Controllers\Api\ProductController;
@@ -27,6 +28,14 @@ Route::prefix('auth')->group(function () {
         Route::post('logout', [CustomerAuthController::class, 'logout']);
         Route::post('logout-all', [CustomerAuthController::class, 'logoutAll']);
     });
+});
+
+// The signed-in customer's own record.
+Route::prefix('account')->middleware(['auth:sanctum', 'abilities:customer'])->group(function () {
+    Route::get('profile', [AccountController::class, 'show']);
+    Route::put('profile', [AccountController::class, 'update']);
+    Route::post('photo', [AccountController::class, 'uploadPhoto']);
+    Route::delete('photo', [AccountController::class, 'deletePhoto']);
 });
 
 // The signed-in customer's cart.
