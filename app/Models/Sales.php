@@ -59,6 +59,15 @@ class Sales extends Model
     }
 
     /**
+     * A cancelled order is not a sale: it took no money and its units went
+     * back on the shelf, so revenue, quantities and cost leave it out.
+     */
+    public function scopeCounted(Builder $query): Builder
+    {
+        return $query->where('sales.status', '!=', 'cancelled');
+    }
+
+    /**
      * What the customer sees on their order: ORD-2026-0012. Derived from the
      * id, so there is no second number to keep in step.
      */

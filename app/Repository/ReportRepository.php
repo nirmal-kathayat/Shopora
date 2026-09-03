@@ -181,6 +181,7 @@ class ReportRepository
         $datas = DB::table('sales')
             ->leftJoin('sales_products', 'sales.id', '=', 'sales_products.sales_id')
             ->leftJoin('inventory_items', 'inventory_items.id', '=', 'sales_products.product_id')
+            ->where('sales.status', '!=', 'cancelled')
             ->whereBetween('sales.nepali_date', [$startDate, $endDate])
             ->select('sales.*', 'sales_products.*', 'inventory_items.title')
             ->get();
@@ -222,6 +223,7 @@ class ReportRepository
 
                 $data['monthQtyData'] = DB::table('sales')
                     ->leftJoin('sales_products', 'sales.id', '=', 'sales_products.sales_id')
+                    ->where('sales.status', '!=', 'cancelled')
                     ->whereBetween('sales.nepali_date', [$startDate, $endDate])
                     ->where('sales_products.product_id', $value['inventory_item_id'])
                     ->where('price_per_unit', $value1['rate'])

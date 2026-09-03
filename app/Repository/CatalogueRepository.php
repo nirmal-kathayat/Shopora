@@ -98,7 +98,9 @@ class CatalogueRepository
             ->whereColumn('inventory_stocks.inventory_item_id', 'inventory_items.id');
 
         $unitsSold = DB::table('sales_products')
-            ->selectRaw('COALESCE(SUM(qty), 0)')
+            ->join('sales', 'sales.id', '=', 'sales_products.sales_id')
+            ->selectRaw('COALESCE(SUM(sales_products.qty), 0)')
+            ->where('sales.status', '!=', 'cancelled')
             ->whereColumn('sales_products.product_id', 'inventory_items.id');
 
         $reviewAvg = DB::table('product_reviews')

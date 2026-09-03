@@ -37,7 +37,7 @@ class DashboardRepository
         $prevPurchases = $this->purchaseCostForRange($prevRange);
 
         $inventory = $this->inventoryValuation();
-        $invoiceCount = (int) Sales::whereBetween('created_at', $dateRange)->count();
+        $invoiceCount = (int) Sales::counted()->whereBetween('created_at', $dateRange)->count();
         $purchaseCount = (int) DB::table('purchase_inventory')->whereBetween('created_at', $dateRange)->count();
         $topVendor = $this->topVendorForRange($dateRange);
 
@@ -91,6 +91,7 @@ class DashboardRepository
 
         $rows = DB::table('sales_products')
             ->join('sales', 'sales.id', '=', 'sales_products.sales_id')
+            ->where('sales.status', '!=', 'cancelled')
             ->whereBetween('sales.created_at', $dateRange)
             ->select('sales_products.product_id', DB::raw('SUM(sales_products.qty) as qty'))
             ->groupBy('sales_products.product_id')
@@ -132,6 +133,7 @@ class DashboardRepository
     {
         return DB::table('sales_products')
             ->join('sales', 'sales.id', '=', 'sales_products.sales_id')
+            ->where('sales.status', '!=', 'cancelled')
             ->join('inventory_items', 'inventory_items.id', '=', 'sales_products.product_id')
             ->whereBetween('sales.created_at', $dateRange)
             ->select(
@@ -156,6 +158,7 @@ class DashboardRepository
         return DB::table('sales')
             ->join('customers', 'customers.id', '=', 'sales.customer_id')
             ->join('sales_products', 'sales_products.sales_id', '=', 'sales.id')
+            ->where('sales.status', '!=', 'cancelled')
             ->whereBetween('sales.created_at', $dateRange)
             ->select(
                 'customers.name',
@@ -257,6 +260,7 @@ class DashboardRepository
 
         $rows = DB::table('sales_products')
             ->join('sales', 'sales.id', '=', 'sales_products.sales_id')
+            ->where('sales.status', '!=', 'cancelled')
             ->join('inventory_items', 'inventory_items.id', '=', 'sales_products.product_id')
             ->leftJoin('categories', 'categories.id', '=', 'inventory_items.category_id')
             ->whereBetween('sales.created_at', $dateRange)
@@ -315,12 +319,14 @@ class DashboardRepository
 
         $gross = DB::table('sales_products')
             ->join('sales', 'sales.id', '=', 'sales_products.sales_id')
+            ->where('sales.status', '!=', 'cancelled')
             ->whereBetween('sales.created_at', $dateRange)
             ->select(DB::raw("$sqlDate as bucket"), DB::raw('SUM(sales_products.qty * sales_products.price_per_unit) as gross'))
             ->groupBy('bucket')
             ->pluck('gross', 'bucket');
 
         $discount = DB::table('sales')
+            ->where('sales.status', '!=', 'cancelled')
             ->whereBetween('created_at', $dateRange)
             ->select(DB::raw(($monthly ? "DATE_FORMAT(created_at, '%Y-%m-01')" : "DATE(created_at)") . ' as bucket'), DB::raw('SUM(discount) as disc'))
             ->groupBy('bucket')
@@ -357,6 +363,7 @@ class DashboardRepository
 
         $rows = DB::table('sales_products')
             ->join('sales', 'sales.id', '=', 'sales_products.sales_id')
+            ->where('sales.status', '!=', 'cancelled')
             ->join('inventory_items', 'inventory_items.id', '=', 'sales_products.product_id')
             ->leftJoin('categories', 'categories.id', '=', 'inventory_items.category_id')
             ->whereBetween('sales.created_at', $dateRange)
@@ -393,6 +400,7 @@ class DashboardRepository
         $data = DB::table('sales_payment_mode')
             ->join('payment_modes', 'sales_payment_mode.payment_mode_id', '=', 'payment_modes.id')
             ->join('sales', 'sales_payment_mode.sales_id', '=', 'sales.id')
+            ->where('sales.status', '!=', 'cancelled')
             ->whereBetween('sales.created_at', $dateRange)
             ->select(
                 'payment_modes.payment_title',
@@ -403,7 +411,7 @@ class DashboardRepository
             ->get();
         $totalRevenue = $data->sum('total_amount');
 
-        $totalDiscount = Sales::whereBetween('created_at', $dateRange)
+        $totalDiscount = Sales::counted()->whereBetween('created_at', $dateRange)
             ->sum('discount');
         $netRevenue = $totalRevenue - $totalDiscount;
 
@@ -422,10 +430,11 @@ class DashboardRepository
         [$from, $to] = $this->resolveDateRange($filterType, $fromDate, $toDate);
         $dateRange = [$from, $to];
         $stats = $this->computePeriodStats($dateRange);
-        $invoiceCount = (int) Sales::whereBetween('created_at', $dateRange)->count();
+        $invoiceCount = (int) Sales::counted()->whereBetween('created_at', $dateRange)->count();
 
         $topProducts = DB::table('sales_products')
             ->join('sales', 'sales.id', '=', 'sales_products.sales_id')
+            ->where('sales.status', '!=', 'cancelled')
             ->join('inventory_items', 'inventory_items.id', '=', 'sales_products.product_id')
             ->whereBetween('sales.created_at', $dateRange)
             ->select(
@@ -473,7 +482,7 @@ class DashboardRepository
 
     private function computePeriodStats(array $dateRange): array
     {
-        $salesIds = Sales::whereBetween('created_at', $dateRange)->pluck('id');
+        $salesIds = Sales::counted()->whereBetween('created_at', $dateRange)->pluck('id');
         $revenue = 0;
         $salesQty = 0;
 
@@ -497,6 +506,7 @@ class DashboardRepository
     {
         $sales = DB::table('sales')
             ->leftJoin('customers', 'customers.id', '=', 'sales.customer_id')
+            ->where('sales.status', '!=', 'cancelled')
             ->select(
                 'sales.id',
                 'sales.created_at',
