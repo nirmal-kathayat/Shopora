@@ -183,19 +183,11 @@
                 success: function(response) {
                     $('#addQuantityModal').modal('hide');
                     $('#productTable').DataTable().ajax.reload();
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Success',
-                        text: 'Inventory record added successfully!'
-                    });
+                    shoporaToast.success('Inventory record added successfully!', 'Success');
                 },
                 error: function(error) {
                     // console.log(error);
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: 'Something Went wrong!'
-                    });
+                    shoporaToast.error('Something Went wrong!', 'Error');
                 }
             });
         });
@@ -221,19 +213,11 @@
                             "_token": "{{ csrf_token() }}",
                         },
                         success: function(response) {
-                            Swal.fire(
-                                'Deleted!',
-                                'The product has been deleted.',
-                                'success'
-                            );
+                            shoporaToast.success('The product has been deleted.', 'Deleted!');
                             $('#productTable').DataTable().ajax.reload();
                         },
                         error: function(xhr) {
-                            Swal.fire(
-                                'Error!',
-                                'There was an error deleting the product.',
-                                'error'
-                            );
+                            shoporaToast.error('There was an error deleting the product.', 'Error!');
                         }
                     });
                 }

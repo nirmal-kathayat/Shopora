@@ -441,12 +441,9 @@
             }).done(function(response) {
                 bootstrap.Modal.getInstance(document.getElementById('orderModal')).hide();
                 table.draw(false);
-                Swal.fire({ icon: 'success', title: response.message, timer: 1800, showConfirmButton: false });
+                shoporaToast.info(response.message, timer: 1800, showConfirmButton: false);
             }).fail(function(xhr) {
-                Swal.fire({
-                    icon: 'error',
-                    title: (xhr.responseJSON && xhr.responseJSON.message) || 'Could not update that order.'
-                });
+                shoporaToast.error((xhr.responseJSON && xhr.responseJSON.message) || 'Could not update that order.');
             }).always(function() {
                 button.prop('disabled', false);
             });

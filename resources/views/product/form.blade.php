@@ -171,22 +171,19 @@ $url = isset($product) ? route('admin.product.update',['id' => $product->id]) : 
                             $('#categoryModal').modal('hide');
                             $('#categoryName').val('');
 
-                            // Swal.fire(response.message);
-                            Swal.fire({
-                                icon: 'success',
-                                title: 'Success',
-                                text: 'Category added successfully!'
-                            });
+                            shoporaToast.success('Category added successfully!');
                         } else {
-                            Swal('Error: error ' + response.message);
+                            shoporaToast.error(response.message || 'Could not add that category.');
                         }
                     },
                     error: function(xhr) {
-                        Swal.fire('Error: error ' + xhr.responseJSON.message || 'An unknown error occurred.');
+                        shoporaToast.error(
+                            (xhr.responseJSON && xhr.responseJSON.message) || 'An unknown error occurred.'
+                        );
                     }
                 });
             } else {
-                alert('Please enter a category name.');
+                shoporaToast.warning('Please enter a category name.');
             }
         });
     });

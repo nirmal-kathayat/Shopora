@@ -48,11 +48,7 @@
         window.downloadReport = function() {
             var categoryId = $('#category').val();
             if (!categoryId) {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'Warning',
-                    text: 'Please select a category'
-                });
+                shoporaToast.warning('Please select a category', 'Warning');
                 return;
             }
             var url = "/admin/reports/getInventoryReport?category_id=" + encodeURIComponent(categoryId);

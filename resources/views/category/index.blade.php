@@ -110,7 +110,7 @@
             // Deleting a category with items would cascade the inventory away,
             // so stop the shop before it happens rather than after.
             if (items > 0) {
-                Swal.fire('Not allowed', `This category still has ${items} inventory item(s). Move or remove them first.`, 'info');
+                shoporaToast.info(`This category still has ${items} inventory item(s). Move or remove them first.`, 'Not allowed');
                 return;
             }
 
@@ -127,8 +127,8 @@
                 if (result.isConfirmed) {
                     $.ajax({
                         url: deleteUrl, type: 'GET', data: { "_token": "{{ csrf_token() }}" },
-                        success: () => { Swal.fire('Deleted!', 'The category has been deleted.', 'success'); table.ajax.reload(null, false); },
-                        error: (xhr) => Swal.fire('Error!', (xhr.responseJSON && xhr.responseJSON.message) || 'Something went wrong.', 'error')
+                        success: () => { shoporaToast.success('The category has been deleted.', 'Deleted!'); table.ajax.reload(null, false); },
+                        error: (xhr) => shoporaToast.error((xhr.responseJSON && xhr.responseJSON.message) || 'Something went wrong.', 'Error!')
                     });
                 }
             });

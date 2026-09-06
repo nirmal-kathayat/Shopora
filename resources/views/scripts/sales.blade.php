@@ -51,11 +51,7 @@
             let existingItem = selectedInventoryItems.find(item => item.id === itemId);
 
             if (existingItem) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: 'Item already in cart!'
-                });
+                shoporaToast.error('Item already in cart!', 'Error');
             } else {
                 selectedInventoryItems.push({
                     id: itemId,
@@ -230,13 +226,7 @@
                 },
                 success: function(res) {
                     if (res.type === 'success') {
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Success',
-                            text: res.message,
-                            timer: 1500,
-                            showConfirmButton: false
-                        });
+                        shoporaToast.success(res.message, 'Success');
 
                         if (res.inventory) {
                             prependInventoryToList(res.inventory);
@@ -249,11 +239,7 @@
                             instance.hide();
                         }
                     } else {
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Error',
-                            text: res.message || 'Something went wrong'
-                        });
+                        shoporaToast.error(res.message || 'Something went wrong', 'Error');
                     }
                 },
                 error: function(xhr) {
@@ -309,13 +295,7 @@
                             $('#category-filter-select').append(new Option(res.data.title, res.data.id, false, false)).trigger('change.select2');
                         }
 
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Success',
-                            text: res.message,
-                            timer: 1500,
-                            showConfirmButton: false
-                        });
+                        shoporaToast.success(res.message, 'Success');
 
                         closeInventoryCategoryNested();
                     } else {
@@ -496,20 +476,12 @@
             
             // Validate split payments
             if (Math.abs(totalSplitAmount - totalAmount) > 0.01) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: 'Split payment amounts must equal the total amount!'
-                });
+                shoporaToast.error('Split payment amounts must equal the total amount!', 'Error');
                 return;
             }
             
             if (splitPayments.length === 0) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: 'Please enter at least one payment amount!'
-                });
+                shoporaToast.error('Please enter at least one payment amount!', 'Error');
                 return;
             }
             
@@ -522,11 +494,7 @@
         
         function processSale(splitPayments = null) {
             if (selectedInventoryItems.length === 0) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: 'Select at least one item!'
-                });
+                shoporaToast.error('Select at least one item!', 'Error');
                 return;
             }
 
@@ -537,11 +505,7 @@
             
             // For split payments, skip received amount validation
             if (!splitPayments && receivedAmount < totalAmount) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: 'Received amount must be greater than or equal to the total amount!'
-                });
+                shoporaToast.error('Received amount must be greater than or equal to the total amount!', 'Error');
                 return;
             }
 
@@ -587,21 +551,13 @@
                         @endforeach
                         isSplitPayment = false;
                     } else {
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Error',
-                            text: response.message
-                        });
+                        shoporaToast.error(response.message, 'Error');
                     }
                 },
 
                 error: function(xhr, status, error) {
                     console.error(xhr.responseText);
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: 'An error occurred while processing the request: ' + error
-                    });
+                    shoporaToast.error('An error occurred while processing the request: ' + error, 'Error');
                 }
             });
         }
@@ -610,11 +566,7 @@
         $('.btn-confirm').on('click', function() {
             let paymentMode = $('#payment-mode').val();
             if (!paymentMode) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: 'Please select a payment mode!'
-                });
+                shoporaToast.error('Please select a payment mode!', 'Error');
                 return;
             }
             processSale();

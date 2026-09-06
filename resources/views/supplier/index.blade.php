@@ -126,19 +126,11 @@
                             "_token": "{{ csrf_token() }}"
                         },
                         success: function(response) {
-                            Swal.fire(
-                                'Deleted!',
-                                'The supplier has been deleted successfully.',
-                                'success'
-                            );
+                            shoporaToast.success('The supplier has been deleted successfully.', 'Deleted!');
                             table.ajax.reload(null, false);
                         },
                         error: function(xhr, status, error) {
-                            Swal.fire(
-                                'Error!',
-                                'Something went wrong while deleting the supplier.',
-                                'error'
-                            );
+                            shoporaToast.error('Something went wrong while deleting the supplier.', 'Error!');
                         }
                     });
                 }

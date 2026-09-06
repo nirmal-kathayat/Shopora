@@ -1,28 +1,16 @@
+{{-- A redirect's flash message, shown as a toast in the corner. --}}
+@if(\Session::has('message'))
 <script type="text/javascript">
-    var toastMixin = Swal.mixin({
-        toast: true,
-        animation: false,
-        position: 'top-right',
-        showConfirmButton: false,
-        timer: 3000,
-        timerProgressBar: true,
-        didOpen: (toast) => {
-            toast.addEventListener('mouseenter', Swal.stopTimer)
-            toast.addEventListener('mouseleave', Swal.resumeTimer)
-        }
-    });
-    @if(\Session::get('type') == 'success')
-    toastMixin.fire({
-        icon: 'success',
-        animation: true,
-        title: '{{\Session::get("message")}}'
-    });
-    @endif
-    @if(\Session::get('type') == 'error')
-    toastMixin.fire({
-        icon: 'error',
-        animation: true,
-        title: '{{\Session::get("message")}}'
-    });
-    @endif
+    (function () {
+        var type = @json(\Session::get('type', 'info'));
+        var message = @json(\Session::get('message'));
+        var show = function () {
+            (window.shoporaToast?.[type] ?? window.shoporaToast?.info)?.(message);
+        };
+
+        // The flash partial is included before the toast script on some pages.
+        if (window.shoporaToast) show();
+        else document.addEventListener('DOMContentLoaded', show);
+    })();
 </script>
+@endif

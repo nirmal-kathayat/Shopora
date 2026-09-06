@@ -176,19 +176,11 @@
                             "_token": "{{ csrf_token() }}",
                         },
                         success: function(response) {
-                            Swal.fire(
-                                'Deleted!',
-                                'The purchase inventory has been deleted.',
-                                'success'
-                            );
+                            shoporaToast.success('The purchase inventory has been deleted.', 'Deleted!');
                             $('#purchaseInventoryTable').DataTable().ajax.reload();
                         },
                         error: function(xhr) {
-                            Swal.fire(
-                                'Error!',
-                                'There was an error deleting the inventory.',
-                                'error'
-                            );
+                            shoporaToast.error('There was an error deleting the inventory.', 'Error!');
                         }
                     });
                 }
@@ -216,11 +208,7 @@
                     }
                 },
                 error: function(xhr) {
-                    Swal.fire(
-                        'Error!',
-                        'Unable to load bill details.',
-                        'error'
-                    );
+                    shoporaToast.error('Unable to load bill details.', 'Error!');
                 }
             });
         }

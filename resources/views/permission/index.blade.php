@@ -134,7 +134,7 @@
                     if (xhr.responseJSON && xhr.responseJSON.message) {
                         errorMessage = xhr.responseJSON.message;
                     }
-                    alert('Error: ' + errorMessage);
+                    shoporaToast.error(errorMessage);
                 }
             });
         });

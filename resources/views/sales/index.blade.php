@@ -1054,13 +1054,7 @@
                     const newOption = new Option(displayText, res.id, true, true);
                     $('#customer').append(newOption).val(res.id).trigger('change');
                     if (typeof Swal !== 'undefined') {
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Success',
-                            text: res.message || 'Customer added successfully!',
-                            timer: 2000,
-                            showConfirmButton: false
-                        });
+                        shoporaToast.success(res.message || 'Customer added successfully!', 'Success');
                     } else {}
                 },
                 error: function(xhr) {

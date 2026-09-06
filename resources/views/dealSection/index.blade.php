@@ -142,11 +142,11 @@
                         type: 'GET',
                         data: { "_token": "{{ csrf_token() }}" },
                         success: function() {
-                            Swal.fire('Deleted!', 'The deals section has been deleted.', 'success');
+                            shoporaToast.success('The deals section has been deleted.', 'Deleted!');
                             table.ajax.reload(null, false);
                         },
                         error: function() {
-                            Swal.fire('Error!', 'Something went wrong while deleting.', 'error');
+                            shoporaToast.error('Something went wrong while deleting.', 'Error!');
                         }
                     });
                 }

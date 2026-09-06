@@ -8,6 +8,7 @@
     <!--favicon-->
     <link rel="icon" href="{{ asset('assets/images/shopora.png') }}" type="image/png" />
     <!--plugins-->
+    <link href="{{asset('assets/css/toast.css')}}?v=1" rel="stylesheet" />
     @yield("style")
     @stack('style')
     <link href="{{asset('assets/plugins/simplebar/css/simplebar.css')}}" rel="stylesheet" />
@@ -66,6 +67,7 @@
     <script src="{{asset('assets/plugins/simplebar/js/simplebar.min.js')}}"></script>
     <script src="{{asset('assets/plugins/perfect-scrollbar/js/perfect-scrollbar.js')}}"></script>
     <script src="{{asset('assets/plugins/sweetalert2/sweetalert2.all.min.js')}}"></script>
+    <script src="{{asset('assets/js/toast.js')}}?v=1"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
     <script>

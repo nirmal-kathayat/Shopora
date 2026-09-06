@@ -383,7 +383,7 @@
             const button = event.target.closest('.removeCard');
             if (!button) return;
             if (cardRows.querySelectorAll('.card-row').length === 1) {
-                Swal.fire('Not allowed', 'A deals section needs at least one card.', 'info');
+                shoporaToast.info('A deals section needs at least one card.', 'Not allowed');
                 return;
             }
             button.closest('.card-row').remove();

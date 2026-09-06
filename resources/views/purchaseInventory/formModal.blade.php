@@ -538,7 +538,7 @@
                     }
                 },
                 error: function () {
-                    Swal.fire('Error!', 'Unable to load purchase inventory details.', 'error');
+                    shoporaToast.error('Unable to load purchase inventory details.', 'Error!');
                 }
             });
         });
@@ -688,11 +688,7 @@
                             window.purchaseInventoryDataTable.ajax.reload(null, false);
                         }
 
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Success',
-                            text: res.message || (isEdit ? 'Purchase inventory updated.' : 'Purchase inventory created.')
-                        });
+                        shoporaToast.success(res.message || (isEdit ? 'Purchase inventory updated.' : 'Purchase inventory created.'), 'Success');
                     } else {
                         showPurchaseModalErrors(res.message || 'Unable to save purchase inventory.');
                     }

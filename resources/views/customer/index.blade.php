@@ -248,19 +248,11 @@
                             "_token": "{{ csrf_token() }}"
                         },
                         success: function(response) {
-                            Swal.fire(
-                                'Deleted!',
-                                'The customer has been deleted successfully.',
-                                'success'
-                            );
+                            shoporaToast.success('The customer has been deleted successfully.', 'Deleted!');
                             table.ajax.reload(null, false);
                         },
                         error: function(xhr, status, error) {
-                            Swal.fire(
-                                'Error!',
-                                'Something went wrong while deleting the customer.',
-                                'error'
-                            );
+                            shoporaToast.error('Something went wrong while deleting the customer.', 'Error!');
                         }
                     });
                 }

@@ -1,0 +1,126 @@
+/* ===== Shopora admin toast =====
+   Replaces the SweetAlert popups that used to take over the middle of the
+   screen to say "Saved". A result is news, not a question: it belongs in the
+   corner, on its own timer. Questions - "delete this?" - stay as dialogs. */
+
+.shopora-toasts {
+    position: fixed;
+    top: 84px;                 /* clear of the fixed topbar */
+    right: 20px;
+    z-index: 2000;             /* over modals and the sidebar */
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 360px;
+    max-width: calc(100vw - 32px);
+    pointer-events: none;      /* the page stays clickable around them */
+}
+
+.shopora-toast {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 13px 14px;
+    border: 1px solid #e5e7eb;
+    border-left: 4px solid var(--tone, #64748b);
+    border-radius: 10px;
+    background: #fff;
+    box-shadow: 0 10px 30px -12px rgba(15, 23, 42, 0.28);
+    pointer-events: auto;
+    cursor: pointer;
+    opacity: 0;
+    transform: translateX(16px);
+    transition: opacity 0.22s ease, transform 0.22s ease;
+}
+
+.shopora-toast.is-in {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.shopora-toast.is-out {
+    opacity: 0;
+    transform: translateX(16px);
+}
+
+.shopora-toast.is-success { --tone: #16a34a; }
+.shopora-toast.is-error { --tone: #dc2626; }
+.shopora-toast.is-warning { --tone: #f59e0b; }
+.shopora-toast.is-info { --tone: #0ea5e9; }
+
+.shopora-toast-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    flex: 0 0 auto;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--tone) 14%, #fff);
+    color: var(--tone);
+    font-size: 17px;
+}
+
+.shopora-toast-body { min-width: 0; flex: 1; }
+
+.shopora-toast-title {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #14181c;
+    line-height: 1.35;
+}
+
+.shopora-toast-text {
+    margin: 2px 0 0;
+    font-size: 13px;
+    line-height: 1.45;
+    color: #55606a;
+    overflow-wrap: anywhere;
+}
+
+.shopora-toast-close {
+    flex: 0 0 auto;
+    border: 0;
+    background: none;
+    padding: 0;
+    font-size: 18px;
+    line-height: 1;
+    color: #9aa3ab;
+    cursor: pointer;
+}
+
+.shopora-toast-close:hover { color: #55606a; }
+
+/* the bar that runs out while the toast waits to leave */
+.shopora-toast-timer {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    height: 2px;
+    background: var(--tone);
+    opacity: 0.5;
+    border-radius: 0 0 0 10px;
+}
+
+.shopora-toast { position: relative; overflow: hidden; }
+
+/* paused while the pointer is on it, so a long message can be read */
+.shopora-toast:hover .shopora-toast-timer { animation-play-state: paused; }
+
+@keyframes shopora-toast-timer {
+    from { width: 100%; }
+    to { width: 0; }
+}
+
+html.dark-theme .shopora-toast {
+    border-color: #2a3236;
+    background: #12181a;
+}
+
+html.dark-theme .shopora-toast-title { color: #e7ecef; }
+html.dark-theme .shopora-toast-text { color: #aab3bb; }
+
+@media (max-width: 575.98px) {
+    .shopora-toasts { top: 72px; right: 12px; left: 12px; width: auto; }
+}

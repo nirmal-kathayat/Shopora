@@ -302,19 +302,11 @@
                             "_token": "{{ csrf_token() }}",
                         },
                         success: function(response) {
-                            Swal.fire(
-                                'Deleted!',
-                                'The inventory item has been deleted.',
-                                'success'
-                            );
+                            shoporaToast.success('The inventory item has been deleted.', 'Deleted!');
                             table.draw();
                         },
                         error: function(xhr) {
-                            Swal.fire(
-                                'Error!',
-                                'There was an error deleting the inventory item.',
-                                'error'
-                            );
+                            shoporaToast.error('There was an error deleting the inventory item.', 'Error!');
                         }
                     });
                 }
