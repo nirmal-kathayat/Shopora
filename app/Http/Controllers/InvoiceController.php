@@ -24,6 +24,12 @@ class InvoiceController extends Controller
                 $data = $this->invoiceRepo->getSalesInvoice(null, $fromDate, $toDate);
                 return DataTables::of($data)
                     ->addIndexColumn()
+                    ->filterColumn('order_by_name', function ($query, $keyword) {
+                        $query->where(function ($q) use ($keyword) {
+                            $q->where('admins.name', 'like', "%{$keyword}%")
+                                ->orWhere('sales.order_by', 'like', "%{$keyword}%");
+                        });
+                    })
                     ->rawColumns([])
                     ->make(true);
             }

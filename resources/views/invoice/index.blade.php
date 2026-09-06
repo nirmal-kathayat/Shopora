@@ -62,6 +62,8 @@
                                 <th>Order By</th>
                                 <th>Bill No</th>
                                 <th>Customers</th>
+                                <th>Payment</th>
+                                <th>Status</th>
                                 <th>Created_at</th>
                                 <th>Action</th>
                             </tr>
@@ -114,6 +116,18 @@
     window.paymentModeMap[{{ $payment->id }}] = '{{ $payment->payment_title }}';
     @endforeach
 
+    const STATUS_TONES = {
+        placed: 'bg-secondary',
+        confirmed: 'bg-info',
+        shipped: 'bg-warning',
+        delivered: 'bg-success',
+        cancelled: 'bg-danger',
+    };
+
+    function escapeText(value) {
+        return $('<div>').text(value === null || value === undefined || value === '' ? '-' : value).html();
+    }
+
     let currentInvoice = null;
     let currentDetails = [];
     $(document).ready(function() {
@@ -132,7 +146,7 @@
                 },
                 {
                     data: 'order_by_name',
-                    name: 'admins.name',
+                    name: 'order_by_name',
                     orderable: false,
 
                 },
@@ -149,6 +163,45 @@
                     name: 'customers.name',
                     orderable: false,
 
+                },
+                {
+                    data: 'payment_method',
+                    name: 'sales.payment_method',
+                    orderable: false,
+                    searchable: false,
+                    render: function(data, type, full) {
+                        // A counter sale leaves payment_method/payment_status at their
+                        // defaults, so the bill was settled at the till and the
+                        // storefront method/status pair says nothing useful here.
+                        if (full.channel !== 'storefront') {
+                            return '<span class="fw-medium">Counter</span>'
+                                + '<div class="mt-1"><span class="badge bg-success">Paid</span></div>';
+                        }
+                        const label = data === 'esewa' ? 'eSewa' : 'Cash on Delivery';
+                        let badge;
+                        if (full.payment_status === 'paid') {
+                            badge = '<span class="badge bg-success">Paid</span>';
+                        } else if (full.payment_status === 'failed') {
+                            badge = '<span class="badge bg-danger">Failed</span>';
+                        } else if (data === 'cod') {
+                            // COD is collected by the rider, so "unpaid" here just
+                            // means the cash is due on delivery, not that anything failed.
+                            badge = '<span class="badge bg-secondary">On delivery</span>';
+                        } else {
+                            badge = '<span class="badge bg-danger">Unpaid</span>';
+                        }
+                        return '<span class="fw-medium">' + escapeText(label) + '</span>'
+                            + '<div class="mt-1">' + badge + '</div>';
+                    }
+                },
+                {
+                    data: 'status',
+                    name: 'sales.status',
+                    orderable: false,
+                    render: function(data) {
+                        const tone = STATUS_TONES[data] || 'bg-secondary';
+                        return '<span class="badge ' + tone + '">' + escapeText(data) + '</span>';
+                    }
                 },
                 {
                     data: 'created_at',
@@ -184,6 +237,21 @@
                 currentDetails = data.details;
                 var itemsHtml = '';
                 var total = 0;
+
+                // Where this bill stands right now. Kept off the printed slip -
+                // the customer copy only carries what was bought.
+                var payLabel;
+                if (invoice.channel !== 'storefront') {
+                    payLabel = 'Paid at counter';
+                } else if (invoice.payment_status === 'paid') {
+                    payLabel = 'Paid (' + (invoice.payment_method === 'esewa' ? 'eSewa' : 'COD') + ')';
+                } else if (invoice.payment_status === 'failed') {
+                    payLabel = 'Payment failed';
+                } else if (invoice.payment_method === 'cod') {
+                    payLabel = 'Cash due on delivery';
+                } else {
+                    payLabel = 'Unpaid';
+                }
                 details.forEach(function(item, index) {
                     total += parseFloat(item.amount);
                     itemsHtml += `
@@ -208,6 +276,7 @@
                         <li>Bill No : T${invoice.id}-80/81</li>
                         <li>Date : ${invoice.created_at}</li>
                         <li>Name : ${invoice.order_by_name}</li>
+                        <li class="no-print">Status : ${invoice.status} &middot; ${payLabel}</li>
                            <li>Payment Mode : ${(() => {
     const paymentModes = String(details[0]?.payment_mode).split(',').map(id => window.paymentModeMap[id.trim()] || id.trim());
     return paymentModes.join(', ');

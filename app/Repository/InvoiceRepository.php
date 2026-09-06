@@ -29,7 +29,11 @@ class InvoiceRepository
             ->leftJoin('admins', 'admins.id', '=', 'sales.order_by')
             ->leftJoin('customers', 'customers.id', '=', 'sales.customer_id')
             ->whereNotIn('sales.status', ['cancelled', 'pending_payment'])
-            ->select('sales.*', 'admins.name as order_by_name', 'customers.name as customer_title')
+            ->select(
+                'sales.*',
+                DB::raw("COALESCE(admins.name, NULLIF(sales.order_by, '')) as order_by_name"),
+                'customers.name as customer_title'
+            )
             ->whereBetween('sales.created_at', $dateRange)
             ->orderBy('sales.id', 'desc');
         return $data;
@@ -41,7 +45,7 @@ class InvoiceRepository
             ->leftJoin('admins', 'sales.order_by', '=', 'admins.id')
             ->select(
                 'sales.*',
-                'admins.name as order_by_name'
+                DB::raw("COALESCE(admins.name, NULLIF(sales.order_by, '')) as order_by_name")
             )
             ->where('sales.id', $id)
             ->first();
