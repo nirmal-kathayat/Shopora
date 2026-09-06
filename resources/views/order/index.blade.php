@@ -2,6 +2,145 @@
 
 @section("style")
 <link href="{{asset('assets/plugins/datatable/css/dataTables.bootstrap5.min.css')}}" rel="stylesheet" />
+<style>
+    /* ===== Order modal =====
+       Two tinted panels for the people, a plain table for the goods, and the
+       totals boxed off to the right so the figure that matters is the last
+       thing on the page. */
+    #orderModal .modal-content { border: 0; border-radius: 16px; overflow: hidden; }
+    #orderModal .modal-header { align-items: center; gap: 14px; padding: 20px 24px; border-bottom: 1px solid #eef0f3; }
+    #orderModal .modal-body { padding: 20px 24px; background: #fff; }
+    #orderModal .modal-footer { padding: 16px 24px; border-top: 1px solid #eef0f3; background: #fafbfc; }
+
+    .order-head-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 46px;
+        height: 46px;
+        border-radius: 14px;
+        background: #e8f1ff;
+        color: #1f6fd0;
+        font-size: 24px;
+        flex: 0 0 auto;
+    }
+
+    .order-head-title { margin: 0; font-size: 20px; font-weight: 700; color: #14181c; }
+    .order-head-sub { margin: 2px 0 0; font-size: 13px; color: #7a838c; }
+
+    /* one pill, coloured by where the order actually is */
+    .order-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 7px 14px;
+        border-radius: 999px;
+        font-size: 13px;
+        font-weight: 600;
+        text-transform: capitalize;
+    }
+
+    .order-pill.is-placed { background: #eef1f4; color: #55606a; }
+    .order-pill.is-confirmed { background: #e7f1ff; color: #1f6fd0; }
+    .order-pill.is-shipped { background: #fdf3e2; color: #97650f; }
+    .order-pill.is-delivered { background: #e7f6ee; color: #1a7f4b; }
+    .order-pill.is-cancelled { background: #fdecec; color: #b3261e; }
+
+    .order-panels { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    @media (max-width: 640px) { .order-panels { grid-template-columns: 1fr; } }
+
+    .order-panel { display: flex; gap: 14px; padding: 16px; border-radius: 14px; }
+    .order-panel.is-customer { background: #f2f7ff; }
+    .order-panel.is-delivery { background: #f0f9f3; }
+
+    .order-panel-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        font-size: 20px;
+        flex: 0 0 auto;
+    }
+
+    .is-customer .order-panel-icon { background: #dbe8fb; color: #1f6fd0; }
+    .is-delivery .order-panel-icon { background: #d9f0e2; color: #1a7f4b; }
+
+    .order-panel h6 { margin: 0 0 6px; font-size: 14px; font-weight: 600; }
+    .is-customer h6 { color: #1f6fd0; }
+    .is-delivery h6 { color: #1a7f4b; }
+
+    .order-panel-name { margin: 0 0 8px; font-size: 16px; font-weight: 600; color: #14181c; }
+    .order-panel-line { display: flex; align-items: center; gap: 8px; margin: 0 0 4px; font-size: 14px; color: #48525c; }
+    .order-panel-line i { font-size: 16px; opacity: .75; }
+    .order-panel-line:last-child { margin-bottom: 0; }
+
+    /* --- goods --- */
+    .order-items { width: 100%; margin-top: 18px; border-collapse: separate; border-spacing: 0; }
+    .order-items thead th {
+        padding: 12px 14px;
+        background: #f5f7f9;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: .07em;
+        text-transform: uppercase;
+        color: #6b7580;
+        text-align: left;
+    }
+    .order-items thead th:first-child { border-radius: 10px 0 0 0; }
+    .order-items thead th:last-child { border-radius: 0 10px 0 0; }
+    .order-items td { padding: 12px 14px; border-bottom: 1px solid #eef0f3; vertical-align: middle; }
+    .order-items .is-num { text-align: right; white-space: nowrap; }
+
+    .order-item-cell { display: flex; align-items: center; gap: 12px; }
+    .order-item-thumb {
+        width: 46px;
+        height: 46px;
+        border-radius: 10px;
+        background: #f5f7f9;
+        object-fit: cover;
+        flex: 0 0 auto;
+    }
+
+    /* the totals sit under the money columns, not across the whole table */
+    .order-totals { display: flex; justify-content: flex-end; }
+    .order-totals table { width: min(340px, 100%); border-collapse: separate; border-spacing: 0; }
+    .order-totals td { padding: 11px 14px; border-bottom: 1px solid #eef0f3; font-size: 14px; }
+    .order-totals .is-num { text-align: right; }
+    .order-totals .is-grand td {
+        border-bottom: 0;
+        background: #eef4ff;
+        font-size: 16px;
+        font-weight: 700;
+        color: #14181c;
+    }
+    .order-totals .is-grand td:first-child { border-radius: 0 0 0 10px; }
+    .order-totals .is-grand td:last-child { border-radius: 0 0 10px 0; }
+
+    .order-placed {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+        margin-top: 18px;
+        padding: 14px 16px;
+        border-radius: 12px;
+        background: #f7f8fa;
+        font-size: 13.5px;
+        color: #48525c;
+    }
+    .order-placed i { font-size: 18px; color: #7a838c; }
+    .order-placed .sep { color: #c8cdd3; }
+
+    #orderModal .modal-footer .form-select { min-width: 230px; border-radius: 10px; padding: 10px 14px; }
+    #orderModal .modal-footer .btn {
+        border-radius: 10px;
+        padding: 10px 20px;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+</style>
 @endsection
 
 @section("wrapper")
@@ -64,7 +203,12 @@
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="orderModalLabel">Order</h5>
+                <span class="order-head-icon"><i class="bx bx-clipboard"></i></span>
+                <div class="flex-grow-1 min-w-0">
+                    <h5 class="order-head-title" id="orderModalLabel">Order</h5>
+                    <p class="order-head-sub" id="orderModalPlaced"></p>
+                </div>
+                <span class="order-pill" id="orderModalStatus"></span>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body" id="orderModalBody">
@@ -72,8 +216,10 @@
             </div>
             <div class="modal-footer justify-content-between">
                 <div class="d-flex align-items-center gap-2">
-                    <select id="orderStatusSelect" class="form-select" style="min-width: 200px;"></select>
-                    <button type="button" class="btn btn-primary" id="orderStatusSave" disabled>Update status</button>
+                    <select id="orderStatusSelect" class="form-select"></select>
+                    <button type="button" class="btn btn-primary" id="orderStatusSave" disabled>
+                        <i class="bx bx-refresh me-1"></i> Update Status
+                    </button>
                 </div>
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
             </div>
@@ -86,6 +232,15 @@
 <script src="{{asset('assets/plugins/datatable/js/jquery.dataTables.min.js')}}"></script>
 <script src="{{asset('assets/plugins/datatable/js/dataTables.bootstrap5.min.js')}}"></script>
 <script>
+    /** The glyph beside the status pill in the order modal's header. */
+    const STATUS_ICONS = {
+        placed: 'bx-receipt',
+        confirmed: 'bx-check-circle',
+        shipped: 'bx-package',
+        delivered: 'bx-check-double',
+        cancelled: 'bx-x-circle',
+    };
+
     const STATUS_TONES = {
         placed: 'bg-secondary',
         confirmed: 'bg-info',
@@ -191,41 +346,71 @@
 
             $.get(url).done(function(order) {
                 $('#orderModalLabel').text('Order ' + order.code);
+                $('#orderModalPlaced').text('Placed on ' + (order.placed_at || ''));
+                $('#orderModalStatus')
+                    .attr('class', 'order-pill is-' + order.status)
+                    .html('<i class="bx ' + (STATUS_ICONS[order.status] || 'bx-time-five') + '"></i>' + escapeText(order.status));
 
                 const rows = order.items.map(function(item) {
+                    // A product with no photo yet keeps the same box, so the
+                    // rows do not jump about mid-list.
+                    const thumb = item.image
+                        ? '<img class="order-item-thumb" src="' + escapeText(item.image) + '" alt="">'
+                        : '<span class="order-item-thumb"></span>';
+
                     return '<tr>' +
-                        '<td>' + escapeText(item.name) + '</td>' +
-                        '<td class="text-end">' + item.qty + '</td>' +
-                        '<td class="text-end">' + money(item.price_per_unit) + '</td>' +
-                        '<td class="text-end">' + money(item.line_total) + '</td>' +
+                        '<td><span class="order-item-cell">' + thumb + escapeText(item.name) + '</span></td>' +
+                        '<td class="is-num">' + item.qty + '</td>' +
+                        '<td class="is-num">' + money(item.price_per_unit) + '</td>' +
+                        '<td class="is-num">' + money(item.line_total) + '</td>' +
                         '</tr>';
                 }).join('');
 
                 $('#orderModalBody').html(
-                    '<div class="row g-3 mb-3">' +
-                        '<div class="col-md-6">' +
-                            '<h6 class="mb-1">Customer</h6>' +
-                            '<div>' + escapeText(order.customer.name) + '</div>' +
-                            '<div class="text-muted small">' + escapeText(order.customer.phone) + '</div>' +
-                            '<div class="text-muted small">' + escapeText(order.customer.email) + '</div>' +
+                    '<div class="order-panels">' +
+                        '<div class="order-panel is-customer">' +
+                            '<span class="order-panel-icon"><i class="bx bx-user"></i></span>' +
+                            '<div class="min-w-0">' +
+                                '<h6>Customer Details</h6>' +
+                                '<p class="order-panel-name">' + escapeText(order.customer.name) + '</p>' +
+                                '<p class="order-panel-line"><i class="bx bx-phone"></i>' + escapeText(order.customer.phone) + '</p>' +
+                                (order.customer.email
+                                    ? '<p class="order-panel-line"><i class="bx bx-envelope"></i>' + escapeText(order.customer.email) + '</p>'
+                                    : '') +
+                            '</div>' +
                         '</div>' +
-                        '<div class="col-md-6">' +
-                            '<h6 class="mb-1">Delivering to</h6>' +
-                            '<div>' + escapeText(order.delivery.address) + '</div>' +
-                            (order.delivery.landmark ? '<div class="text-muted small">Landmark: ' + escapeText(order.delivery.landmark) + '</div>' : '') +
-                            '<div class="text-muted small">' + escapeText(order.delivery.recipient) + ' &middot; ' + escapeText(order.delivery.phone) + '</div>' +
+                        '<div class="order-panel is-delivery">' +
+                            '<span class="order-panel-icon"><i class="bx bx-map"></i></span>' +
+                            '<div class="min-w-0">' +
+                                '<h6>Delivering to</h6>' +
+                                '<p class="order-panel-name">' + escapeText(order.delivery.address) + '</p>' +
+                                (order.delivery.landmark
+                                    ? '<p class="order-panel-line"><i class="bx bx-map-pin"></i>' + escapeText(order.delivery.landmark) + '</p>'
+                                    : '') +
+                                '<p class="order-panel-line"><i class="bx bx-user"></i>' + escapeText(order.delivery.recipient) + '</p>' +
+                                '<p class="order-panel-line"><i class="bx bx-phone"></i>' + escapeText(order.delivery.phone) + '</p>' +
+                            '</div>' +
                         '</div>' +
                     '</div>' +
-                    '<div class="table-responsive"><table class="table table-sm mb-0">' +
-                        '<thead><tr><th>Item</th><th class="text-end">Qty</th><th class="text-end">Rate</th><th class="text-end">Amount</th></tr></thead>' +
-                        '<tbody>' + rows + '</tbody>' +
-                        '<tfoot>' +
-                            '<tr><td colspan="3" class="text-end">Subtotal</td><td class="text-end">' + money(order.subtotal) + '</td></tr>' +
-                            '<tr><td colspan="3" class="text-end">Delivery</td><td class="text-end">' + money(order.delivery_fee) + '</td></tr>' +
-                            '<tr><th colspan="3" class="text-end">Total</th><th class="text-end">' + money(order.total) + '</th></tr>' +
-                        '</tfoot>' +
+                    '<div class="table-responsive">' +
+                        '<table class="order-items">' +
+                            '<thead><tr><th>Item</th><th class="is-num">Qty</th>' +
+                            '<th class="is-num">Rate</th><th class="is-num">Amount</th></tr></thead>' +
+                            '<tbody>' + rows + '</tbody>' +
+                        '</table>' +
+                    '</div>' +
+                    '<div class="order-totals"><table>' +
+                        '<tr><td>Subtotal</td><td class="is-num">' + money(order.subtotal) + '</td></tr>' +
+                        '<tr><td>Delivery</td><td class="is-num">' + money(order.delivery_fee) + '</td></tr>' +
+                        '<tr class="is-grand"><td>Total</td><td class="is-num">' + money(order.total) + '</td></tr>' +
                     '</table></div>' +
-                    '<p class="text-muted small mt-3 mb-0">Placed ' + escapeText(order.placed_at) + ' &middot; status: ' + escapeText(order.status) + '</p>'
+                    '<div class="order-placed">' +
+                        '<i class="bx bx-calendar"></i>' +
+                        '<span>Placed ' + escapeText(order.placed_at) + '</span>' +
+                        '<span class="sep">|</span>' +
+                        '<span>Status:</span>' +
+                        '<span class="order-pill is-' + order.status + '">' + escapeText(order.status) + '</span>' +
+                    '</div>'
                 );
 
                 if (!order.next_statuses.length) {

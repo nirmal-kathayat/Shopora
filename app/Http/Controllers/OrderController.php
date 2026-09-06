@@ -45,6 +45,9 @@ class OrderController extends Controller
 
             $items = $order->products->map(fn ($line) => [
                 'name' => $line->inventoryItem?->title ?? 'Product',
+                // The modal shows the packshot, so an order reads like the
+                // storefront basket it came from rather than a list of words.
+                'image' => inventoryItemImageUrl($line->inventoryItem?->image),
                 'qty' => (int) $line->qty,
                 'price_per_unit' => (float) $line->price_per_unit,
                 'line_total' => (float) $line->price_per_unit * (int) $line->qty,
