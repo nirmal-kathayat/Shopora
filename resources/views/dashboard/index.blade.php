@@ -155,16 +155,14 @@
         to { transform: rotate(360deg); }
     }
 
-    /* ===== Shopora KPI cards (Figma, top accent, no shadow/hover) ===== */
+    /* ===== Shopora KPI cards (Figma, no accent/shadow/hover) ===== */
     .shopora-stats-row {
         margin-bottom: 8px;
     }
 
     .shopora-stat-card {
-        --accent: #14b8a6;
         background: #ffffff;
         border: 1px solid #e5e7eb;
-        border-top: 3px solid var(--accent);
         border-radius: 12px;
         padding: 18px 18px 16px;
         height: 100%;
@@ -186,15 +184,6 @@
         box-shadow: none !important;
         transform: none !important;
     }
-
-    .shopora-stat-card.is-items { --accent: #14b8a6; }
-    .shopora-stat-card.is-revenue { --accent: #008cff; }
-    .shopora-stat-card.is-sales { --accent: #0d9488; }
-    .shopora-stat-card.is-alerts { --accent: #f59e0b; }
-    .shopora-stat-card.is-profit { --accent: #16a34a; }
-    .shopora-stat-card.is-purchase { --accent: #4f46e5; }
-    .shopora-stat-card.is-inventory { --accent: #0d9488; }
-    .shopora-stat-card.is-info { --accent: #94a3b8; }
 
     .shopora-stat-inner {
         display: flex;
@@ -354,8 +343,6 @@
         background: #fdecec;
         color: #dc2626;
     }
-
-    .shopora-stat-card.is-danger { --accent: #dc2626; }
 
     .shopora-stat-value.shopora-stat-value-sm,
     .shopora-stat-value-sm {
