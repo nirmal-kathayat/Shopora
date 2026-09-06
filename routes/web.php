@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\StoreSettingController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\CustomerController;
@@ -156,6 +157,12 @@ Route::group(['prefix' => 'admin'], function () {
         Route::post('edit/{id}', [RoleController::class, 'update'])->name('admin.role.update');
         Route::get('delete/{id}', [RoleController::class, 'delete'])->name('admin.role.delete');
     });
+    // shop settings (the bill header printed on every slip)
+    Route::group(['prefix' => 'settings'], function () {
+        Route::get('/invoice-header', [StoreSettingController::class, 'invoiceHeader'])->name('admin.settings.invoiceHeader');
+        Route::post('/invoice-header', [StoreSettingController::class, 'updateInvoiceHeader'])->name('admin.settings.invoiceHeader.update');
+    });
+
     // profile
     Route::get('/profile', [ProfileController::class, 'show'])->name('admin.profile');
     Route::post('/profile', [ProfileController::class, 'update'])->name('admin.profile.update');

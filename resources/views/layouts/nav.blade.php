@@ -449,7 +449,7 @@
     $isHeroSection = request()->routeIs('admin.heroSection*');
     $isDealSection = request()->routeIs('admin.dealSection*');
     $isStorefrontSection = $isHeroSection || $isDealSection;
-    $isSettingsSection = request()->routeIs('admin.permission*', 'admin.role*', 'admin.user*');
+    $isSettingsSection = request()->routeIs('admin.permission*', 'admin.role*', 'admin.user*', 'admin.settings.*');
 
     $showDashboard = auth()->guard(config('permission.guard'))->check();
     $showReports = canAccessAnyRoute([
@@ -476,7 +476,8 @@
     $showPermission = canAccessRoute('admin.permission');
     $showRole = canAccessRoute('admin.role');
     $showUser = canAccessRoute('admin.user');
-    $showSettings = $showPermission || $showRole || $showUser;
+    $showBillHeader = canAccessRoute('admin.settings.invoiceHeader');
+    $showSettings = $showPermission || $showRole || $showUser || $showBillHeader;
 @endphp
 
 <div class="sidebar-wrapper shopora-sidebar">
@@ -667,6 +668,13 @@
                     <li>
                         <a href="{{ route('admin.user') }}" class="{{ request()->routeIs('admin.user*') ? 'active' : '' }}">
                             <i class="bx bx-right-arrow-alt"></i>User
+                        </a>
+                    </li>
+                    @endif
+                    @if($showBillHeader)
+                    <li>
+                        <a href="{{ route('admin.settings.invoiceHeader') }}" class="{{ request()->routeIs('admin.settings.invoiceHeader*') ? 'active' : '' }}">
+                            <i class="bx bx-right-arrow-alt"></i>Bill Header
                         </a>
                     </li>
                     @endif

@@ -33,21 +33,27 @@ class InvoiceController extends Controller
                     ->rawColumns([])
                     ->make(true);
             }
-            $paymentModes = \DB::table('payment_modes')->get();
-            return view('invoice.index', ['paymentModes' => $paymentModes]);
+            // The bill resolves its own payment modes server-side now.
+            return view('invoice.index');
         } catch (\Exception $e) {
             return redirect()->back()->with(['message' => 'Something went wrong!', 'type' => 'error']);
         }
     }
+    /**
+     * One bill, whichever way the sale was made. The Sales, Invoice and
+     * Dashboard screens all read this, so the counter and the storefront can
+     * never end up showing two different bills for the same money.
+     */
     public function viewInvoice($id)
     {
         try {
-            $invoice = $this->invoiceRepo->getInvoiceById($id);
-            $details = $this->invoiceRepo->getInvoiceDetails($id);
-            return response()->json([
-                'invoice' => $invoice,
-                'details' => $details
-            ]);
+            $bill = $this->invoiceRepo->getBill((int) $id);
+
+            if (! $bill) {
+                return response()->json(['error' => 'Invoice not found.'], 404);
+            }
+
+            return response()->json(['bill' => $bill]);
         } catch (\Exception $e) {
             return response()->json(['error' => 'Something went wrong!'], 500);
         }

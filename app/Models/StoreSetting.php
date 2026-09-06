@@ -13,6 +13,9 @@ class StoreSetting extends Model
     /** The product page's trust badges (Fast delivery, COD, ...). */
     public const PRODUCT_TRUST = 'product_trust_badges';
 
+    /** Who the shop is, as printed at the top of every bill. */
+    public const INVOICE_HEADER = 'invoice_header';
+
     /** Icons a trust badge may use, keyed by the value stored in the JSON. */
     public const TRUST_ICONS = [
         'truck' => 'Truck (delivery)',
@@ -45,6 +48,42 @@ class StoreSetting extends Model
     public static function productTrustBadges(): array
     {
         return static::get(self::PRODUCT_TRUST) ?: self::defaultTrustBadges();
+    }
+
+    /**
+     * The shop's own details for the top of a bill. These are printed on paper
+     * a customer keeps, so they are settings rather than markup - a shop that
+     * moves or re-registers changes them here, not in three Blade files.
+     */
+    public static function invoiceHeader(): array
+    {
+        return array_merge(self::defaultInvoiceHeader(), self::get(self::INVOICE_HEADER) ?: []);
+    }
+
+    public static function defaultInvoiceHeader(): array
+    {
+        return [
+            'name' => 'Shopora Mart',
+            'address' => 'Kathmandu, Nepal',
+            'pan' => null,
+            'phone' => null,
+            'footer_note' => 'Thank you for shopping with us.',
+        ];
+    }
+
+    /** Blank strings are stored as null, so the bill can simply skip the line. */
+    public static function saveInvoiceHeader(array $fields): void
+    {
+        $clean = [];
+        foreach (self::defaultInvoiceHeader() as $key => $default) {
+            $value = trim((string) ($fields[$key] ?? ''));
+            $clean[$key] = $value === '' ? null : $value;
+        }
+
+        // The shop must be called something, whatever else is left blank.
+        $clean['name'] = $clean['name'] ?: self::defaultInvoiceHeader()['name'];
+
+        static::set(self::INVOICE_HEADER, $clean);
     }
 
     public static function defaultTrustBadges(): array

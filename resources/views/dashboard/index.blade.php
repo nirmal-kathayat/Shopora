@@ -1252,20 +1252,7 @@
         </div>
     </div>
     <!-- modal -->
-    <div class="modal fade" id="invoiceModal" tabindex="-1" aria-labelledby="invoiceModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-body">
-                    <!-- Invoice details will be loaded here -->
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                    <button type="button" class="btn btn-primary" onclick="printInvoice()">Print</button>
-                </div>
-            </div>
-        </div>
-    </div>
-    <iframe id="printFrame" style="display:none;"></iframe>
+    @include('partials.invoice-modal')
 
     <!-- Low stock items modal -->
     <div class="modal fade" id="lowStockModal" tabindex="-1" aria-labelledby="lowStockModalLabel" aria-hidden="true">
@@ -1311,17 +1298,12 @@
 <script src="{{ asset('assets/plugins/apexcharts-bundle/js/apexcharts.min.js') }}"></script>
 
 <script>
-    // Create payment mode mapping globally
-    window.paymentModeMap = {};
     window.paymentModesList = [];
     window.paymentLogoBase = "{{ asset('assets/images/payment-methods') }}";
     @foreach($paymentModes as $payment)
-    window.paymentModeMap[{{ $payment->id }}] = '{{ $payment->payment_title }}';
     window.paymentModesList.push(@json($payment->payment_title));
     @endforeach
-    
-    let currentInvoice = null;
-    let currentDetails = [];
+
     let fromPicker = null;
     let toPicker = null;
     let applyingRange = false;
@@ -1453,91 +1435,8 @@
             setTimeout(reThemeCharts, 60);
         });
 
-        bindInvoiceViewer();
         updateDashboard({ loader: false });
     });
-
-    function bindInvoiceViewer() {
-        $(document).on('click', '.view-invoice', function(e) {
-            e.preventDefault();
-            var invoiceId = $(this).data('id');
-            var url = "{{ route('admin.invoice.viewInvoice', ['id' => ':id']) }}".replace(':id', invoiceId);
-
-            $.get(url, function(data) {
-                var invoice = data.invoice;
-                var details = data.details;
-                currentInvoice = data.invoice;
-                currentDetails = data.details;
-                var itemsHtml = '';
-                var total = 0;
-                details.forEach(function(item, index) {
-                    total += parseFloat(item.amount);
-                    itemsHtml += `
-                    <tr>
-                        <td style="border: 1px dashed #111;">${index + 1}</td>
-                        <td style="border: 1px dashed #111;">${item.item}</td>
-                        <td style="border: 1px dashed #111;">${item.qty}</td>
-                        <td style="border: 1px dashed #111;">${parseFloat(item.rate).toFixed(2)}</td>
-                        <td style="border: 1px dashed #111;">${parseFloat(item.amount).toFixed(2)}</td>
-                    </tr>
-                `;
-                });
-
-                $('#invoiceModal .modal-body').html(`
-                <div class="bill-header" style="padding-top:20px">
-                    <div style="margin-bottom:10px;text-align:center">
-                        <h2 style="font-size:15px;margin-bottom:5px">SangamShree Inventory</h2>
-                        <h5 style="font-size:14px;color:#000;margin-bottom:5px;">Kathmandu</h5>
-                        <h5 style="font-size:14px;color:#000;margin-bottom:5px">Vat No : 1234567</h5>
-                    </div>
-                    <ul style="margin-left:-18px;">
-                        <li>Bill No : T${invoice.id}-80/81</li>
-                        <li>Date : ${invoice.created_at}</li>
-                        <li>Name : ${invoice.order_by_name}</li>
-                           <li>Payment Mode : ${(() => {
-    const paymentModes = String(details[0]?.payment_mode).split(',').map(id => window.paymentModeMap[id.trim()] || id.trim());
-    return paymentModes.join(', ');
-})()}</li>
-                    </ul>
-                </div>
-                <div class="order-details-table-wrapper">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th style="border: 1px dashed #111;">S.No</th>
-                                <th style="border: 1px dashed #111;">Item</th>
-                                <th style="border: 1px dashed #111;">Qty</th>
-                                <th style="border: 1px dashed #111;">Rate</th>
-                                <th style="border: 1px dashed #111;">Amount</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${itemsHtml}
-                        </tbody>
-                    </table>
-                    <table style="width:60%;margin-left:auto">
-                        <tfoot>
-                            <tr>
-                                <th colspan="4" style="border: 1px dashed #111;">Initial Amount</th>
-                                <th style="border: 1px dashed #111;text-align: center">Rs.${parseFloat(total).toFixed(2)}</th>
-                            </tr>
-                            <tr>
-                                <th colspan="4" style="border: 1px dashed #111;">Discount Amount</th>
-                                <th style="border: 1px dashed #111;text-align: center">Rs.${parseFloat(invoice.discount || 0).toFixed(2)}</th>
-                            </tr>
-                            <tr>
-                                <th colspan="4" style="border: 1px dashed #111;">Final Amount</th>
-                                <th style="border: 1px dashed #111;text-align: center">Rs.${parseFloat(total - (invoice.discount || 0)).toFixed(2)}</th>
-                            </tr>
-                        </tfoot>
-                    </table>
-                    <h5 style="border-bottom:1px dashed #111 !important;font-size:14px;padding-bottom:10px;">Thank you for visiting</h5>
-                </div>
-            `);
-                $('#invoiceModal').modal('show');
-            });
-        });
-    }
 
     function paymentPillClass(title) {
         const name = String(title || '').toLowerCase();
@@ -2432,178 +2331,5 @@
         $('#salesSummaryContent').html(html);
     }
 
-    function centerText(text, lineLength = 32) {
-        if (text.length >= lineLength) return text; // too long, don’t pad
-        let spaces = Math.floor((lineLength - text.length) / 2);
-        return ' '.repeat(spaces) + text;
-    }
-    function wrapText(text, width) {
-        let result = [];
-        while (text.length > width) {
-            result.push(text.slice(0, width));
-            text = text.slice(width);
-        }
-        if (text.length > 0) result.push(text);
-        return result;
-    }
-
-    // Left-align (for item text)
-    function padText(text, width) {
-        text = text.toString();
-        if (text.length > width) return text.slice(0, width);
-        return text + ' '.repeat(width - text.length);
-    }
-
-    // Right-align (for Qty, Rate, Amount)
-    function padTextRight(text, width) {
-        text = text.toString();
-        if (text.length > width) return text.slice(0, width);
-        return ' '.repeat(width - text.length) + text;
-    }
-
-
-    function padTextLeft(text, width) {
-        text = text.toString();
-        if (text.length > width) return text.slice(0, width);
-        return text + ' '.repeat(width - text.length); // left align
-    }
-
-
-
-
-
-    function tableRow(sn, item, qty, rate, amount) {
-        const colWidths = { sn:3, item:14, qty:3, rate:6, amount:8 }; // 32 chars total
-        let lines = [];
-
-        // Split item into first line + remaining lines
-        let firstLine = item.slice(0, colWidths.item);
-        let remaining = item.slice(colWidths.item);
-
-        // First line: SN + first part of item + Qty + Rate + Amount (right-aligned)
-        lines.push(
-            padText(sn, colWidths.sn) +
-            padText(firstLine, colWidths.item) +
-            padTextRight(qty, colWidths.qty) +
-            padTextRight(rate, colWidths.rate) +
-            padTextRight(amount, colWidths.amount)
-        );
-
-        // Remaining lines of item: only item column
-        if (remaining.length > 0) {
-            const wrapped = wrapText(remaining, colWidths.item);
-            wrapped.forEach(line => {
-                lines.push(
-                    padText('', colWidths.sn) +
-                    padText(line, colWidths.item) +
-                    padText('', colWidths.qty) +
-                    padText('', colWidths.rate) +
-                    padText('', colWidths.amount)
-                );
-            });
-        }
-
-        return lines.join('\n');
-    }
-
-    function padLineRight(text, width) {
-        if (text.length > width) return text.slice(0, width);
-        return ' '.repeat(width - text.length) + text;
-    }
-    function padLineRightWithFixedColon(label, value, totalWidth = 34, colonPos = 16) {
-        // Pad label so colon is at colonPos
-        let paddedLabel = label;
-        if (label.length < colonPos) {
-            paddedLabel += ' '.repeat(colonPos - label.length);
-        }
-        // Text before number
-        const textBeforeNumber = `${paddedLabel}: `;
-        const numberStr = value.toString();
-        // Pad spaces so number ends at totalWidth
-        const spaces = totalWidth - textBeforeNumber.length - numberStr.length;
-        return ' '.repeat(spaces > 0 ? spaces : 0) + textBeforeNumber + numberStr;
-    }
-
-
-
-
-    function buildPrintText(invoice, details) {
-        let total = 0;
-        let lines = [];
-        lines.push(centerText('TWELVE SEVEN GROCERY &'));
-        lines.push(centerText('LIQUORLAND PVT. LTD.'));
-        lines.push(centerText('KATHMANDU, NAREPHAT'));
-        lines.push(centerText('PAN No. : 622494670'));
-        lines.push(centerText('CONTACT : 01-5149303'));
-        lines.push(centerText('ABBREVIATED INVOICE'));
-        lines.push(`Bill No: T${invoice.id}-82/83`);
-        lines.push(`Date: ${invoice.created_at}`);
-        lines.push(`Payment: ${details[0]?.payment_mode}`);
-        lines.push('----------------------------------');
-        lines.push('SN  PARTICULARS   QTY RATE  AMOUNT');
-        lines.push('----------------------------------');
-        details.forEach((item, index) => {
-            total += parseInt(item.amount); // keep total as integer
-
-            lines.push(
-                tableRow(
-                    index + 1,
-                    item.item,
-                    parseInt(item.qty),
-                    parseInt(item.rate),
-                    parseInt(item.amount)
-                )
-            );
-        });
-        // Example: calculate discount and net amount
-        let discount = invoice.discount ? parseInt(invoice.discount) : 0; // assume discount field exists
-        let netAmount = total - discount;
-
-        // Right-aligned amounts
-        const colWidth = 34; // 58mm printer, 32 chars per line
-        lines.push('----------------------------------');
-        lines.push(padLineRightWithFixedColon('Gross Amount', total));
-        lines.push(padLineRightWithFixedColon('Discount', discount));
-        lines.push(padLineRightWithFixedColon('Net Amount', netAmount));
-        lines.push('----------------------------------');
-        lines.push('Exchange within 24 Hours .');
-        lines.push('Thank you for visiting us .');
-        lines.push('----------------------------------');
-        return lines.join('\n');
-    }
-    function printInvoice() {
-        if (!currentInvoice || !currentDetails.length) {
-            alert('No invoice data');
-            return;
-        }
-
-        const text = buildPrintText(currentInvoice, currentDetails);
-        const frame = document.getElementById('printFrame');
-        const doc = frame.contentWindow.document;
-
-        doc.open();
-        doc.write(`
-            <html>
-            <head>
-                <style>
-                    @page { size: 80mm auto; margin: 0; }
-                    body {
-                        margin: 0;
-                        font-family: monospace;
-                        font-size: 12px;
-                        color: #000;
-                        font-weight: normal; /* ensure text is not bold */
-                        white-space: pre-wrap;
-                    }
-                </style>
-            </head>
-            <body>${text}</body>
-            </html>
-        `);
-        doc.close();
-
-        frame.contentWindow.focus();
-        frame.contentWindow.print();
-    }
 </script>
 @endsection
