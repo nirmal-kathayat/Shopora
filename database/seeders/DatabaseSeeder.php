@@ -53,5 +53,9 @@ class DatabaseSeeder extends Seeder
 
         // business demo data (not settings/admins)
         $this->call(DemoDataSeeder::class);
+
+        // the storefront catalogue: real copy, photos and stock, on top of the
+        // bare items DemoDataSeeder creates
+        $this->call(CatalogueSeeder::class);
     }
 }
