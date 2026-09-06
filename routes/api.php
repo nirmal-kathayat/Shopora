@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AccountController;
 use App\Http\Controllers\Api\CustomerAddressController;
 use App\Http\Controllers\Api\CustomerAuthController;
 use App\Http\Controllers\Api\HomeController;
+use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\ProductController;
@@ -46,6 +47,13 @@ Route::prefix('account')->middleware(['auth:sanctum', 'abilities:customer'])->gr
     // The reviews this customer has written, across every product.
     Route::get('reviews', [AccountController::class, 'reviews']);
     Route::delete('reviews/{id}', [AccountController::class, 'deleteReview'])->whereNumber('id');
+
+    // Notifications about their own orders.
+    Route::get('notifications', [NotificationController::class, 'index']);
+    Route::get('notifications/unread-count', [NotificationController::class, 'unreadCount']);
+    Route::post('notifications/read-all', [NotificationController::class, 'markAllRead']);
+    Route::post('notifications/{id}/read', [NotificationController::class, 'markRead']);
+    Route::delete('notifications/{id}', [NotificationController::class, 'destroy']);
 
     // Delivery addresses.
     Route::get('addresses', [CustomerAddressController::class, 'index']);

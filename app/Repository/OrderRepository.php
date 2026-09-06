@@ -8,6 +8,7 @@ use App\Models\CustomerAddress;
 use App\Models\InventoryStock;
 use App\Models\Sales;
 use App\Models\SalesProduct;
+use App\Notifications\OrderNotification;
 use NepaliDate\Facades\NepaliDate;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -218,6 +219,8 @@ class OrderRepository
                 ->where('updated_at', '<=', $fresh->created_at)
                 ->delete();
 
+            $this->tell($fresh, OrderNotification::PAYMENT_RECEIVED);
+
             return true;
         });
     }
@@ -240,6 +243,8 @@ class OrderRepository
 
             $this->releaseStock($fresh);
             $fresh->update(['status' => 'cancelled', 'payment_status' => 'failed']);
+
+            $this->tell($fresh, OrderNotification::PAYMENT_FAILED);
 
             return true;
         });
@@ -339,8 +344,34 @@ class OrderRepository
             }
 
             $order->update(['status' => $status]);
+            $this->tell($order, $status);
 
             return $order->refresh();
+        });
+    }
+
+    /**
+     * Tell the customer what just happened to their order.
+     *
+     * This sits in the repository rather than the controllers on purpose: a
+     * payment settles from two places - the browser coming back from eSewa and
+     * the reconcile command picking up the callback that never arrived - and a
+     * notification written in a controller would only fire for whichever path
+     * happened to run. Sending after commit means a rolled-back transaction
+     * never leaves a message about something that did not happen.
+     *
+     * Only storefront orders: a counter sale's customer never placed it online
+     * and has no account to read it in.
+     */
+    private function tell(Sales $order, string $event): void
+    {
+        if (($order->channel ?? 'counter') !== 'storefront' || ! $order->customer_id) {
+            return;
+        }
+
+        DB::afterCommit(function () use ($order, $event) {
+            $customer = Customer::find($order->customer_id);
+            $customer?->notify(new OrderNotification($order, $event));
         });
     }
 }
