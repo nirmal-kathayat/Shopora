@@ -78,8 +78,12 @@ Route::prefix('orders')->middleware(['auth:sanctum', 'abilities:customer'])->gro
 Route::prefix('payment')->group(function () {
     Route::post('esewa/initiate', [PaymentController::class, 'initiateEsewa'])
         ->middleware(['auth:sanctum', 'abilities:customer']);
-    Route::get('esewa/success', [PaymentController::class, 'esewaSuccess'])->name('payment.esewa.success');
-    Route::get('esewa/failure', [PaymentController::class, 'esewaFailure'])->name('payment.esewa.failure');
+    // A real customer hits each of these once. The limit is there so a
+    // stranger cannot sit and grind at them.
+    Route::middleware('throttle:30,1')->group(function () {
+        Route::get('esewa/success', [PaymentController::class, 'esewaSuccess'])->name('payment.esewa.success');
+        Route::get('esewa/failure', [PaymentController::class, 'esewaFailure'])->name('payment.esewa.failure');
+    });
 });
 
 // The signed-in customer's saved products.

@@ -73,6 +73,17 @@ return [
             'replace_placeholders' => true,
         ],
 
+        // Every payment decision, kept apart from the general log and for far
+        // longer: when money is disputed months later, this is the record of
+        // what the gateway said and what we did about it.
+        'payment' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/payment.log'),
+            'level' => 'debug',
+            'days' => 180,
+            'replace_placeholders' => true,
+        ],
+
         'slack' => [
             'driver' => 'slack',
             'url' => env('LOG_SLACK_WEBHOOK_URL'),

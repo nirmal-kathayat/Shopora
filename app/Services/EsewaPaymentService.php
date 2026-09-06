@@ -124,6 +124,18 @@ class EsewaPaymentService
      */
     public function checkStatus(string $uuid, string $totalAmount): string
     {
+        return $this->fetchStatus($uuid, $totalAmount)['state'];
+    }
+
+    /**
+     * The same question, with eSewa's own reference for the transaction when
+     * there is one - what a reconciliation run needs, since it never sees the
+     * callback that would otherwise carry it.
+     *
+     * @return array{state: string, reference: ?string, reported: ?string}
+     */
+    public function fetchStatus(string $uuid, string $totalAmount): array
+    {
         try {
             $response = Http::acceptJson()->timeout(15)->get($this->statusUrl, [
                 'product_code' => $this->productCode,
@@ -131,17 +143,23 @@ class EsewaPaymentService
                 'transaction_uuid' => $uuid,
             ]);
         } catch (\Throwable $e) {
-            return self::STATUS_UNKNOWN;
+            return ['state' => self::STATUS_UNKNOWN, 'reference' => null, 'reported' => null];
         }
 
         if (! $response->ok()) {
-            return self::STATUS_UNKNOWN;
+            return ['state' => self::STATUS_UNKNOWN, 'reference' => null, 'reported' => null];
         }
 
-        $complete = $response->json('status') === 'COMPLETE'
+        $reported = $response->json('status');
+
+        $complete = $reported === 'COMPLETE'
             && $this->amountsMatch((string) $response->json('total_amount'), $totalAmount);
 
-        return $complete ? self::STATUS_COMPLETE : self::STATUS_INCOMPLETE;
+        return [
+            'state' => $complete ? self::STATUS_COMPLETE : self::STATUS_INCOMPLETE,
+            'reference' => $response->json('ref_id'),
+            'reported' => is_string($reported) ? $reported : null,
+        ];
     }
 
     /**
@@ -151,6 +169,23 @@ class EsewaPaymentService
     public function amountsMatch(string $a, string $b): bool
     {
         return abs((float) str_replace(',', '', $a) - (float) str_replace(',', '', $b)) < 0.01;
+    }
+
+    /**
+     * A token proving a failure callback for this uuid came back through a
+     * link we ourselves handed eSewa. Unlike the success callback, the failure
+     * one carries no signed payload of eSewa's own, so without this anyone who
+     * knew a uuid could cancel a stranger's pending order.
+     */
+    public function callbackToken(string $uuid): string
+    {
+        return substr(hash_hmac('sha256', 'esewa-failure:' . $uuid, $this->secret), 0, 32);
+    }
+
+    public function callbackTokenMatches(string $uuid, ?string $token): bool
+    {
+        return is_string($token) && $token !== ''
+            && hash_equals($this->callbackToken($uuid), $token);
     }
 
     private function sign(array $data): string

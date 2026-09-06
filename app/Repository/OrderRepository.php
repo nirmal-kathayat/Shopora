@@ -144,6 +144,125 @@ class OrderRepository
     }
 
     /**
+     * Take the units again for an order whose stock was released - a payment
+     * that landed after the order had been given up on. Rebuilt from the order's
+     * own lines, so it takes back exactly what it gave. A no-op when the rows
+     * are still there.
+     */
+    public function reserveStock(Sales $order): void
+    {
+        if (InventoryStock::where('sales_id', $order->id)->exists()) {
+            return;
+        }
+
+        foreach (SalesProduct::where('sales_id', $order->id)->get() as $line) {
+            InventoryStock::create([
+                'inventory_item_id' => $line->product_id,
+                'sales_id' => $order->id,
+                'qty' => $line->qty,
+                'remarks' => 'Storefront order',
+            ]);
+        }
+    }
+
+    /** An order's own total: its lines plus the delivery fee it was charged. */
+    public function total(Sales $order): float
+    {
+        $lines = DB::table('sales_products')
+            ->where('sales_id', $order->id)
+            ->selectRaw('COALESCE(SUM(qty * price_per_unit), 0) as total')
+            ->value('total');
+
+        return (float) $lines + (float) $order->delivery_fee;
+    }
+
+    /**
+     * Turn a paid-for pending order into a real one.
+     *
+     * The row is locked first, so two callbacks arriving at once cannot both
+     * settle it: whichever gets the lock does the work, the other finds it
+     * already paid and does nothing. Safe to call as many times as it is
+     * reached - that is what makes the callback replayable.
+     *
+     * @return bool true only for the call that actually settled it
+     */
+    public function settlePaid(Sales $order, ?string $reference): bool
+    {
+        return DB::transaction(function () use ($order, $reference) {
+            $fresh = Sales::whereKey($order->id)->lockForUpdate()->first();
+
+            if (! $fresh || $fresh->payment_status === 'paid') {
+                return false;
+            }
+
+            // It may have been cancelled while the money was in flight - given
+            // up on as abandoned, say. It was paid for, so it stands, and the
+            // units it handed back have to be taken again.
+            $this->reserveStock($fresh);
+
+            $fresh->update([
+                'status' => 'placed',
+                'payment_status' => 'paid',
+                'payment_ref' => $reference,
+            ]);
+
+            // Only the lines this order actually took, and only if they have
+            // not been touched since it was made. A payment can settle long
+            // after the fact - a reconciliation run picking up a callback that
+            // never arrived - and whatever the customer has put in the cart
+            // since is a fresh shop that must survive it. The test is
+            // updated_at, not created_at: a cart holds one line per product, so
+            // re-adding something bumps the line it already has.
+            CartItem::where('customer_id', $fresh->customer_id)
+                ->whereIn('inventory_item_id', SalesProduct::where('sales_id', $fresh->id)->pluck('product_id'))
+                ->where('updated_at', '<=', $fresh->created_at)
+                ->delete();
+
+            return true;
+        });
+    }
+
+    /**
+     * Give up on an order that was never paid for: cancel it and return its
+     * units. Locked and status-checked, so a payment that settled in the
+     * meantime can never be undone by a late failure.
+     *
+     * @return bool true only for the call that actually cancelled it
+     */
+    public function failPending(Sales $order): bool
+    {
+        return DB::transaction(function () use ($order) {
+            $fresh = Sales::whereKey($order->id)->lockForUpdate()->first();
+
+            if (! $fresh || $fresh->status !== 'pending_payment') {
+                return false;
+            }
+
+            $this->releaseStock($fresh);
+            $fresh->update(['status' => 'cancelled', 'payment_status' => 'failed']);
+
+            return true;
+        });
+    }
+
+    /**
+     * Orders sitting mid-payment. With $olderThanMinutes, only those that have
+     * sat there long enough that a customer still at the gateway is unlikely.
+     */
+    public function pendingPayments(?int $olderThanMinutes = null)
+    {
+        $query = Sales::storefront()
+            ->where('status', 'pending_payment')
+            ->whereNotNull('payment_uuid');
+
+        if ($olderThanMinutes !== null) {
+            $query->where('created_at', '<=', now()->subMinutes($olderThanMinutes));
+        }
+
+        return $query;
+    }
+
+    /**
      * Clear out this customer's earlier, still-unpaid online orders before a
      * fresh attempt, so an abandoned checkout does not sit on its stock. Each
      * one is cancelled and its units returned.
@@ -156,10 +275,7 @@ class OrderRepository
             ->get();
 
         foreach ($stale as $order) {
-            DB::transaction(function () use ($order) {
-                $this->releaseStock($order);
-                $order->update(['status' => 'cancelled', 'payment_status' => 'failed']);
-            });
+            $this->failPending($order);
         }
     }
 
