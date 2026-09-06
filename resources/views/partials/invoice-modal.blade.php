@@ -32,9 +32,9 @@
 
 @once
     @push('style')
-        <link href="{{ asset('assets/css/invoice-bill.css') }}?v=1" rel="stylesheet" />
+        <link href="{{ asset('assets/css/invoice-bill.css') }}?v=4" rel="stylesheet" />
     @endpush
     @push('scripts')
-        <script src="{{ asset('assets/js/invoice-bill.js') }}?v=1"></script>
+        <script src="{{ asset('assets/js/invoice-bill.js') }}?v=4"></script>
     @endpush
 @endonce

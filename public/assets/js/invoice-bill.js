@@ -21,85 +21,76 @@
             .replace(/"/g, '&quot;');
     }
 
+    /** "1,450.00" - the bill writes its own "Rs." where it wants one. */
+    function amount(value) {
+        return Number(value || 0).toLocaleString('en-IN', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        });
+    }
+
     function money(value) {
-        var n = Number(value || 0);
-        return 'Rs. ' + n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        return 'Rs.' + amount(value);
     }
 
-    /** "2026-09-06 10:25:22" -> "06 Sep 2026, 10:25 am" */
-    function readableDate(value) {
-        if (!value) return '';
-        var parsed = new Date(String(value).replace(' ', 'T'));
-        if (isNaN(parsed.getTime())) return String(value);
-
-        var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        var hours = parsed.getHours();
-        var suffix = hours >= 12 ? 'pm' : 'am';
-        hours = hours % 12 || 12;
-
-        return ('0' + parsed.getDate()).slice(-2) + ' ' + months[parsed.getMonth()] + ' ' + parsed.getFullYear()
-            + ', ' + hours + ':' + ('0' + parsed.getMinutes()).slice(-2) + ' ' + suffix;
-    }
-
-    function chipClass(payment) {
-        if (payment.is_paid) return 'is-paid';
-        if (payment.status === 'Payment failed') return 'is-failed';
-        return 'is-due';
-    }
-
-    /** The shop's own details. A blank line is skipped rather than printed empty. */
+    /** The shop, centred. A line the settings leave blank is not printed. */
     function head(shop) {
         var lines = [];
         if (shop.address) lines.push(esc(shop.address));
+        if (shop.pan) lines.push('Vat No : ' + esc(shop.pan));
+        if (shop.phone) lines.push('Contact : ' + esc(shop.phone));
 
-        var registry = [];
-        if (shop.pan) registry.push('PAN: ' + esc(shop.pan));
-        if (shop.phone) registry.push('Tel: ' + esc(shop.phone));
-        if (registry.length) lines.push(registry.join(' &middot; '));
-
-        return '<header class="bill-head">'
-            + '<h2 class="bill-shop-name">' + esc(shop.name) + '</h2>'
-            + lines.map(function (line) { return '<p class="bill-shop-line">' + line + '</p>'; }).join('')
-            + '<span class="bill-kind">Abbreviated Tax Invoice</span>'
-            + '</header>';
+        return '<div class="bill-head">'
+            + '<h2>' + esc(shop.name) + '</h2>'
+            + lines.map(function (line) { return '<p>' + line + '</p>'; }).join('')
+            + '</div>';
     }
 
-    function meta(bill) {
-        // A counter sale names whoever rang it up; an online order has no one at
-        // a till, so it names the channel instead.
-        var type = bill.served_by
-            ? esc(bill.channel_label) + '<small>Served by ' + esc(bill.served_by) + '</small>'
-            : esc(bill.channel_label) + '<small>' + esc(bill.status) + '</small>';
+    /**
+     * The detail lines under the header. A counter sale names whoever rang it
+     * up; an online order names the customer and where it is going, which is
+     * the whole reason the bill has to serve both.
+     */
+    function lines(bill) {
+        var rows = [
+            'Bill No : ' + esc(bill.bill_no),
+            'Date : ' + esc(bill.date) + (bill.nepali_date ? ' (' + esc(bill.nepali_date) + ' B.S.)' : ''),
+            'Name : ' + esc((bill.customer || {}).name || 'Walk-in customer'),
+        ];
 
-        return '<dl class="bill-meta">'
-            + '<div><dt>Bill No</dt><dd>' + esc(bill.bill_no) + '</dd></div>'
-            + '<div><dt>Date</dt><dd>' + esc(readableDate(bill.date))
-            + (bill.nepali_date ? '<small>' + esc(bill.nepali_date) + ' B.S.</small>' : '') + '</dd></div>'
-            + '<div><dt>Type</dt><dd>' + type + '</dd></div>'
-            + '</dl>';
-    }
-
-    function parties(bill) {
-        var customer = bill.customer || {};
-        var blocks = ['<div class="bill-party"><h4>Billed to</h4>'
-            + '<p class="is-name">' + esc(customer.name || 'Walk-in customer') + '</p>'
-            + (customer.phone ? '<p class="is-sub">' + esc(customer.phone) + '</p>' : '')
-            + '</div>'];
-
-        var delivery = bill.delivery;
-        if (delivery && (delivery.address || delivery.recipient)) {
-            blocks.push('<div class="bill-party"><h4>Deliver to</h4>'
-                + (delivery.recipient ? '<p class="is-name">' + esc(delivery.recipient) + '</p>' : '')
-                + (delivery.address ? '<p class="is-sub">' + esc(delivery.address) + '</p>' : '')
-                // the landmark is the customer's own wording, often already
-                // starting with "Near" - print it as they wrote it
-                + (delivery.landmark ? '<p class="is-sub">' + esc(delivery.landmark) + '</p>' : '')
-                + (delivery.phone ? '<p class="is-sub">' + esc(delivery.phone) + '</p>' : '')
-                + '</div>');
+        if ((bill.customer || {}).phone) {
+            rows.push('Contact : ' + esc(bill.customer.phone));
         }
 
-        return '<div class="bill-parties' + (blocks.length === 1 ? ' is-single' : '') + '">'
-            + blocks.join('') + '</div>';
+        if (bill.served_by) {
+            rows.push('Served By : ' + esc(bill.served_by));
+        }
+
+        var delivery = bill.delivery;
+        if (delivery && delivery.address) {
+            rows.push('Deliver To : ' + esc(delivery.address)
+                + (delivery.landmark ? ', ' + esc(delivery.landmark) : ''));
+        }
+
+        var pay = bill.payment || {};
+        // A split counter payment names every mode it was settled across.
+        var modes = (pay.lines || []).length > 1
+            ? pay.lines.map(function (line) {
+                return esc(line.title) + (line.amount ? ' ' + money(line.amount) : '');
+            }).join(', ')
+            : esc(pay.method || '');
+
+        rows.push('Payment Mode : ' + modes);
+
+        // Kept off the printed slip: the customer copy carries what was bought,
+        // not where the order has reached inside the shop.
+        var status = '<li class="no-print">Status : ' + esc(bill.status)
+            + ' &middot; ' + esc(pay.status || '') + '</li>';
+
+        return '<ul class="bill-lines">'
+            + rows.map(function (row) { return '<li>' + row + '</li>'; }).join('')
+            + status
+            + '</ul>';
     }
 
     function items(rows) {
@@ -109,65 +100,46 @@
 
         var body = rows.map(function (row, index) {
             return '<tr>'
-                + '<td class="is-sn">' + (index + 1) + '</td>'
-                + '<td>' + esc(row.item)
-                + (row.code ? '<span class="is-item-code">' + esc(row.code) + '</span>' : '')
-                + '</td>'
-                + '<td class="is-num">' + row.qty + (row.unit ? ' ' + esc(row.unit) : '') + '</td>'
-                + '<td class="is-num">' + money(row.rate) + '</td>'
-                + '<td class="is-num">' + money(row.amount) + '</td>'
+                + '<td>' + (index + 1) + '</td>'
+                + '<td>' + esc(row.item) + '</td>'
+                + '<td>' + row.qty + '</td>'
+                + '<td>' + amount(row.rate) + '</td>'
+                + '<td>' + amount(row.amount) + '</td>'
                 + '</tr>';
         }).join('');
 
         return '<table class="bill-items">'
-            + '<thead><tr><th class="is-sn">#</th><th>Item</th>'
-            + '<th class="is-num">Qty</th><th class="is-num">Rate</th><th class="is-num">Amount</th>'
-            + '</tr></thead><tbody>' + body + '</tbody></table>';
+            + '<thead><tr><th>S.No</th><th>Item</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead>'
+            + '<tbody>' + body + '</tbody></table>';
     }
 
     function totals(figures) {
-        var rows = '<div><span>Subtotal</span><span>' + money(figures.subtotal) + '</span></div>';
+        var rows = [['Initial Amount', figures.subtotal], ['Discount Amount', figures.discount]];
 
-        // Discount and delivery only earn a line when they are not zero.
-        if (figures.discount > 0) {
-            rows += '<div><span>Discount</span><span>&minus; ' + money(figures.discount) + '</span></div>';
-        }
+        // Delivery is only charged on an online order, so the line only appears
+        // on one - and leaving it out is what used to under-state the total.
         if (figures.delivery > 0) {
-            rows += '<div><span>Delivery charge</span><span>' + money(figures.delivery) + '</span></div>';
+            rows.push(['Delivery Charge', figures.delivery]);
         }
 
-        rows += '<div class="is-grand"><span>Total</span><span>' + money(figures.grand_total) + '</span></div>';
+        rows.push(['Final Amount', figures.grand_total]);
 
-        return '<div class="bill-totals">' + rows + '</div>';
-    }
-
-    function payment(bill) {
-        var pay = bill.payment || {};
-        var lines = pay.lines || [];
-
-        // A split counter payment shows what went on each mode.
-        var detail = lines.length > 1
-            ? lines.map(function (line) {
-                return esc(line.title) + (line.amount ? ' ' + money(line.amount) : '');
-            }).join(' &middot; ')
-            : esc(pay.method || '');
-
-        return '<div class="bill-pay">'
-            + '<span class="bill-pay-label">Payment</span>'
-            + '<span class="bill-pay-method">' + detail + '</span>'
-            + '<span class="bill-chip ' + chipClass(pay) + '">' + esc(pay.status || '') + '</span>'
-            + '</div>';
+        return '<table class="bill-totals"><tfoot>'
+            + rows.map(function (row) {
+                return '<tr><th>' + row[0] + '</th>'
+                    + '<th class="is-amount">Rs.' + amount(row[1]) + '</th></tr>';
+            }).join('')
+            + '</tfoot></table>';
     }
 
     function render(bill) {
-        return head(bill.shop || {})
-            + meta(bill)
-            + parties(bill)
+        var shop = bill.shop || {};
+
+        return head(shop)
+            + lines(bill)
             + items(bill.items)
             + totals(bill.totals || {})
-            + payment(bill)
-            + (bill.shop && bill.shop.footer_note
-                ? '<p class="bill-note">' + esc(bill.shop.footer_note) + '</p>' : '');
+            + '<h5 class="bill-note">' + esc(shop.footer_note || 'Thank you for visiting.') + '</h5>';
     }
 
     /** Fetch one bill and show it. Exposed globally: the three screens call it. */

@@ -85,23 +85,14 @@
                         </h6>
                         {{-- The same classes the bill itself uses, so this preview cannot drift. --}}
                         <div class="shopora-bill" style="padding:0;">
-                            <header class="bill-head" style="border:0;padding-bottom:0;">
-                                <h2 class="bill-shop-name">{{ $header['name'] }}</h2>
-                                @if($header['address'])
-                                    <p class="bill-shop-line">{{ $header['address'] }}</p>
-                                @endif
-                                @if($header['pan'] || $header['phone'])
-                                    <p class="bill-shop-line">
-                                        {{ collect([
-                                            $header['pan'] ? 'PAN: ' . $header['pan'] : null,
-                                            $header['phone'] ? 'Tel: ' . $header['phone'] : null,
-                                        ])->filter()->implode(' · ') }}
-                                    </p>
-                                @endif
-                                <span class="bill-kind">Abbreviated Tax Invoice</span>
-                            </header>
+                            <div class="bill-head">
+                                <h2>{{ $header['name'] }}</h2>
+                                @if($header['address'])<p>{{ $header['address'] }}</p>@endif
+                                @if($header['pan'])<p>Vat No : {{ $header['pan'] }}</p>@endif
+                                @if($header['phone'])<p>Contact : {{ $header['phone'] }}</p>@endif
+                            </div>
                             @if($header['footer_note'])
-                                <p class="bill-note">{{ $header['footer_note'] }}</p>
+                                <h5 class="bill-note">{{ $header['footer_note'] }}</h5>
                             @endif
                         </div>
                     </div>
@@ -113,5 +104,5 @@
 @endsection
 
 @section("style")
-<link href="{{ asset('assets/css/invoice-bill.css') }}?v=1" rel="stylesheet" />
+<link href="{{ asset('assets/css/invoice-bill.css') }}?v=4" rel="stylesheet" />
 @endsection
