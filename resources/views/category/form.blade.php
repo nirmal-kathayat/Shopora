@@ -15,6 +15,39 @@
     .cat-form-card .card-header { background: #fbfcfe; border-bottom: 1px solid #eef0f3; font-weight: 600; }
     .cat-image-preview { max-width: 200px; border-radius: 10px; border: 1px solid #eef0f3; background: #f8fafc; }
     .field-hint { font-size: 12.5px; color: #6b7280; }
+
+    /* Select2 ships its own control; these line it up with the plain inputs
+       beside it, so the row does not look like two different form kits. */
+    .cat-form-card .select2-container { width: 100% !important; }
+
+    .cat-form-card .select2-container--default .select2-selection--single {
+        /* Select2 sets its own smaller font, so 1.5em would come out short of
+           the inputs beside it - pin the font size and the maths lines up. */
+        height: calc(1.5em + 0.75rem + 2px);
+        font-size: 1rem;
+        border: 1px solid #ced4da;
+        border-radius: 0.25rem;
+    }
+
+    .cat-form-card .select2-container--default .select2-selection--single .select2-selection__rendered {
+        padding-left: 0.75rem;
+        line-height: calc(1.5em + 0.75rem);
+        color: #212529;
+    }
+
+    .cat-form-card .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: calc(1.5em + 0.75rem + 2px);
+    }
+
+    .cat-form-card .select2-container--default.select2-container--focus .select2-selection--single,
+    .cat-form-card .select2-container--default.select2-container--open .select2-selection--single {
+        border-color: #86b7fe;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    }
+
+    .select2-container--default .select2-results__option--highlighted[aria-selected] {
+        background-color: #008cff;
+    }
 </style>
 @endsection
 
@@ -128,6 +161,14 @@
 
 @section("script")
 <script>
+    // Twelve keywords is enough to be worth typing through rather than
+    // scrolling. Select2 is already loaded by the layout.
+    $('#icon').select2({
+        width: '100%',
+        minimumResultsForSearch: 0,
+        placeholder: 'Choose an icon',
+    });
+
     (function () {
         const fileInput = document.getElementById('image');
         const preview = document.getElementById('imagePreview');
