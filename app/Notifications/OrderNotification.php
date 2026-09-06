@@ -93,8 +93,9 @@ class OrderNotification extends Notification
             'order_id' => $this->order->id,
             'order_code' => $this->order->code,
             'status' => $this->order->status,
-            // Where the storefront should send them when they tap it.
-            'url' => '/account?section=orders',
+            // Straight to the order it is about, not just the list of them -
+            // the storefront opens that one row when it lands.
+            'url' => '/account?section=orders&order=' . $this->order->id,
         ];
     }
 
