@@ -15,34 +15,40 @@
     .cat-form-card .card-header { background: #fbfcfe; border-bottom: 1px solid #eef0f3; font-weight: 600; }
     .cat-image-preview { max-width: 200px; border-radius: 10px; border: 1px solid #eef0f3; background: #f8fafc; }
     .field-hint { font-size: 12.5px; color: #6b7280; }
-
-    /* Select2 ships its own control; these line it up with the plain inputs
-       beside it, so the row does not look like two different form kits. */
     .cat-form-card .select2-container { width: 100% !important; }
 
-    .cat-form-card .select2-container--default .select2-selection--single {
-        /* Select2 sets its own smaller font, so 1.5em would come out short of
-           the inputs beside it - pin the font size and the maths lines up. */
-        height: calc(1.5em + 0.75rem + 2px);
-        font-size: 1rem;
-        border: 1px solid #ced4da;
-        border-radius: 0.25rem;
+    /* Select2 draws its own control, so it does not pick up the theme's input
+       styling on its own. `selectionCssClass: ':all:'` copies the original
+       select's classes across, including form-control and is-invalid, so the
+       border, radius and colours come from the theme rather than being guessed
+       at here. What is left is undoing Select2's own padding so the two sets
+       do not stack, and giving the box the same height as a text input. */
+    .select2-container--default .select2-selection--single.form-control {
+        display: flex;
+        align-items: center;
+        min-height: 38px;
+        /* the same border, radius and size app.css gives every text input, so
+           the control sits in the row instead of beside it */
+        border: 1px solid #0bb2d3;
+        border-radius: 4px;
+        font-size: 16px;
+        padding: 0.375rem 2.25rem 0.375rem 0.75rem;
     }
 
-    .cat-form-card .select2-container--default .select2-selection--single .select2-selection__rendered {
-        padding-left: 0.75rem;
-        line-height: calc(1.5em + 0.75rem);
-        color: #212529;
+    .select2-container--default .select2-selection--single.form-control .select2-selection__rendered {
+        padding-left: 0;
+        line-height: 1.5;
+        color: inherit;
     }
 
-    .cat-form-card .select2-container--default .select2-selection--single .select2-selection__arrow {
-        height: calc(1.5em + 0.75rem + 2px);
+    .select2-container--default .select2-selection--single.form-control .select2-selection__placeholder {
+        color: #7a838c;
     }
 
-    .cat-form-card .select2-container--default.select2-container--focus .select2-selection--single,
-    .cat-form-card .select2-container--default.select2-container--open .select2-selection--single {
-        border-color: #86b7fe;
-        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    .select2-container--default .select2-selection--single.form-control .select2-selection__arrow {
+        top: 0;
+        right: 6px;
+        height: 100%;
     }
 
     .select2-container--default .select2-results__option--highlighted[aria-selected] {
@@ -167,6 +173,7 @@
         width: '100%',
         minimumResultsForSearch: 0,
         placeholder: 'Choose an icon',
+        selectionCssClass: ':all:',
     });
 
     (function () {

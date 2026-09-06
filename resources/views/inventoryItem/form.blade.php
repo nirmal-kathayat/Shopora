@@ -21,6 +21,45 @@
     .cat-input { display: flex; gap: 8px; }
     .badge-row + .badge-row { margin-top: 10px; }
     .cat-input .btn-modal { flex-shrink: 0; border: 1px solid #d5dbe3; background: #fff; border-radius: 8px; width: 42px; display: flex; align-items: center; justify-content: center; color: #056659; }
+    .cat-input .select2-container { flex: 1 1 auto; min-width: 0; }
+
+    /* Select2 draws its own control, so it does not pick up the theme's input
+       styling on its own. `selectionCssClass: ':all:'` copies the original
+       select's classes across, including form-control and is-invalid, so the
+       border, radius and colours come from the theme rather than being guessed
+       at here. What is left is undoing Select2's own padding so the two sets
+       do not stack, and giving the box the same height as a text input. */
+    .select2-container--default .select2-selection--single.form-control {
+        display: flex;
+        align-items: center;
+        min-height: 38px;
+        /* the same border, radius and size app.css gives every text input, so
+           the control sits in the row instead of beside it */
+        border: 1px solid #0bb2d3;
+        border-radius: 4px;
+        font-size: 16px;
+        padding: 0.375rem 2.25rem 0.375rem 0.75rem;
+    }
+
+    .select2-container--default .select2-selection--single.form-control .select2-selection__rendered {
+        padding-left: 0;
+        line-height: 1.5;
+        color: inherit;
+    }
+
+    .select2-container--default .select2-selection--single.form-control .select2-selection__placeholder {
+        color: #7a838c;
+    }
+
+    .select2-container--default .select2-selection--single.form-control .select2-selection__arrow {
+        top: 0;
+        right: 6px;
+        height: 100%;
+    }
+
+    .select2-container--default .select2-results__option--highlighted[aria-selected] {
+        background-color: #008cff;
+    }
 </style>
 @endsection
 
@@ -371,7 +410,11 @@
         });
         // searchable category dropdown
         if (window.jQuery && jQuery.fn.select2) {
-            jQuery('#category_id').select2({ width: '100%', placeholder: 'Select category' });
+            jQuery('#category_id').select2({
+                width: '100%',
+                placeholder: 'Select category',
+                selectionCssClass: ':all:',
+            });
         }
 
         // product highlight repeatable rows
