@@ -127,7 +127,7 @@
         color: #111827;
     }
 
-    /* Active item — Figma: light blue pill + left blue bar */
+    /* Active item — Figma: light blue pill */
     .shopora-sidebar .metismenu > li.active-link > a,
     .shopora-sidebar .metismenu > li > a.mm-active,
     .shopora-sidebar .metismenu > li.active-link > a:hover {
@@ -138,18 +138,6 @@
     .shopora-sidebar .metismenu > li.active-link > a .parent-icon,
     .shopora-sidebar .metismenu > li > a.mm-active .parent-icon {
         color: #008cff !important;
-    }
-
-    .shopora-sidebar .metismenu > li.active-link > a::before,
-    .shopora-sidebar .metismenu > li.has-submenu.open > a.has-arrow::before {
-        content: "";
-        position: absolute;
-        left: 0;
-        top: 8px;
-        bottom: 8px;
-        width: 3px;
-        border-radius: 0 3px 3px 0;
-        background: #008cff;
     }
 
     .shopora-sidebar .metismenu > li.has-submenu.open > a.has-arrow {
@@ -203,7 +191,6 @@
         opacity: 0;
         transform: translateY(-4px);
         transition: max-height 0.32s ease, opacity 0.28s ease, transform 0.28s ease;
-        border-left: 2px solid #e8eef5;
         background: transparent;
     }
 

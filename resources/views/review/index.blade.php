@@ -4,7 +4,20 @@
 <link href="{{asset('assets/plugins/datatable/css/dataTables.bootstrap5.min.css')}}" rel="stylesheet" />
 <style>
     .rev-stars { color: #f59e0b; letter-spacing: 1px; }
-    .rev-body { max-width: 360px; }
+
+    /* .table-responsive sets white-space: nowrap app-wide, so a long review
+       ran off in one line and stretched the whole table. Cap the column and
+       cut the overflow with an ellipsis so every row stays one line tall. */
+    .rev-body {
+        width: 340px;
+        max-width: 340px;
+    }
+
+    .rev-body .rev-text {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
 </style>
 @endsection
 
@@ -69,8 +82,11 @@
                   render: (d) => `<span class="rev-stars">${stars(d)}</span> <span class="text-muted">${Number(d)}</span>` },
                 { data: 'body', name: 'product_reviews.body', orderable: false,
                   render: (d, t, full) => {
-                    const title = full.title ? `<div class="fw-semibold">${esc(full.title)}</div>` : '';
-                    return `<div class="rev-body">${title}<div class="text-muted small">${esc(d) || '—'}</div></div>`;
+                    const title = full.title ? `<div class="fw-semibold rev-text">${esc(full.title)}</div>` : '';
+                    // Cut to one line with an ellipsis; the full text stays reachable on hover.
+                    // esc() leaves quotes alone, which would break out of the attribute.
+                    const tip = esc([full.title, d].filter(Boolean).join(' — ')).replace(/"/g, '&quot;');
+                    return `<div class="rev-body" title="${tip}">${title}<div class="text-muted small rev-text">${esc(d) || '—'}</div></div>`;
                   }},
                 { data: 'created_at', name: 'product_reviews.created_at', searchable: false },
                 { data: 'action', name: 'action', orderable: false, searchable: false,
