@@ -2,6 +2,27 @@
 
 @section("style")
 <link href="{{asset('assets/css/gridtable.css')}}?v=1" rel="stylesheet" />
+<style>
+    /* Scrollable, but without the bar down the side - same as the form modal.
+       It still scrolls by wheel, trackpad, touch, arrow keys and Page Up/Down. */
+    #purchaseBillModal .modal-body {
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+
+    #purchaseBillModal .modal-body::-webkit-scrollbar {
+        width: 0;
+        height: 0;
+    }
+
+    /* The item table has four columns and the summary sits beside it, so this
+       one wants more room than a stock modal-xl gives on a wide screen. */
+    @media (min-width: 1200px) {
+        #purchaseBillModal .modal-dialog {
+            max-width: 1080px;
+        }
+    }
+</style>
 
 @endsection
 
@@ -46,7 +67,7 @@
 
 <!-- Purchase Bill Modal -->
 <div class="modal fade" id="purchaseBillModal" tabindex="-1" aria-labelledby="purchaseBillModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="purchaseBillModalLabel">Purchase Bill</h5>
@@ -310,8 +331,8 @@
 
                 <div class="bill-summary">
                     <div class="row">
-                        <div class="col-md-8"></div>
-                        <div class="col-md-4">
+                        <div class="col-md-7"></div>
+                        <div class="col-md-5">
                             <table class="table table-sm">
                                 <tr>
                                     <td><strong>Total Taxable Amount:</strong></td>
