@@ -31,7 +31,7 @@ class InventoryItemRepository
      * figures are always about some period, this is a list of what the shop
      * sells and defaults to all of it.
      */
-    public function getInventoryItems($categoryId = null, $fromDate = null, $toDate = null)
+    public function getInventoryItems($categoryId = null, $fromDate = null, $toDate = null, array $options = [])
     {
         $query = $this->query
             ->leftJoin('categories', 'categories.id', '=', 'inventory_items.category_id')
@@ -73,7 +73,51 @@ class InventoryItemRepository
             $query->where('inventory_items.created_at', '<=', $to);
         }
 
-        return $query->orderBy('inventory_items.id', 'desc');
+        // Header-row filters: one box per column, each its own LIKE.
+        foreach (['title' => 'inventory_items.title', 'code' => 'inventory_items.code'] as $key => $column) {
+            $value = trim((string) ($options[$key] ?? ''));
+            if ($value !== '') {
+                $query->where($column, 'like', '%' . $value . '%');
+            }
+        }
+
+        // The one search box over the whole row: what someone reaches for when
+        // they know the product but not which column it is in.
+        $search = trim((string) ($options['search'] ?? ''));
+        if ($search !== '') {
+            $query->where(function ($q) use ($search) {
+                $like = '%' . $search . '%';
+                $q->where('inventory_items.title', 'like', $like)
+                    ->orWhere('inventory_items.code', 'like', $like)
+                    ->orWhere('inventory_items.brand', 'like', $like)
+                    ->orWhere('categories.title', 'like', $like);
+            });
+        }
+
+        return $this->sort($query, $options['sort_field'] ?? null, $options['sort_direction'] ?? null);
+    }
+
+    /**
+     * Order the list. Only these columns, by name - the field arrives in a
+     * query string, and a column name is not something to take on trust.
+     */
+    private function sort($query, $field, $direction)
+    {
+        $sortable = [
+            'title' => 'inventory_items.title',
+            'category_title' => 'categories.title',
+            'unit' => 'inventory_items.unit',
+            'price_per_unit' => 'inventory_items.price_per_unit',
+            'code' => 'inventory_items.code',
+            'wishlist_count' => 'wishlist_count',
+        ];
+
+        $column = $sortable[$field] ?? null;
+        if (! $column) {
+            return $query->orderBy('inventory_items.id', 'desc');
+        }
+
+        return $query->orderBy($column, strtolower((string) $direction) === 'asc' ? 'asc' : 'desc');
     }
 
     /** A Y-m-d from the picker, at midnight. Anything else is no filter. */

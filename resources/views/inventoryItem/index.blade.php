@@ -1,7 +1,7 @@
 @extends("layouts.app")
 
 @section("style")
-<link href="{{asset('assets/plugins/datatable/css/dataTables.bootstrap5.min.css')}}" rel="stylesheet" />
+<link href="{{asset('assets/css/gridtable.css')}}?v=1" rel="stylesheet" />
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <link href="{{ asset('assets/css/date-filter.css') }}?v=1" rel="stylesheet" />
 @endsection
@@ -71,22 +71,9 @@
                         </div>
                     </div>
                 </div>
-                <div class="table-responsive">
-                    <table id="inventoryItemTable" class="table table-striped table-bordered" style="width:100%">
-                        <thead>
-                            <tr>
-                                <th>S.no</th>
-                                <th>Inventory</th>
-                                <th>Category</th>
-                                <th>Unit</th>
-                                <th>Price Per Unit</th>
-                                <th>Code</th>
-                                <th>Wishlist</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                    </table>
-                </div>
+                {{-- TableHelper renders the whole table in here: header,
+                     filter row, body, pager and the search box above it. --}}
+                <div id="inventory-grid" class="shopora-grid"></div>
             </div>
         </div>
     </div>
@@ -124,9 +111,8 @@
 @endsection
 
 @section("script")
-<script src="{{asset('assets/plugins/datatable/js/jquery.dataTables.min.js')}}"></script>
-<script src="{{asset('assets/plugins/datatable/js/dataTables.bootstrap5.min.js')}}"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="{{asset('assets/js/table-helper.js')}}?v=1"></script>
 <style>
     .select2-container--default .select2-selection--single {
         border-radius: 0.375rem;
@@ -212,112 +198,91 @@
         applyingRange = false;
 
         setActiveTab(tab);
-        table.draw();
+        table.applyFilters();
     }
 
     $(document).ready(function() {
-        // Initialize Select2
-        $('#categoryFilter').select2({
-            allowClear: false,
-            width: '50%'
-        });
-
-        // Set default value to "All Categories"
+        $('#categoryFilter').select2({ allowClear: false, width: '50%' });
         $('#categoryFilter').val('').trigger('change');
-
-        // Load categories
         loadCategories();
 
-        // Initialize DataTable
-        table = $('#inventoryItemTable').DataTable({
-            processing: true,
-            serverSide: true,
-            ajax: {
-                url: "{{ route('admin.inventoryItem') }}",
-                type: 'GET',
-                data: function(d) {
-                    d.category_id = $('#categoryFilter').val();
-                    d.from_date = $('#fromDate').val();
-                    d.to_date = $('#toDate').val();
-                },
-                error: function(xhr) {
-                    console.error('Inventory table load failed:', xhr.responseText || xhr.statusText);
-                }
-            },
-            pageLength: 25,
-            columns: [{
-                    data: 'id',
-                    name: 'id',
-                    searchable: false,
-                    render: function(data, type, full, meta) {
-                        return full?.DT_RowIndex
+        const editUrl = "{{ route('admin.inventoryItem.edit', ['id' => ':id']) }}";
+
+        table = new TableHelper({
+            containerId: 'inventory-grid',
+            apiUrl: "{{ route('admin.inventoryItem') }}",
+            perPage: 25,
+            pagination: true,
+            // A catalogue is read, not acted on in bulk - no select column.
+            enableCheckbox: false,
+            // The quick-range tabs need the picker objects, so this page makes
+            // them itself rather than letting the helper do it.
+            autoInitDatePickers: false,
+            emptyMessage: 'No inventory items match these filters',
+
+            columns: [
+                { name: 'S.no', isSerialNo: true, width: '64px', align: 'center' },
+                { name: 'Inventory', field: 'title' },
+                { name: 'Category', field: 'category_title' },
+                { name: 'Unit', field: 'unit' },
+                { name: 'Price Per Unit', field: 'price_per_unit', align: 'right' },
+                { name: 'Code', field: 'code' },
+                {
+                    name: 'Wishlist',
+                    field: 'wishlist_count',
+                    align: 'center',
+                    render: function(row) {
+                        const count = Number(row.wishlist_count || 0);
+                        return '<span class="badge ' + (count > 0 ? 'bg-danger' : 'bg-secondary') + '">' + count + '</span>';
                     }
                 },
                 {
-                    data: 'title',
-                    name: 'title',
-                    orderable: false,
-                },
-                {
-                    data: 'category_title',
-                    name: 'categories.title',
-                    orderable: false,
-                },
-                {
-                    data: 'unit',
-                    name: 'unit',
-                    orderable: false,
-                },
-                {
-                    data: 'price_per_unit',
-                    name: 'price_per_unit',
-                    orderable: false,
-                },
-                {
-                    data: 'code',
-                    name: 'code',
-                    orderable: false,
-                },
-                {
-                    data: 'wishlist_count',
-                    name: 'wishlist_count',
-                    orderable: false,
-                    searchable: false,
-                    render: function(data, type, full, meta) {
-                        var count = Number(full.wishlist_count || 0);
-                        var tone = count > 0 ? 'bg-danger' : 'bg-secondary';
-                        return '<span class="badge ' + tone + '">' + count + '</span>';
-                    }
-                },
-                {
-                    data: 'action',
-                    name: 'action',
-                    orderable: false,
-                    searchable: false,
-                    render: function(data, type, full, meta) {
-                        var imageUrl = full.image ? "{{ asset('image') }}/" + encodeURIComponent(full.image) : '';
-                        var editUrl = "{{ route('admin.inventoryItem.edit', ['id' => ':id']) }}".replace(':id', full.id);
-                        var editButton = '<a href="' + editUrl + '" class="btn btn-primary btn-sm"><i class="bx bx-edit"></i></a>';
-                        var deleteButton = '<a class="btn btn-danger deleteAction btn-sm" href="javascript:void(0)" data-id="' + full.id + '"><i class="bx bx-trash"></i></a>';
-                        var disabled = Number(full.wishlist_count || 0) > 0 ? '' : ' disabled';
-                        var wishlistButton = '<a class="btn btn-outline-danger wishlistAction btn-sm' + disabled +
-                            '" href="javascript:void(0)" title="Wishlisted by" data-id="' + full.id + '"><i class="bx bx-heart"></i></a>';
-                        var actionButtons = '<div class="d-flex gap-sm-2">' + editButton + wishlistButton + deleteButton + '</div>';
-                        return actionButtons;
-                    }
+                    name: 'Action',
+                    type: 'actions',
+                    actions: [
+                        // Icon-only, as this table has always been - the
+                        // three buttons are recognisable and the column is
+                        // narrow enough already.
+                        { type: 'edit', title: 'Edit', showLabel: false, url: editUrl.replace(':id', '{id}') },
+                        {
+                            type: 'custom',
+                            icon: 'bx bx-heart',
+                            class: 'btn btn-sm btn-outline-danger',
+                            title: 'Wishlisted by',
+                            showLabel: false,
+                            // Nobody has saved it, so there is no list to open.
+                            disabled: function(row) { return Number(row.wishlist_count || 0) === 0; },
+                            onClick: function(row) { openWishlist(row.id); }
+                        },
+                        {
+                            type: 'delete',
+                            title: 'Delete',
+                            showLabel: false,
+                            onClick: function(row) { confirmDelete(row.id); }
+                        }
+                    ]
                 }
             ],
-            initComplete: function(settings, json) {
-                console.log(json); // Log the received JSON data
-            }
+
+            enableSortColumns: ['title', 'category_title', 'unit', 'price_per_unit', 'code', 'wishlist_count'],
+
+            filters: {
+                // emptyMeans is left at its default 'all': a blank box is
+                // every item, not today.
+                dateRange: { fromId: 'fromDate', toId: 'toDate' },
+                additional: [{ id: 'categoryFilter', param: 'category_id' }],
+                autoReload: ['#categoryFilter'],
+                autoGenerateColumnFilters: false,
+                columnFilters: [
+                    { field: 'title', type: 'text', param: 'title', placeholder: 'Item' },
+                    { field: 'code', type: 'text', param: 'code', placeholder: 'Code' }
+                ]
+            },
+
+            search: { placeholder: 'Search item, code or brand...' }
         });
 
         window.inventoryItemDataTable = table;
-
-        // Category filter change event
-        $('#categoryFilter').on('change', function() {
-            table.draw();
-        });
 
         // ---- date range ----
         // Both boxes start empty: the table opens on every item, and picking a
@@ -330,7 +295,7 @@
                 // unless it happens to have emptied both boxes again.
                 const none = !$('#fromDate').val() && !$('#toDate').val();
                 setActiveTab(none ? 'all' : null);
-                table.draw();
+                table.applyFilters();
             }
         };
 
@@ -346,77 +311,66 @@
         $('#clearDateFilter').on('click', function() {
             applyDateRange(null, null, 'all');
         });
+    });
 
-        // who saved this product
-        $('#inventoryItemTable').on('click', '.wishlistAction', function(e) {
-            e.preventDefault();
-            if ($(this).hasClass('disabled')) return;
+    function openWishlist(id) {
+        const url = "{{ route('admin.inventoryItem.wishlist', ['id' => ':id']) }}".replace(':id', id);
+        const rows = $('#wishlistModalRows');
 
-            var url = "{{ route('admin.inventoryItem.wishlist', ['id' => ':id']) }}".replace(':id', $(this).data('id'));
-            var rows = $('#wishlistModalRows');
+        rows.html('<tr><td colspan="5" class="text-center text-muted py-4">Loading...</td></tr>');
+        $('#wishlistModalProduct').text('');
+        new bootstrap.Modal(document.getElementById('wishlistModal')).show();
 
-            rows.html('<tr><td colspan="5" class="text-center text-muted py-4">Loading...</td></tr>');
-            $('#wishlistModalProduct').text('');
-            new bootstrap.Modal(document.getElementById('wishlistModal')).show();
+        $.get(url)
+            .done(function(response) {
+                $('#wishlistModalProduct').text(response.product || '');
 
-            $.get(url)
-                .done(function(response) {
-                    $('#wishlistModalProduct').text(response.product || '');
+                if (!response.customers || !response.customers.length) {
+                    rows.html('<tr><td colspan="5" class="text-center text-muted py-4">No one has saved this product yet.</td></tr>');
+                    return;
+                }
 
-                    if (!response.customers || !response.customers.length) {
-                        rows.html('<tr><td colspan="5" class="text-center text-muted py-4">No one has saved this product yet.</td></tr>');
-                        return;
-                    }
+                rows.html(response.customers.map(function(customer, index) {
+                    return '<tr>' +
+                        '<td>' + (index + 1) + '</td>' +
+                        '<td>' + $('<div>').text(customer.name || '-').html() + '</td>' +
+                        '<td>' + $('<div>').text(customer.ph_number || '-').html() + '</td>' +
+                        '<td>' + $('<div>').text(customer.email || '-').html() + '</td>' +
+                        '<td>' + $('<div>').text(customer.saved_at || '-').html() + '</td>' +
+                        '</tr>';
+                }).join(''));
+            })
+            .fail(function() {
+                rows.html('<tr><td colspan="5" class="text-center text-danger py-4">Could not load that list.</td></tr>');
+            });
+    }
 
-                    rows.html(response.customers.map(function(customer, index) {
-                        return '<tr>' +
-                            '<td>' + (index + 1) + '</td>' +
-                            '<td>' + $('<div>').text(customer.name || '-').html() + '</td>' +
-                            '<td>' + $('<div>').text(customer.ph_number || '-').html() + '</td>' +
-                            '<td>' + $('<div>').text(customer.email || '-').html() + '</td>' +
-                            '<td>' + $('<div>').text(customer.saved_at || '-').html() + '</td>' +
-                            '</tr>';
-                    }).join(''));
+    // Our own dialog rather than the action's `confirm`, which is the
+    // browser's bare confirm() box.
+    function confirmDelete(id) {
+        const deleteUrl = "{{route('admin.inventoryItem.delete',['id'=>':id'])}}".replace(':id', id);
+
+        Swal.fire({
+            title: 'Are you sure?',
+            text: "You won't be able to revert this!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: 'btn btn-success',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Yes, delete it!'
+        }).then((result) => {
+            if (!result.isConfirmed) return;
+
+            $.get(deleteUrl, { "_token": "{{ csrf_token() }}" })
+                .done(function() {
+                    shoporaToast.success('The inventory item has been deleted.', 'Deleted!');
+                    table.refresh();
                 })
                 .fail(function() {
-                    rows.html('<tr><td colspan="5" class="text-center text-danger py-4">Could not load that list.</td></tr>');
+                    shoporaToast.error('There was an error deleting the inventory item.', 'Error!');
                 });
         });
-
-        // delete action
-        $('#inventoryItemTable').on('click', '.deleteAction', function(e) {
-            e.preventDefault();
-            var inventoryId = $(this).data('id');
-            var deleteUrl = "{{route('admin.inventoryItem.delete',['id'=>':id'])}}".replace(':id', inventoryId);
-
-            Swal.fire({
-                title: 'Are you sure?',
-                text: "You won't be able to revert this!",
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: 'btn btn-success',
-                cancelButtonColor: '#d33',
-                confirmButtonText: 'Yes, delete it!'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    $.ajax({
-                        url: deleteUrl,
-                        type: 'GET',
-                        data: {
-                            "_token": "{{ csrf_token() }}",
-                        },
-                        success: function(response) {
-                            shoporaToast.success('The inventory item has been deleted.', 'Deleted!');
-                            table.draw();
-                        },
-                        error: function(xhr) {
-                            shoporaToast.error('There was an error deleting the inventory item.', 'Error!');
-                        }
-                    });
-                }
-            });
-        });
-    });
+    }
 
     // Function to load categories
     function loadCategories() {

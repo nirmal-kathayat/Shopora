@@ -21,25 +21,55 @@ class InventoryItemController extends Controller
         $this->categoryRepo = $categoryRepo;
     }
 
+    /**
+     * The screen, and the JSON behind its table.
+     *
+     * The table is a TableHelper, so the envelope is { success, data, total }
+     * rather than the DataTables one. Its date range is sent as start_date /
+     * end_date - those names are fixed in the component - and its header-row
+     * boxes arrive as plain column names.
+     */
     public function index()
     {
         try {
-            if (request()->ajax()) {
-                $categoryId = request()->input('category_id');
-                $data = $this->inventoryItemRepo->getInventoryItems(
-                    $categoryId,
-                    request()->input('from_date'),
-                    request()->input('to_date'),
-                );
-                return DataTables::of($data)
-                    ->addIndexColumn()
-                    ->rawColumns([])
-                    ->make(true);
+            if (! request()->ajax()) {
+                return view('inventoryItem.index', [
+                    'categories' => $this->categoryRepo->getCategory(),
+                ]);
             }
-            $categories = $this->categoryRepo->getCategory();
 
-            return view('inventoryItem.index', compact('categories'));
-        } catch (\Exception $e) {
+            $perPage = min(max((int) request()->input('per_page', 25), 1), 100);
+            $page = max((int) request()->input('page', 1), 1);
+
+            $rows = $this->inventoryItemRepo->getInventoryItems(
+                request()->input('category_id'),
+                request()->input('start_date'),
+                request()->input('end_date'),
+                [
+                    'title' => request()->input('title'),
+                    'code' => request()->input('code'),
+                    'search' => request()->input('search'),
+                    'sort_field' => request()->input('sort_field'),
+                    'sort_direction' => request()->input('sort_direction'),
+                ],
+            )->paginate($perPage, ['*'], 'page', $page);
+
+            return response()->json([
+                'success' => true,
+                'data' => $rows->items(),
+                'total' => $rows->total(),
+            ]);
+        } catch (\Throwable $e) {
+            \Log::error('Inventory item list failed: ' . $e->getMessage());
+
+            if (request()->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'title' => 'Could not load',
+                    'message' => 'The inventory list could not be loaded.',
+                ]);
+            }
+
             return redirect()->back()->with(['message' => 'Something went wrong!', 'type' => 'error']);
         }
     }
