@@ -46,7 +46,7 @@
 
 <!-- Purchase Bill Modal -->
 <div class="modal fade" id="purchaseBillModal" tabindex="-1" aria-labelledby="purchaseBillModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="purchaseBillModalLabel">Purchase Bill</h5>
@@ -59,7 +59,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-primary" onclick="window.print()">Print Bill</button>
+                <button type="button" class="btn btn-primary" onclick="printPurchaseBill()">Print Bill</button>
             </div>
         </div>
     </div>
@@ -149,13 +149,22 @@
         });
     }
 
+    /** Rows of the bill shown at once. A long bill is read a page at a time. */
+    const BILL_PAGE_SIZE = 10;
+
+    let billData = null;
+    let billPage = 1;
+
     /** Fetch one purchase bill and show it in the bill modal. */
     function loadPurchaseBill(purchaseId) {
         const url = "{{ route('admin.purchaseInventory.view', ['id' => ':id']) }}".replace(':id', purchaseId);
 
         $.get(url)
             .done(function (response) {
-                $('#billContent').html(generateBillHtml(response));
+                billData = response;
+                billPage = 1;
+                renderBill();
+
                 const billModalEl = document.getElementById('purchaseBillModal');
                 if (billModalEl && window.bootstrap) {
                     bootstrap.Modal.getOrCreateInstance(billModalEl).show();
@@ -166,15 +175,91 @@
             });
     }
 
-    /** The bill itself: vendor, its lines, and what it came to. */
-    function generateBillHtml(data) {
-        const esc = TableHelper.escape;
-        let itemsHtml = '';
-        let totalTaxable = 0;
+    function renderBill() {
+        $('#billContent').html(generateBillHtml(billData, billPage));
+    }
 
-        (data.items || []).forEach(function (item) {
+    // The pager is rebuilt with the bill, so the handler is delegated.
+    $(document).on('click', '#billContent [data-bill-page]', function (e) {
+        e.preventDefault();
+        const page = Number(this.dataset.billPage);
+        if (page && page !== billPage) {
+            billPage = page;
+            renderBill();
+        }
+    });
+
+    /**
+     * Previous / numbers / Next for the bill's items.
+     *
+     * Windowed to five numbers so a fifty-line bill does not grow a pager
+     * wider than the modal.
+     */
+    function billPagination(page, pages, total, from, to) {
+        if (pages <= 1) return '';
+
+        const item = (label, target, opts = {}) => `
+            <li class="page-item ${opts.active ? 'active' : ''} ${opts.disabled ? 'disabled' : ''}">
+                <a class="page-link" href="javascript:void(0);" data-bill-page="${target}">${label}</a>
+            </li>`;
+
+        let first = Math.max(1, page - 2);
+        const last = Math.min(pages, first + 4);
+        first = Math.max(1, last - 4);
+
+        let numbers = '';
+        for (let i = first; i <= last; i++) numbers += item(i, i, { active: i === page });
+
+        return `
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-2">
+                <small class="text-muted">Showing ${from} to ${to} of ${total} items</small>
+                <nav aria-label="Bill items">
+                    <ul class="pagination pagination-sm mb-0">
+                        ${item('Previous', page - 1, { disabled: page === 1 })}
+                        ${numbers}
+                        ${item('Next', page + 1, { disabled: page === pages })}
+                    </ul>
+                </nav>
+            </div>`;
+    }
+
+    /**
+     * Print the whole bill, not the page on screen.
+     *
+     * The lines are paged for reading, and only the page shown is in the DOM -
+     * so printing straight from it would put ten lines on paper and quietly
+     * drop the rest. Everything goes in, it prints, then it goes back.
+     */
+    function printPurchaseBill() {
+        if (!billData) {
+            window.print();
+            return;
+        }
+
+        $('#billContent').html(generateBillHtml(billData, 1, true));
+        window.print();
+        renderBill();
+    }
+
+    /** The bill itself: vendor, one page of its lines, and what it came to. */
+    function generateBillHtml(data, page, showAll) {
+        const esc = TableHelper.escape;
+        const items = data.items || [];
+
+        // The summary is the whole bill, not the page on screen.
+        let totalTaxable = 0;
+        items.forEach(function (item) {
+            totalTaxable += item.qty * item.rate;
+        });
+
+        const pages = showAll ? 1 : Math.max(1, Math.ceil(items.length / BILL_PAGE_SIZE));
+        const current = Math.min(Math.max(page, 1), pages);
+        const start = showAll ? 0 : (current - 1) * BILL_PAGE_SIZE;
+        const shown = showAll ? items : items.slice(start, start + BILL_PAGE_SIZE);
+
+        let itemsHtml = '';
+        shown.forEach(function (item) {
             const totalAmount = item.qty * item.rate;
-            totalTaxable += totalAmount;
             itemsHtml += `
                 <tr>
                     <td>${esc(item.inventory_item ? item.inventory_item.title : 'N/A')}</td>
@@ -184,6 +269,10 @@
                 </tr>
             `;
         });
+
+        if (!shown.length) {
+            itemsHtml = '<tr><td colspan="4" class="text-center text-muted py-4">This bill has no items.</td></tr>';
+        }
 
         const vatAmount = parseFloat(data.vat_amount) || 0;
         const amountAfterVat = totalTaxable + vatAmount;
@@ -205,7 +294,7 @@
                 </div>
 
                 <div class="bill-items mb-4">
-                    <table class="table table-bordered">
+                    <table class="table table-bordered mb-0">
                         <thead class="table-light">
                             <tr>
                                 <th>Item Description</th>
@@ -216,6 +305,7 @@
                         </thead>
                         <tbody>${itemsHtml}</tbody>
                     </table>
+                    ${billPagination(current, pages, items.length, items.length ? start + 1 : 0, start + shown.length)}
                 </div>
 
                 <div class="bill-summary">
