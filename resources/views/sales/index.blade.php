@@ -125,6 +125,14 @@
         border: 1px solid #e5e7eb;
         border-radius: 8px;
         overflow: hidden;
+        /* Both panels fill the row, so they end level rather than a short cart
+           beside a tall item list. Each is capped to the screen and scrolls
+           its own list inside, so neither can push the other's controls -
+           Confirm Sale especially - below the fold. */
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        max-height: calc(100vh - 200px);
     }
 
     .sales-inventory-panel-header {
@@ -173,8 +181,8 @@
     }
 
     .sales-inventory-table-wrap {
-        max-height: calc(100vh - 320px);
-        min-height: 280px;
+        flex: 1 1 auto;
+        min-height: 200px;
         overflow-y: auto;
     }
 
@@ -370,6 +378,8 @@
         display: flex;
         flex-direction: column;
         min-height: 520px;
+        height: 100%;
+        max-height: calc(100vh - 200px);
     }
 
     .sales-cart-header {
@@ -417,7 +427,11 @@
 
     .sales-cart-table-wrap {
         flex: 1 1 auto;
-        max-height: 280px;
+        /* No cap: the cart's lines take whatever the panel has left after the
+           payment row and the total, so a basket of eight is read without
+           scrolling a 280px window. min-height:0 is what lets a flex item
+           shrink below its content and scroll instead. */
+        min-height: 0;
         overflow-y: auto;
     }
 
