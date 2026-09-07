@@ -30,7 +30,10 @@
   color: #1a3a6b !important;
   font-weight: 700 !important;
   font-size: 14px !important;
-  text-align: left !important;
+  /* No !important on the alignment: a column that asks to be centred or
+     right-aligned sets it inline, and an author !important beats an inline
+     rule - so this quietly made the component's `align` option do nothing. */
+  text-align: left;
   padding: 8px 12px !important;
   white-space: nowrap !important;
   border: 1px solid #e2e8f0 !important;
@@ -40,7 +43,7 @@
   color: #334155 !important;
   font-size: 14px !important;
   padding: 6px 12px !important;
-  text-align: left !important;
+  text-align: left;
   vertical-align: middle !important;
   white-space: nowrap !important;
   border: 1px solid #e2e8f0 !important;

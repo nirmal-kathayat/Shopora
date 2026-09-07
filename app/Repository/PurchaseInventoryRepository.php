@@ -202,17 +202,46 @@ class PurchaseInventoryRepository
         }
     }
 
-    public function getStoredRecords()
+    /**
+     * Units on hand per item: what purchases brought in, less what sales took
+     * out. One row per item that has ever moved.
+     *
+     * Returns the query rather than the rows, so the screen can page it.
+     */
+    public function getStoredRecords(array $options = [])
     {
-        return DB::table('inventory_stocks')
+        $query = DB::table('inventory_stocks')
             ->join('inventory_items', 'inventory_items.id', '=', 'inventory_stocks.inventory_item_id')
             ->select(
                 'inventory_stocks.inventory_item_id',
                 'inventory_items.title as inventory_title',
                 DB::raw('SUM(CASE WHEN inventory_stocks.purchase_inventory_id IS NOT NULL THEN inventory_stocks.qty ELSE 0 END) - SUM(CASE WHEN inventory_stocks.sales_id IS NOT NULL THEN inventory_stocks.qty ELSE 0 END) as net_qty')
             )
-            ->groupBy('inventory_stocks.inventory_item_id', 'inventory_items.title')
-            ->get();
+            ->groupBy('inventory_stocks.inventory_item_id', 'inventory_items.title');
+
+        // Both the header-row box and the search box ask the same question of
+        // the only text column there is, so they narrow the same way.
+        foreach (['inventory_title', 'search'] as $key) {
+            $value = trim((string) ($options[$key] ?? ''));
+            if ($value !== '') {
+                $query->where('inventory_items.title', 'like', '%' . $value . '%');
+            }
+        }
+
+        return $this->sortRecords($query, $options['sort_field'] ?? null, $options['sort_direction'] ?? null);
+    }
+
+    /** Order the records. By column name only - the field arrives in a URL. */
+    private function sortRecords($query, $field, $direction)
+    {
+        $sortable = ['inventory_title' => 'inventory_items.title', 'net_qty' => 'net_qty'];
+        $column = $sortable[$field] ?? null;
+
+        if (! $column) {
+            return $query->orderBy('inventory_items.title');
+        }
+
+        return $query->orderBy($column, strtolower((string) $direction) === 'asc' ? 'asc' : 'desc');
     }
 
     public function getPurchaseRecords($inventoryItemId)

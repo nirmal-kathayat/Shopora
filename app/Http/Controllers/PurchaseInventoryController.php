@@ -7,6 +7,7 @@ use App\Repository\CategoryRepository;
 use App\Repository\InventoryItemRepository;
 use App\Repository\PurchaseInventoryRepository;
 use DataTables;
+use Illuminate\Support\Facades\DB;
 
 class PurchaseInventoryController extends Controller
 {
@@ -135,19 +136,53 @@ class PurchaseInventoryController extends Controller
             return response()->json(['error' => 'Something went wrong!'], 500);
         }
     }
-    // store record details
+    /**
+     * Units on hand per item, and the JSON behind that table.
+     *
+     * A TableHelper, so the envelope is { success, data, total }. The query
+     * groups by item, and a grouped query cannot be counted with count(*) -
+     * that counts the groups' rows, not the groups - so the total is taken
+     * from the query wrapped as a subquery.
+     */
     public function storeDataDetails()
     {
         try {
-            if (request()->ajax()) {
-                $data = $this->purchaseInventoryRepo->getStoredRecords();
-                return DataTables::of($data)
-                    ->addIndexColumn()
-                    ->rawColumns([])
-                    ->make(true);
+            if (! request()->ajax()) {
+                return view('storeRecords.index');
             }
-            return view('storeRecords.index');
-        } catch (\Exception $e) {
+
+            $perPage = min(max((int) request()->input('per_page', 10), 1), 100);
+            $page = max((int) request()->input('page', 1), 1);
+
+            $query = $this->purchaseInventoryRepo->getStoredRecords([
+                'inventory_title' => request()->input('inventory_title'),
+                'search' => request()->input('search'),
+                'sort_field' => request()->input('sort_field'),
+                'sort_direction' => request()->input('sort_direction'),
+            ]);
+
+            $total = DB::table(DB::raw('(' . $query->toSql() . ') as grouped'))
+                ->mergeBindings($query)
+                ->count();
+
+            $rows = $query->skip(($page - 1) * $perPage)->take($perPage)->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => $rows,
+                'total' => $total,
+            ]);
+        } catch (\Throwable $e) {
+            \Log::error('Store records list failed: ' . $e->getMessage());
+
+            if (request()->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'title' => 'Could not load',
+                    'message' => 'The record list could not be loaded.',
+                ]);
+            }
+
             return redirect()->back()->with(['type' => 'error', 'message' => 'Something went wrong!']);
         }
     }
