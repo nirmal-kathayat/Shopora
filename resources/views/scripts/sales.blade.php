@@ -23,25 +23,33 @@
             toggleInventoryEmptyState();
         });
 
-        // Search functionality
-        $('#search-input').on('keyup', function() {
-            const searchTerm = $(this).val().toLowerCase();
+        /**
+         * Refetch the counter's item list for whatever the search box and the
+         * category select currently say. Both narrow the same query, so both
+         * go through here rather than one filtering the other's results.
+         */
+        window.reloadInventoryList = function() {
+            const category = $('#category-filter-select').val();
+
             $.ajax({
-                url: window.location.href,
+                url: '{{ route("admin.sales.index") }}',
                 method: 'GET',
                 data: {
-                    search: searchTerm
+                    search: $('#search-input').val(),
+                    category_id: category === 'all' ? '' : category
                 },
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                },
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
                 success: function(response) {
                     updateInventoryList(response.inventories);
                 },
                 error: function(xhr, status, error) {
-                    console.error('Search error:', error);
+                    console.error('Inventory list load failed:', error);
                 }
             });
+        };
+
+        $('#search-input').on('keyup', function() {
+            window.reloadInventoryList();
         });
 
         // Add inventory item to selected items
@@ -185,7 +193,7 @@
 
             const selectedCategory = $('#category-filter-select').val();
             if (selectedCategory && selectedCategory !== 'all' && String(item.category_id) !== String(selectedCategory)) {
-                $list.find('tr').first().hide();
+                $list.find('tr').first().remove();
             }
 
             toggleInventoryEmptyState();
@@ -324,17 +332,6 @@
             items.forEach(function(item) {
                 $inventoryListContainer.append(buildInventoryRow(item));
             });
-
-            const selectedCategory = $('#category-filter-select').val();
-            if (selectedCategory && selectedCategory !== 'all') {
-                $('#inventory-list tr.sales-inventory-row').each(function() {
-                    if ($(this).data('category') == selectedCategory) {
-                        $(this).show();
-                    } else {
-                        $(this).hide();
-                    }
-                });
-            }
 
             toggleInventoryEmptyState();
         }

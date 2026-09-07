@@ -22,6 +22,13 @@ class SalesController extends Controller
         $this->customerRepo = $customerRepo;
     }
 
+    /**
+     * How many items the counter's list holds at once. Enough for a mart's
+     * whole catalogue; the search and the category filter are what narrow a
+     * longer one.
+     */
+    private const COUNTER_LIST_LIMIT = 50;
+
     public function index(Request $request)
     {
         try {
@@ -29,7 +36,12 @@ class SalesController extends Controller
             $customers = $this->customerRepo->getCustomers();
             $term = $request->input('search');
             $paymentModes = DB::table('payment_modes')->get();
-            $inventories = $this->inventoryItemRepo->getInventoryItems()
+            // The counter's item list. The category is filtered here rather
+            // than in the browser: the page only ever holds a slice of the
+            // catalogue, so hiding rows client-side could only ever filter
+            // what happened to be loaded - pick a category whose items were
+            // not in that slice and the list came up empty.
+            $inventories = $this->inventoryItemRepo->getInventoryItems($request->input('category_id'))
                 ->select(
                     'inventory_items.id',
                     'inventory_items.title',
@@ -38,11 +50,18 @@ class SalesController extends Controller
                     'inventory_items.price_per_unit',
                     'inventory_items.category_id',
                     'inventory_items.image'
-                )
-                ->where('inventory_items.title', 'LIKE', "%{$term}%")
-                ->orWhere('inventory_items.code', 'LIKE', "%{$term}%")
-                ->limit(10)
-                ->get();
+                );
+
+            // Grouped, or the OR would reach back past the category filter and
+            // match a code in every aisle.
+            if ($term) {
+                $inventories->where(function ($query) use ($term) {
+                    $query->where('inventory_items.title', 'LIKE', "%{$term}%")
+                        ->orWhere('inventory_items.code', 'LIKE', "%{$term}%");
+                });
+            }
+
+            $inventories = $inventories->limit(self::COUNTER_LIST_LIMIT)->get();
             if ($request->ajax()) {
                 $inventories = $inventories->map(function ($item) {
                     $item->image_url = inventoryItemImageUrl($item->image);

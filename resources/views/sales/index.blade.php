@@ -1083,24 +1083,12 @@
             width: '100%'
         });
 
-        // Category filter handler
+        // Category filter handler. Asks the server, because the list only
+        // holds a slice of the catalogue - hiding rows here could only filter
+        // what happened to be loaded.
         $('#category-filter-select').on('change', function() {
-            const category = $(this).val();
-
-            if (category === 'all') {
-                $('#inventory-list tr.sales-inventory-row').show();
-            } else {
-                $('#inventory-list tr.sales-inventory-row').each(function() {
-                    if ($(this).data('category') == category) {
-                        $(this).show();
-                    } else {
-                        $(this).hide();
-                    }
-                });
-            }
-
-            if (typeof window.toggleInventoryEmptyState === 'function') {
-                window.toggleInventoryEmptyState();
+            if (typeof window.reloadInventoryList === 'function') {
+                window.reloadInventoryList();
             }
         });
         
