@@ -2,6 +2,7 @@
 
 namespace App\Repository;
 
+use App\Models\Admin;
 use App\Models\CartItem;
 use App\Models\Customer;
 use App\Models\CustomerAddress;
@@ -9,8 +10,10 @@ use App\Models\InventoryStock;
 use App\Models\Sales;
 use App\Models\SalesProduct;
 use App\Notifications\OrderNotification;
+use App\Notifications\ShopOrderNotification;
 use NepaliDate\Facades\NepaliDate;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -25,7 +28,7 @@ class OrderRepository
     public const DELIVERY_FEE = 100;
 
     /** How a chosen method maps to the payment-mode title on the sale. */
-    private const MODE_TITLES = [
+    public const MODE_TITLES = [
         'cod' => 'Cash on Delivery',
         'esewa' => 'eSewa',
     ];
@@ -127,6 +130,13 @@ class OrderRepository
             return $order;
         });
 
+        // Only a cash order counts as news here. An online one is still
+        // pending_payment - it may never be paid for - so the shop hears about
+        // it from settlePaid(), at the moment the money actually lands.
+        if ($order->status === 'placed') {
+            $this->tellShop($order, ShopOrderNotification::ORDER_PLACED);
+        }
+
         return [
             'order' => $order,
             'subtotal' => $subtotal,
@@ -220,6 +230,7 @@ class OrderRepository
                 ->delete();
 
             $this->tell($fresh, OrderNotification::PAYMENT_RECEIVED);
+            $this->tellShop($fresh, ShopOrderNotification::PAYMENT_RECEIVED);
 
             return true;
         });
@@ -230,11 +241,16 @@ class OrderRepository
      * units. Locked and status-checked, so a payment that settled in the
      * meantime can never be undone by a late failure.
      *
+     * $tellShop is off for housekeeping - clearing a customer's own abandoned
+     * attempt out of the way so they can try again. Nothing has been asked of
+     * the shop there, and a bell that rings every time somebody backs out of
+     * a gateway is a bell people stop reading.
+     *
      * @return bool true only for the call that actually cancelled it
      */
-    public function failPending(Sales $order): bool
+    public function failPending(Sales $order, bool $tellShop = true): bool
     {
-        return DB::transaction(function () use ($order) {
+        return DB::transaction(function () use ($order, $tellShop) {
             $fresh = Sales::whereKey($order->id)->lockForUpdate()->first();
 
             if (! $fresh || $fresh->status !== 'pending_payment') {
@@ -245,6 +261,10 @@ class OrderRepository
             $fresh->update(['status' => 'cancelled', 'payment_status' => 'failed']);
 
             $this->tell($fresh, OrderNotification::PAYMENT_FAILED);
+
+            if ($tellShop) {
+                $this->tellShop($fresh, ShopOrderNotification::PAYMENT_FAILED);
+            }
 
             return true;
         });
@@ -280,7 +300,7 @@ class OrderRepository
             ->get();
 
         foreach ($stale as $order) {
-            $this->failPending($order);
+            $this->failPending($order, tellShop: false);
         }
     }
 
@@ -351,6 +371,24 @@ class OrderRepository
     }
 
     /**
+     * The customer calling their own order off, from the storefront.
+     *
+     * Here rather than in the controller so that giving the units back and
+     * telling the shop cannot come apart - the shop may already be picking
+     * this order, and it has to hear before it is packed. The customer is not
+     * told: they are the one who did it.
+     */
+    public function cancelByCustomer(Sales $order): void
+    {
+        DB::transaction(function () use ($order) {
+            $this->releaseStock($order);
+            $order->update(['status' => 'cancelled']);
+
+            $this->tellShop($order, ShopOrderNotification::CUSTOMER_CANCELLED);
+        });
+    }
+
+    /**
      * Tell the customer what just happened to their order.
      *
      * This sits in the repository rather than the controllers on purpose: a
@@ -372,6 +410,35 @@ class OrderRepository
         DB::afterCommit(function () use ($order, $event) {
             $customer = Customer::find($order->customer_id);
             $customer?->notify(new OrderNotification($order, $event));
+        });
+    }
+
+    /**
+     * Tell the shop about an order it now has to do something about.
+     *
+     * Sits beside tell() for the same reason: a payment settles from two
+     * places, and the shop must hear about it from either. Deactivated staff
+     * are left out - they cannot sign in to read it, and their unread count
+     * would only grow.
+     *
+     * The total is worked out here rather than in the notification, so the
+     * figure written into the message is the same one the Orders screen and
+     * the bill show.
+     */
+    private function tellShop(Sales $order, string $event): void
+    {
+        if (($order->channel ?? 'counter') !== 'storefront') {
+            return;
+        }
+
+        $total = $this->total($order);
+
+        DB::afterCommit(function () use ($order, $event, $total) {
+            $staff = Admin::where('status', 1)->get();
+
+            if ($staff->isNotEmpty()) {
+                Notification::send($staff, new ShopOrderNotification($order, $event, $total));
+            }
         });
     }
 }

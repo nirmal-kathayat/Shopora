@@ -7,6 +7,35 @@
 
             <div class="top-menu ms-auto">
                 <ul class="navbar-nav align-items-center gap-1">
+                    @php($bellUnread = \Auth::guard('admin')->user()?->unreadNotifications()->count() ?? 0)
+                    <li class="nav-item shopora-bell" id="shoporaBell">
+                        <button type="button"
+                                class="shopora-bell-btn"
+                                id="shoporaBellBtn"
+                                aria-expanded="false"
+                                aria-haspopup="true"
+                                aria-label="Notifications">
+                            <i class='bx bx-bell'></i>
+                            {{-- rendered server-side so the count is right on the
+                                 first paint, before the poll has run once --}}
+                            <span class="shopora-bell-count"
+                                  id="shoporaBellCount"
+                                  @if(! $bellUnread) hidden @endif>{{ $bellUnread > 9 ? '9+' : $bellUnread }}</span>
+                        </button>
+
+                        <div class="shopora-bell-panel" id="shoporaBellPanel" hidden>
+                            <div class="shopora-bell-head">
+                                <h6>Notifications</h6>
+                                <button type="button"
+                                        class="shopora-bell-readall"
+                                        id="shoporaBellReadAll"
+                                        @if(! $bellUnread) disabled @endif>Mark all read</button>
+                            </div>
+                            <ul class="shopora-bell-list" id="shoporaBellList"></ul>
+                            <button type="button" class="shopora-bell-more" id="shoporaBellMore" hidden>Load more</button>
+                        </div>
+                    </li>
+
                     <li class="nav-item dark-mode d-none d-sm-flex">
                         <a class="nav-link dark-mode-icon" href="javascript:;"><i class='bx bx-moon'></i>
                         </a>
@@ -46,3 +75,14 @@
     </div>
 </header>
 <!--end header -->
+
+<script>
+    window.SHOPORA_BELL = {
+        index: "{{ route('admin.notifications') }}",
+        unreadCount: "{{ route('admin.notifications.unreadCount') }}",
+        read: "{{ route('admin.notifications.read', ['id' => ':id']) }}",
+        readAll: "{{ route('admin.notifications.readAll') }}",
+        destroy: "{{ route('admin.notifications.destroy', ['id' => ':id']) }}",
+        unread: {{ $bellUnread }},
+    };
+</script>

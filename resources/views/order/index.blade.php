@@ -336,7 +336,14 @@
         $('#statusFilter').on('change', () => table.draw());
 
         $('#orderTable').on('click', '.viewOrder', function() {
-            openOrderId = $(this).data('id');
+            openOrder($(this).data('id'));
+        });
+
+        // Also reachable as ?order=123 - that is the link the header bell puts
+        // on a notification, so tapping "New order" lands on the order itself
+        // rather than on a list to go hunting through.
+        function openOrder(id) {
+            openOrderId = id;
             const url = "{{ route('admin.order.show', ['id' => ':id']) }}".replace(':id', openOrderId);
 
             $('#orderModalBody').html('<p class="text-muted mb-0">Loading...</p>');
@@ -428,7 +435,15 @@
             }).fail(function() {
                 $('#orderModalBody').html('<p class="text-danger mb-0">Could not load that order.</p>');
             });
-        });
+        }
+
+        const wanted = new URLSearchParams(window.location.search).get('order');
+        if (wanted) {
+            openOrder(wanted);
+            // Drop it from the address bar, so a refresh does not reopen a
+            // modal the admin has already dealt with and closed.
+            window.history.replaceState({}, '', window.location.pathname);
+        }
 
         $('#orderStatusSave').on('click', function() {
             if (!openOrderId) return;
@@ -441,7 +456,7 @@
             }).done(function(response) {
                 bootstrap.Modal.getInstance(document.getElementById('orderModal')).hide();
                 table.draw(false);
-                shoporaToast.info(response.message, timer: 1800, showConfirmButton: false);
+                shoporaToast.info(response.message);
             }).fail(function(xhr) {
                 shoporaToast.error((xhr.responseJSON && xhr.responseJSON.message) || 'Could not update that order.');
             }).always(function() {

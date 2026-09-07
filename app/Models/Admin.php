@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -9,6 +10,14 @@ use IAnanta\UserManagement\Models\Admin as VendorAdmin;
 
 class Admin extends VendorAdmin
 {
+    /**
+     * The shop's own bell reads out of the same `notifications` table the
+     * storefront already uses. It is polymorphic, so an admin's news and a
+     * customer's news sit side by side and are told apart by notifiable_type -
+     * no second table, no second set of read/unread plumbing.
+     */
+    use Notifiable;
+
     public function allViewPermissions()
     {
         if (static::$allViewPermissions === null) {

@@ -9,6 +9,7 @@ use App\Http\Controllers\DealSectionController;
 use App\Http\Controllers\HeroSectionController;
 use App\Http\Controllers\InventoryItemController;
 use App\Http\Controllers\InvoiceController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\PurchaseInventoryController;
@@ -104,6 +105,20 @@ Route::group(['prefix' => 'admin'], function () {
         Route::get('/', [ReviewController::class, 'index'])->name('admin.review');
         Route::get('/delete/{id}', [ReviewController::class, 'delete'])->name('admin.review.delete');
     });
+    // the header bell - every signed-in admin reads their own, so these are
+    // in config/permission.php's allow list rather than behind a role
+    Route::group(['prefix' => 'notifications'], function () {
+        Route::get('/', [NotificationController::class, 'index'])->name('admin.notifications');
+        Route::get('/unread-count', [NotificationController::class, 'unreadCount'])
+            ->name('admin.notifications.unreadCount');
+        Route::post('/read-all', [NotificationController::class, 'markAllRead'])
+            ->name('admin.notifications.readAll');
+        Route::post('/{id}/read', [NotificationController::class, 'markRead'])
+            ->name('admin.notifications.read');
+        Route::delete('/{id}', [NotificationController::class, 'destroy'])
+            ->name('admin.notifications.destroy');
+    });
+
     // storefront orders
     Route::group(['prefix' => 'order'], function () {
         Route::get('/', [OrderController::class, 'index'])->name('admin.order');

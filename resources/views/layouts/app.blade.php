@@ -5,10 +5,13 @@
     <!-- Required meta tags -->
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    {{-- read by scripts in public/assets, which cannot render a Blade token --}}
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <!--favicon-->
     <link rel="icon" href="{{ asset('assets/images/shopora.png') }}" type="image/png" />
     <!--plugins-->
     <link href="{{asset('assets/css/toast.css')}}?v=1" rel="stylesheet" />
+    <link href="{{asset('assets/css/notification-bell.css')}}?v=1" rel="stylesheet" />
     @yield("style")
     @stack('style')
     <link href="{{asset('assets/plugins/simplebar/css/simplebar.css')}}" rel="stylesheet" />
@@ -68,6 +71,8 @@
     <script src="{{asset('assets/plugins/perfect-scrollbar/js/perfect-scrollbar.js')}}"></script>
     <script src="{{asset('assets/plugins/sweetalert2/sweetalert2.all.min.js')}}"></script>
     <script src="{{asset('assets/js/toast.js')}}?v=1"></script>
+    {{-- after the header, which sets window.SHOPORA_BELL --}}
+    <script src="{{asset('assets/js/notification-bell.js')}}?v=1"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
     <script>

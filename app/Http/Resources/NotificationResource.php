@@ -6,8 +6,12 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
- * One notification, flattened for the storefront. Laravel keeps the message in
- * a JSON `data` column; the client should not have to know that.
+ * One notification, flattened. Laravel keeps the message in a JSON `data`
+ * column; neither the storefront nor the admin bell should have to know that.
+ *
+ * Both sides read through here. The keys a customer's message never carries -
+ * amount, customer - come back null for it, which is cheaper than a second
+ * near-identical resource that would drift from this one.
  */
 class NotificationResource extends JsonResource
 {
@@ -23,6 +27,8 @@ class NotificationResource extends JsonResource
             'url' => $data['url'] ?? null,
             'order_code' => $data['order_code'] ?? null,
             'status' => $data['status'] ?? null,
+            'amount' => $data['amount'] ?? null,
+            'customer' => $data['customer'] ?? null,
             'is_read' => $this->read_at !== null,
             'read_at' => $this->read_at?->toIso8601String(),
             'created_at' => $this->created_at?->toIso8601String(),

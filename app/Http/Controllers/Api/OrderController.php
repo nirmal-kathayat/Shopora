@@ -9,7 +9,6 @@ use App\Models\Sales;
 use App\Repository\OrderRepository;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -91,10 +90,7 @@ class OrderController extends Controller
             ]);
         }
 
-        DB::transaction(function () use ($order) {
-            $this->orders->releaseStock($order);
-            $order->update(['status' => 'cancelled']);
-        });
+        $this->orders->cancelByCustomer($order);
 
         return response()->json([
             'order' => new OrderResource($order->fresh()->load('products.inventoryItem:id,title,image')),

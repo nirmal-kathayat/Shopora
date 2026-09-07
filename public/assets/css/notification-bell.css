@@ -1,0 +1,275 @@
+/* ===== Shopora admin bell =====
+   Storefront orders arrive while nobody is looking at the Orders screen. This
+   is what brings them to whoever is at the counter, instead of waiting for
+   somebody to think to refresh.
+
+   Same vocabulary as the toast: white card, 10px radius, one tone colour per
+   kind of news carried on --tone. */
+
+.shopora-bell {
+    position: relative;
+}
+
+.shopora-bell-btn {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: inherit;
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.shopora-bell-btn:hover,
+.shopora-bell.is-open .shopora-bell-btn {
+    background: rgba(15, 23, 42, 0.06);
+}
+
+/* The count, not just a dot: "3 orders waiting" and "1 order waiting" are
+   different amounts of getting up. 9+ past that, because the exact number
+   stops mattering once it is that many. */
+.shopora-bell-count {
+    position: absolute;
+    top: 2px;
+    right: 0;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 9px;
+    background: #dc2626;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 18px;
+    text-align: center;
+}
+
+.shopora-bell-count[hidden] {
+    display: none;
+}
+
+/* ---- the panel ---- */
+.shopora-bell-panel {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    z-index: 1600;
+    width: 380px;
+    max-width: calc(100vw - 24px);
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 18px 44px -16px rgba(15, 23, 42, 0.32);
+    overflow: hidden;
+}
+
+.shopora-bell-panel[hidden] {
+    display: none;
+}
+
+.shopora-bell-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 13px 16px;
+    border-bottom: 1px solid #eef0f3;
+}
+
+.shopora-bell-head h6 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 700;
+    color: #1f2937;
+}
+
+.shopora-bell-readall {
+    border: 0;
+    background: none;
+    padding: 0;
+    color: #0bb2d3;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.shopora-bell-readall:disabled {
+    color: #9aa4ae;
+    cursor: default;
+}
+
+.shopora-bell-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    max-height: 380px;
+    overflow-y: auto;
+}
+
+/* ---- one notification ---- */
+.shopora-bell-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 11px;
+    padding: 12px 14px 12px 16px;
+    border-bottom: 1px solid #f2f4f6;
+}
+
+.shopora-bell-item:last-child {
+    border-bottom: 0;
+}
+
+.shopora-bell-item.is-unread {
+    background: #f6fbfd;
+}
+
+.shopora-bell-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    flex: 0 0 auto;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--tone, #64748b) 14%, #fff);
+    color: var(--tone, #64748b);
+    font-size: 17px;
+}
+
+.shopora-bell-item.is-placed { --tone: #0bb2d3; }
+.shopora-bell-item.is-paid { --tone: #16a34a; }
+.shopora-bell-item.is-failed { --tone: #dc2626; }
+.shopora-bell-item.is-cancelled { --tone: #f59e0b; }
+
+/* The whole row is the link. A notification exists to be acted on, so the
+   target should be the row, not a word inside it. */
+.shopora-bell-open {
+    flex: 1 1 auto;
+    min-width: 0;
+    border: 0;
+    padding: 0;
+    background: none;
+    text-align: left;
+    cursor: pointer;
+}
+
+.shopora-bell-title {
+    display: block;
+    font-size: 13px;
+    font-weight: 700;
+    color: #1f2937;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.shopora-bell-text {
+    display: block;
+    margin-top: 2px;
+    font-size: 12.5px;
+    color: #5b6773;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.shopora-bell-when {
+    display: block;
+    margin-top: 3px;
+    font-size: 11.5px;
+    color: #98a2ac;
+}
+
+.shopora-bell-dot {
+    width: 8px;
+    height: 8px;
+    flex: 0 0 auto;
+    margin-top: 6px;
+    border-radius: 50%;
+    background: #dc2626;
+}
+
+.shopora-bell-remove {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    flex: 0 0 auto;
+    border: 0;
+    border-radius: 6px;
+    background: none;
+    color: #b3bcc5;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.shopora-bell-remove:hover {
+    background: #fdecec;
+    color: #dc2626;
+}
+
+/* ---- states ---- */
+.shopora-bell-empty {
+    padding: 34px 20px;
+    text-align: center;
+    color: #8d97a1;
+    font-size: 13px;
+}
+
+.shopora-bell-more {
+    display: block;
+    width: 100%;
+    padding: 11px;
+    border: 0;
+    border-top: 1px solid #eef0f3;
+    background: #fafbfc;
+    color: #0bb2d3;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.shopora-bell-more:disabled {
+    color: #9aa4ae;
+    cursor: default;
+}
+
+.shopora-bell-more[hidden] {
+    display: none;
+}
+
+/* ---- dark theme ---- */
+html.dark-theme .shopora-bell-btn:hover,
+html.dark-theme .shopora-bell.is-open .shopora-bell-btn { background: rgba(255, 255, 255, 0.08); }
+html.dark-theme .shopora-bell-panel { border-color: #2b333a; background: #16212b; }
+html.dark-theme .shopora-bell-head { border-bottom-color: #2b333a; }
+html.dark-theme .shopora-bell-head h6 { color: #e7ecef; }
+html.dark-theme .shopora-bell-item { border-bottom-color: #222c35; }
+html.dark-theme .shopora-bell-item.is-unread { background: #1b2831; }
+html.dark-theme .shopora-bell-icon { background: color-mix(in srgb, var(--tone, #64748b) 22%, #16212b); }
+html.dark-theme .shopora-bell-title { color: #e7ecef; }
+html.dark-theme .shopora-bell-text { color: #aab3bb; }
+html.dark-theme .shopora-bell-when { color: #7d8891; }
+html.dark-theme .shopora-bell-more { border-top-color: #2b333a; background: #131c24; }
+html.dark-theme .shopora-bell-remove:hover { background: #3a2020; }
+
+/* ---- narrow screens: the panel becomes the width of the screen ---- */
+@media (max-width: 575.98px) {
+    .shopora-bell-panel {
+        position: fixed;
+        top: 66px;
+        right: 12px;
+        left: 12px;
+        width: auto;
+    }
+}
