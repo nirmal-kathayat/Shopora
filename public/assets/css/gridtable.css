@@ -397,13 +397,18 @@
   background-color: #e3f2fd !important;
 }
 
-/* ===== dark theme =====
-   The panel has a dark mode and this skin was written light-only, so a table
-   stayed a white slab on a black page. These override both this file and the
-   colours table-helper.js injects at runtime, which is why they repeat
-   !important - the rules they are beating use it too.
+/* ===== dark theme - OFF for now =====
+   Kept rather than deleted: the panel has a dark mode toggle, and without
+   these the grid stays a white slab on a black page. Delete this comment's
+   two markers to turn it back on.
 
-   Same values as the toast and the header bell, so the three agree. */
+   What the rules were doing:
+   - They beat both this file and the colours table-helper.js injects at
+     runtime, which is why they repeat !important - so do the rules they beat.
+   - The values match the toast and the header bell, so the three agree.
+   - The extra .input-group in the search selector is not decoration: the
+     runtime CSS paints that input with three classes and !important, and
+     anything shorter loses to it.
 
 html.dark-theme .shopora-grid table,
 html.dark-theme .shopora-grid th,
@@ -430,7 +435,7 @@ html.dark-theme .shopora-grid tbody tr:hover td {
     background-color: #1b2831 !important;
 }
 
-/* the header filter row */
+ the header filter row 
 html.dark-theme .shopora-grid thead input,
 html.dark-theme .shopora-grid thead select {
     background-color: #0d1315 !important;
@@ -438,10 +443,10 @@ html.dark-theme .shopora-grid thead select {
     color: #eef1f3 !important;
 }
 
-/* The search box and the pager sit outside the grid container.
+ The search box and the pager sit outside the grid container.
    The extra .input-group in the selector is not decoration: the runtime CSS
    paints this input with `.op-search-container .input-group .form-control`,
-   three classes and !important, so anything shorter loses to it. */
+   three classes and !important, so anything shorter loses to it. 
 html.dark-theme .th-search .input-group .form-control,
 html.dark-theme .th-search .input-group .input-group-text {
     background: #0d1315 !important;
@@ -480,3 +485,4 @@ html.dark-theme .th-pagination label {
 html.dark-theme .th-pagination label {
     background: none;
 }
+*/

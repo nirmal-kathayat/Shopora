@@ -118,6 +118,7 @@
         box-shadow: 0 0 0 3px rgba(0, 140, 255, 0.12);
     }
 
+    /* dark theme - OFF for now, same as the grid's own block in gridtable.css
     html.dark-theme .shopora-date-filter .select2-container--default .select2-selection--single {
         background: #0d1315;
         border-color: #2a3236;
@@ -126,6 +127,7 @@
     html.dark-theme .shopora-date-filter .select2-selection__rendered {
         color: #eef1f3 !important;
     }
+    */
     
     .shopora-date-filter .select2-container--default .select2-selection--single .select2-selection__rendered {
         padding: 0;
