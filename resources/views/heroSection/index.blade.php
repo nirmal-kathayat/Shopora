@@ -1,7 +1,7 @@
 @extends("layouts.app")
 
 @section("style")
-<link href="{{asset('assets/plugins/datatable/css/dataTables.bootstrap5.min.css')}}" rel="stylesheet" />
+<link href="{{asset('assets/css/gridtable.css')}}?v=1" rel="stylesheet" />
 <style>
     .hero-thumb {
         width: 76px;
@@ -19,6 +19,9 @@
     }
     .hero-heading-cell {
         max-width: 420px;
+        /* The headline is a sentence, so let it wrap instead of widening
+           the column past everything else on the row. */
+        white-space: normal;
     }
 </style>
 @endsection
@@ -59,20 +62,9 @@
 
         <div class="card">
             <div class="card-body">
-                <div class="table-responsive">
-                    <table id="heroTable" class="table table-striped table-bordered" style="width:100%">
-                        <thead>
-                            <tr>
-                                <th>S.no</th>
-                                <th>Preview</th>
-                                <th>Heading</th>
-                                <th>Status</th>
-                                <th>Last updated</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                    </table>
-                </div>
+                {{-- TableHelper renders the whole table in here: header,
+                     filter row, body, pager and the search box above it. --}}
+                <div id="hero-grid" class="shopora-grid"></div>
             </div>
         </div>
     </div>
@@ -80,113 +72,117 @@
 @endsection
 
 @section("script")
-<script src="{{asset('assets/plugins/datatable/js/jquery.dataTables.min.js')}}"></script>
-<script src="{{asset('assets/plugins/datatable/js/dataTables.bootstrap5.min.js')}}"></script>
+<script src="{{asset('assets/js/table-helper.js')}}?v=1"></script>
 <script>
+    let table;
+
     $(document).ready(function() {
-        const table = $('#heroTable').DataTable({
-            processing: true,
-            serverSide: true,
-            ajax: "{{ route('admin.heroSection') }}",
-            columns: [{
-                    data: 'id',
-                    name: 'id',
-                    searchable: false,
-                    orderable: false,
-                    render: function(data, type, full, meta) {
-                        return meta.row + 1;
-                    }
+        const esc = TableHelper.escape;
+        const editUrl = "{{ route('admin.heroSection.edit', ['id' => ':id']) }}";
+
+        table = new TableHelper({
+            containerId: 'hero-grid',
+            apiUrl: "{{ route('admin.heroSection') }}",
+            perPage: 10,
+            pagination: true,
+            // Banners are edited one at a time - no select column.
+            enableCheckbox: false,
+            emptyMessage: 'No hero sections match this search',
+
+            columns: [
+                { name: 'S.no', isSerialNo: true, width: '64px', align: 'center' },
+                {
+                    name: 'Preview',
+                    field: 'image_url',
+                    width: '100px',
+                    render: (row) => row.image_url
+                        ? `<img src="${esc(row.image_url)}" class="hero-thumb" alt="">`
+                        : `<div class="hero-thumb hero-thumb-empty"><i class="bx bx-image"></i></div>`
                 },
                 {
-                    data: 'image_url',
-                    name: 'image',
-                    orderable: false,
-                    searchable: false,
-                    render: function(data) {
-                        return data
-                            ? `<img src="${data}" class="hero-thumb" alt="">`
-                            : `<div class="hero-thumb hero-thumb-empty"><i class="bx bx-image"></i></div>`;
-                    }
-                },
-                {
-                    data: 'heading',
-                    name: 'heading',
-                    orderable: false,
-                    render: function(data, type, full) {
-                        const badge = full.badge_text
-                            ? `<div class="small text-muted">${$('<div>').text(full.badge_text).html()}</div>`
+                    name: 'Heading',
+                    field: 'heading',
+                    render: (row) => {
+                        const badge = row.badge_text
+                            ? `<div class="small text-muted">${esc(row.badge_text)}</div>`
                             : '';
-                        return `<div class="hero-heading-cell"><div class="fw-semibold">${$('<div>').text(data || '').html()}</div>${badge}</div>`;
+                        return `<div class="hero-heading-cell"><div class="fw-semibold">${esc(row.heading)}</div>${badge}</div>`;
                     }
                 },
                 {
                     // Active is the one the storefront is serving right now.
-                    data: 'status',
-                    name: 'status',
-                    orderable: false,
-                    searchable: false,
-                    render: function(data) {
-                        return Number(data)
-                            ? '<span class="badge bg-success">Active</span>'
-                            : '<span class="badge bg-secondary">Inactive</span>';
-                    }
+                    name: 'Status',
+                    field: 'status',
+                    align: 'center',
+                    render: (row) => Number(row.status)
+                        ? '<span class="badge bg-success">Active</span>'
+                        : '<span class="badge bg-secondary">Inactive</span>'
                 },
+                { name: 'Last updated', field: 'updated_at' },
                 {
-                    data: 'updated_at',
-                    name: 'updated_at',
-                    orderable: false,
-                    searchable: false,
-                },
-                {
-                    data: 'action',
-                    name: 'action',
-                    orderable: false,
-                    searchable: false,
-                    render: function(data, type, full, meta) {
-                        var editUrl = "{{route('admin.heroSection.edit', ['id' => ':id'])}}".replace(':id', full.id);
-                        var deleteButton = `<a class="btn btn-danger deleteAction btn-sm" href="javascript:void(0)" data-id="${full.id}" data-active="${Number(full.status)}"><i class="bx bx-trash"></i></a>`;
-                        var editButton = `<a class="btn btn-primary btn-sm" href="${editUrl}"><i class="bx bx-edit"></i></a>`;
-                        return `<div class="d-flex gap-sm">${editButton} ${deleteButton}</div>`;
-                    }
-                }
-            ]
-        });
-
-        $('#heroTable').on('click', '.deleteAction', function(e) {
-            e.preventDefault();
-            var heroId = $(this).data('id');
-            var isActive = Number($(this).data('active')) === 1;
-            var deleteUrl = "{{ route('admin.heroSection.delete', ['id' => ':id']) }}".replace(':id', heroId);
-
-            Swal.fire({
-                title: 'Are you sure?',
-                // Deleting the active hero leaves the storefront on its
-                // built-in copy, worth saying out loud before it happens.
-                text: isActive
-                    ? "This one is active. Deleting it leaves the homepage on its default banner."
-                    : "You won't be able to revert this!",
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#3085d6',
-                cancelButtonColor: '#d33',
-                confirmButtonText: 'Yes, delete it!'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    $.ajax({
-                        url: deleteUrl,
-                        type: 'GET',
-                        data: { "_token": "{{ csrf_token() }}" },
-                        success: function() {
-                            shoporaToast.success('The hero section has been deleted.', 'Deleted!');
-                            table.ajax.reload(null, false);
-                        },
-                        error: function() {
-                            shoporaToast.error('Something went wrong while deleting.', 'Error!');
+                    name: 'Action',
+                    type: 'actions',
+                    actions: [
+                        { type: 'edit', title: 'Edit', showLabel: false, url: editUrl.replace(':id', '{id}') },
+                        {
+                            type: 'delete',
+                            title: 'Delete',
+                            showLabel: false,
+                            onClick: (row) => confirmDelete(row)
                         }
-                    });
+                    ]
                 }
-            });
+            ],
+
+            enableSortColumns: ['heading', 'status', 'updated_at'],
+
+            // No filter bar above this table, same as Categories: a shop keeps
+            // a handful of banners, and the header row is enough to find one.
+            filters: {
+                autoGenerateColumnFilters: false,
+                columnFilters: [
+                    { field: 'heading', type: 'text', param: 'heading', placeholder: 'Heading' },
+                    {
+                        field: 'status',
+                        type: 'select',
+                        param: 'status',
+                        options: [
+                            { value: '1', text: 'Active' },
+                            { value: '0', text: 'Inactive' }
+                        ]
+                    }
+                ]
+            },
+
+            search: { placeholder: 'Search heading, badge or button...' }
         });
     });
+
+    function confirmDelete(row) {
+        const deleteUrl = "{{ route('admin.heroSection.delete', ['id' => ':id']) }}".replace(':id', row.id);
+
+        Swal.fire({
+            title: 'Are you sure?',
+            // Deleting the active hero leaves the storefront on its
+            // built-in copy, worth saying out loud before it happens.
+            text: Number(row.status)
+                ? "This one is active. Deleting it leaves the homepage on its default banner."
+                : "You won't be able to revert this!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Yes, delete it!'
+        }).then((result) => {
+            if (!result.isConfirmed) return;
+
+            $.get(deleteUrl, { "_token": "{{ csrf_token() }}" })
+                .done(() => {
+                    shoporaToast.success('The hero section has been deleted.', 'Deleted!');
+                    table.refresh();
+                })
+                .fail(() => shoporaToast.error('Something went wrong while deleting.', 'Error!'));
+        });
+    }
 </script>
 @endsection

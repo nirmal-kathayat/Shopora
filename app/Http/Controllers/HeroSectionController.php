@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\HeroSectionRequest;
 use App\Repository\HeroSectionRepository;
-use Yajra\DataTables\DataTables;
 
 class HeroSectionController extends Controller
 {
@@ -15,23 +14,54 @@ class HeroSectionController extends Controller
         $this->heroRepo = $heroRepo;
     }
 
+    /**
+     * The screen, and the JSON behind its table.
+     *
+     * A TableHelper, so the envelope is { success, data, total }.
+     */
     public function index()
     {
         try {
-            if (request()->ajax()) {
-                $heroes = $this->heroRepo->getHeroSections();
-
-                return DataTables::of($heroes)
-                    ->addIndexColumn()
-                    ->editColumn('heading', fn ($hero) => strip_tags(str_replace(["\r\n", "\n", '*'], [' ', ' ', ''], $hero->heading)))
-                    ->editColumn('updated_at', fn ($hero) => $hero->updated_at?->format('d M Y, g:i a'))
-                    ->addColumn('image_url', fn ($hero) => inventoryItemImageUrl($hero->image))
-                    ->rawColumns([])
-                    ->make(true);
+            if (! request()->ajax()) {
+                return view('heroSection.index');
             }
 
-            return view('heroSection.index');
-        } catch (\Exception $e) {
+            $perPage = min(max((int) request()->input('per_page', 10), 1), 100);
+            $page = max((int) request()->input('page', 1), 1);
+
+            $rows = $this->heroRepo->getHeroSectionsForListing([
+                'heading' => request()->input('heading'),
+                'status' => request()->input('status'),
+                'search' => request()->input('search'),
+                'sort_field' => request()->input('sort_field'),
+                'sort_direction' => request()->input('sort_direction'),
+            ])->paginate($perPage, ['*'], 'page', $page);
+
+            return response()->json([
+                'success' => true,
+                'data' => collect($rows->items())->map(fn ($hero) => [
+                    'id' => $hero->id,
+                    // The heading is written with line breaks and * markers for
+                    // the storefront's own emphasis; the table wants one line.
+                    'heading' => strip_tags(str_replace(["\r\n", "\n", '*'], [' ', ' ', ''], (string) $hero->heading)),
+                    'badge_text' => $hero->badge_text,
+                    'status' => (int) $hero->status,
+                    'image_url' => $hero->image ? inventoryItemImageUrl($hero->image) : null,
+                    'updated_at' => $hero->updated_at?->format('d M Y, g:i a'),
+                ]),
+                'total' => $rows->total(),
+            ]);
+        } catch (\Throwable $e) {
+            \Log::error('Hero section list failed: ' . $e->getMessage());
+
+            if (request()->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'title' => 'Could not load',
+                    'message' => 'The hero section list could not be loaded.',
+                ]);
+            }
+
             return redirect()->back()->with(['message' => 'Something went wrong!', 'type' => 'error']);
         }
     }
