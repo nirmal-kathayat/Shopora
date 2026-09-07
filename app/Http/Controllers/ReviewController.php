@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\ProductReview;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Yajra\DataTables\DataTables;
 
 /**
@@ -70,7 +71,12 @@ class ReviewController extends Controller
 
             $perPage = min(max((int) $request->input('per_page', 10), 1), 100);
             $page = max((int) $request->input('page', 1), 1);
-            $total = $query->getCountForPagination();
+            // Counted through a subquery. getCountForPagination() on this
+            // joined Eloquent query hands back an object, not a number, and
+            // the pager reads "of [object Object] entries".
+            $total = DB::table(DB::raw('(' . $query->toSql() . ') as counted'))
+                ->mergeBindings($query->getQuery())
+                ->count();
 
             return response()->json([
                 'success' => true,
