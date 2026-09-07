@@ -36,10 +36,15 @@
                         </div>
                     </li>
 
+                    {{-- Dark mode toggle - off for now. The handlers in app.js
+                         and on the dashboard bind to .dark-mode, so they simply
+                         never fire; put this back to turn it on again. --}}
+                    {{--
                     <li class="nav-item dark-mode d-none d-sm-flex">
                         <a class="nav-link dark-mode-icon" href="javascript:;"><i class='bx bx-moon'></i>
                         </a>
                     </li>
+                    --}}
                 </ul>
             </div>
 
