@@ -14,6 +14,55 @@ class CustomerRepository
     }
     public function getCustomers()
     {
+        return $this->baseListing()->orderBy('customers.id', 'desc');
+    }
+
+    /**
+     * The customer list, filtered and sorted for the table.
+     *
+     * The address count is a subquery rather than a join, so a customer with
+     * three saved addresses is still one row.
+     */
+    public function getCustomersForListing(array $options = [])
+    {
+        $query = $this->baseListing();
+
+        // Header-row filters: one box per column, each its own LIKE.
+        foreach (['name', 'email', 'ph_number'] as $column) {
+            $value = trim((string) ($options[$column] ?? ''));
+            if ($value !== '') {
+                $query->where('customers.' . $column, 'like', '%' . $value . '%');
+            }
+        }
+
+        // One box over the whole row - a phone number is how most people are
+        // looked up at the counter, a name or an email everywhere else.
+        $search = trim((string) ($options['search'] ?? ''));
+        if ($search !== '') {
+            $query->where(function ($q) use ($search) {
+                $like = '%' . $search . '%';
+                $q->where('customers.name', 'like', $like)
+                    ->orWhere('customers.email', 'like', $like)
+                    ->orWhere('customers.ph_number', 'like', $like)
+                    ->orWhere('customers.address', 'like', $like)
+                    ->orWhere('customers.pan_number', 'like', $like);
+            });
+        }
+
+        // Storefront sign-ups only, or counter walk-ins only.
+        $account = trim((string) ($options['is_registered'] ?? ''));
+        if ($account === '1') {
+            $query->whereNotNull('customers.password');
+        } elseif ($account === '0') {
+            $query->whereNull('customers.password');
+        }
+
+        return $this->sortListing($query, $options['sort_field'] ?? null, $options['sort_direction'] ?? null);
+    }
+
+    /** The select every customer listing shares. */
+    private function baseListing()
+    {
         return Customer::query()
             ->select([
                 'customers.id',
@@ -33,8 +82,32 @@ class CustomerRepository
                     ->selectRaw('count(*)')
                     ->whereColumn('customer_addresses.customer_id', 'customers.id'),
                 'address_count'
-            )
-            ->orderBy('customers.id', 'desc');
+            );
+    }
+
+    /**
+     * Order the listing. By column name only - the field arrives in a query
+     * string, and a column name is not something to take on trust.
+     */
+    private function sortListing($query, $field, $direction)
+    {
+        $sortable = [
+            'name' => 'customers.name',
+            'email' => 'customers.email',
+            'ph_number' => 'customers.ph_number',
+            'address' => 'customers.address',
+            'pan_number' => 'customers.pan_number',
+            'created_at' => 'customers.created_at',
+            'is_registered' => 'is_registered',
+            'address_count' => 'address_count',
+        ];
+
+        $column = $sortable[$field] ?? null;
+        if (! $column) {
+            return $query->orderBy('customers.id', 'desc');
+        }
+
+        return $query->orderBy($column, strtolower((string) $direction) === 'asc' ? 'asc' : 'desc');
     }
 
     public function storeCustomer(array $data)

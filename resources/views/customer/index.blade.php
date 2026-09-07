@@ -1,7 +1,7 @@
 @extends("layouts.app")
 
 @section("style")
-<link href="{{asset('assets/plugins/datatable/css/dataTables.bootstrap5.min.css')}}" rel="stylesheet" />
+<link href="{{asset('assets/css/gridtable.css')}}?v=1" rel="stylesheet" />
 @endsection
 
 @section("wrapper")
@@ -30,24 +30,9 @@
         <hr />
         <div class="card">
             <div class="card-body">
-                <div class="table-responsive">
-                    <table id="customerTable" class="table table-striped table-bordered" style="width:100%">
-                        <thead>
-                            <tr>
-                                <th>S.no</th>
-                                <th>Name</th>
-                                <th>Email</th>
-                                <th>Phone Number</th>
-                                <th>Address</th>
-                                <th>Saved</th>
-                                <th>PAN Number</th>
-                                <th>Account</th>
-                                <th>Added</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                    </table>
-                </div>
+                {{-- TableHelper renders the whole table in here: header,
+                     filter row, body, pager and the search box above it. --}}
+                <div id="customer-grid" class="shopora-grid"></div>
             </div>
         </div>
     </div>
@@ -84,181 +69,173 @@
 @endsection
 
 @section("script")
-<script src="{{asset('assets/plugins/datatable/js/jquery.dataTables.min.js')}}"></script>
-<script src="{{asset('assets/plugins/datatable/js/dataTables.bootstrap5.min.js')}}"></script>
+<script src="{{asset('assets/js/table-helper.js')}}?v=1"></script>
 <script>
+    let table;
+
     // Empty cells read better as a dash than as a blank or "null".
-    function dash(data) {
-        return (data === null || data === '') ? '<span class="text-muted">&mdash;</span>' : data;
+    function dash(value) {
+        return (value === null || value === undefined || value === '')
+            ? '<span class="text-muted">&mdash;</span>'
+            : TableHelper.escape(value);
     }
 
     $(document).ready(function() {
-        const table = $('#customerTable').DataTable({
-            processing: true,
-            serverSide: true,
-            ajax: "{{ route('admin.customer') }}",
-            columns: [{
-                    data: 'id',
-                    name: 'id',
-                    searchable: false,
-                    render: function(data, type, full, meta) {
-                        return meta.row + 1; // For numbering rows
-                    }
-                },
+        const editUrl = "{{ route('admin.customer.edit', ['id' => ':id']) }}";
+
+        table = new TableHelper({
+            containerId: 'customer-grid',
+            apiUrl: "{{ route('admin.customer') }}",
+            perPage: 10,
+            pagination: true,
+            // Customers are looked up and edited one at a time - no select column.
+            enableCheckbox: false,
+            emptyMessage: 'No customers match this search',
+
+            columns: [
+                { name: 'S.no', isSerialNo: true, width: '64px', align: 'center' },
                 {
-                    data: 'name',
-                    name: 'name',
-                    orderable: false,
+                    name: 'Name',
+                    field: 'name',
+                    render: (row) => `<span class="fw-semibold">${TableHelper.escape(row.name)}</span>`
                 },
-                {
-                    data: 'email',
-                    name: 'email',
-                    orderable: false,
-                    render: dash
-                },
-                {
-                    data: 'ph_number',
-                    name: 'ph_number',
-                    orderable: false,
-                },
-                {
-                    data: 'address',
-                    name: 'address',
-                    orderable: false,
-                    render: dash
-                },
-                {
-                    data: 'pan_number',
-                    name: 'pan_number',
-                    orderable: false,
-                    render: dash
-                },
+                { name: 'Email', field: 'email', render: (row) => dash(row.email) },
+                { name: 'Phone Number', field: 'ph_number', render: (row) => dash(row.ph_number) },
+                { name: 'Address', field: 'address', render: (row) => dash(row.address) },
+                { name: 'PAN Number', field: 'pan_number', render: (row) => dash(row.pan_number) },
                 {
                     // Signed up on the storefront, or typed in at the counter?
-                    data: 'is_registered',
-                    name: 'is_registered',
-                    orderable: false,
-                    searchable: false,
-                    render: function(data) {
-                        return Number(data)
-                            ? '<span class="badge bg-success">Registered</span>'
-                            : '<span class="badge bg-secondary">Walk-in</span>';
-                    }
+                    name: 'Account',
+                    field: 'is_registered',
+                    align: 'center',
+                    render: (row) => Number(row.is_registered)
+                        ? '<span class="badge bg-success">Registered</span>'
+                        : '<span class="badge bg-secondary">Walk-in</span>'
                 },
                 {
-                    data: 'created_at',
-                    name: 'created_at',
-                    orderable: false,
-                    searchable: false,
-                    render: dash
-                },
-                {
-                    data: 'address_count',
-                    name: 'address_count',
-                    orderable: false,
-                    searchable: false,
-                    render: function(data, type, full, meta) {
-                        var count = Number(full.address_count || 0);
-                        var tone = count > 0 ? 'bg-primary' : 'bg-secondary';
-                        return `<span class="badge ${tone}">${count}</span>`;
+                    name: 'Saved',
+                    field: 'address_count',
+                    align: 'center',
+                    render: (row) => {
+                        const count = Number(row.address_count || 0);
+                        return `<span class="badge ${count > 0 ? 'bg-primary' : 'bg-secondary'}">${count}</span>`;
                     }
                 },
+                { name: 'Added', field: 'created_at', render: (row) => dash(row.created_at) },
                 {
-                    data: 'action',
-                    name: 'action',
-                    orderable: false,
-                    searchable: false,
-                    render: function(data, type, full, meta) {
-                        var editUrl = "{{route('admin.customer.edit', ['id' => ':id'])}}".replace(':id', full.id);
-                        var deleteButton = `<a class="btn btn-danger deleteAction btn-sm" href="javascript:void(0)" data-id="${full.id}"><i class="bx bx-trash"></i></a>`;
-                        var editButton = `<a class="btn btn-primary btn-sm" href="${editUrl}"><i class="bx bx-edit"></i></a>`;
-                        var disabled = Number(full.address_count || 0) > 0 ? '' : ' disabled';
-                        var addressButton = `<a class="btn btn-outline-primary addressAction btn-sm${disabled}" href="javascript:void(0)" title="Delivery addresses" data-id="${full.id}"><i class="bx bx-map"></i></a>`;
-                        return `<div class="d-flex gap-sm">${editButton} ${addressButton} ${deleteButton}</div>`;
-                    }
-                }
-            ]
-        });
-
-        // Delete action using AJAX
-        // the customer's saved delivery addresses
-        $('#customerTable').on('click', '.addressAction', function(e) {
-            e.preventDefault();
-            if ($(this).hasClass('disabled')) return;
-
-            var url = "{{ route('admin.customer.addresses', ['id' => ':id']) }}".replace(':id', $(this).data('id'));
-            var rows = $('#addressModalRows');
-
-            rows.html('<tr><td colspan="5" class="text-center text-muted py-4">Loading...</td></tr>');
-            $('#addressModalCustomer').text('');
-            new bootstrap.Modal(document.getElementById('addressModal')).show();
-
-            $.get(url)
-                .done(function(response) {
-                    $('#addressModalCustomer').text(response.customer || '');
-
-                    if (!response.addresses || !response.addresses.length) {
-                        rows.html('<tr><td colspan="5" class="text-center text-muted py-4">No saved addresses.</td></tr>');
-                        return;
-                    }
-
-                    rows.html(response.addresses.map(function(address, index) {
-                        var text = function(value) {
-                            return $('<div>').text(value || '-').html();
-                        };
-                        var label = text(address.label || 'Address') +
-                            (address.is_default ? ' <span class="badge bg-success">Default</span>' : '');
-                        var line = text(address.single_line) +
-                            (address.landmark ? '<div class="text-muted small">Landmark: ' + text(address.landmark) + '</div>' : '');
-
-                        return '<tr>' +
-                            '<td>' + (index + 1) + '</td>' +
-                            '<td>' + label + '</td>' +
-                            '<td>' + line + '</td>' +
-                            '<td>' + text(address.recipient_name) + '</td>' +
-                            '<td>' + text(address.ph_number) + '</td>' +
-                            '</tr>';
-                    }).join(''));
-                })
-                .fail(function() {
-                    rows.html('<tr><td colspan="5" class="text-center text-danger py-4">Could not load those addresses.</td></tr>');
-                });
-        });
-
-        $('#customerTable').on('click', '.deleteAction', function(e) {
-            e.preventDefault();
-            var customerId = $(this).data('id');
-            var deleteUrl = "{{ route('admin.customer.delete', ['id' => ':id']) }}".replace(':id', customerId);
-
-            // SweetAlert confirmation
-            Swal.fire({
-                title: 'Are you sure?',
-                text: "You won't be able to revert this!",
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#3085d6',
-                cancelButtonColor: '#d33',
-                confirmButtonText: 'Yes, delete it!'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    $.ajax({
-                        url: deleteUrl,
-                        type: 'GET',
-                        data: {
-                            "_token": "{{ csrf_token() }}"
+                    name: 'Action',
+                    type: 'actions',
+                    actions: [
+                        { type: 'edit', title: 'Edit', showLabel: false, url: editUrl.replace(':id', '{id}') },
+                        {
+                            type: 'view',
+                            icon: 'bx bx-map',
+                            title: 'Delivery addresses',
+                            showLabel: false,
+                            onClick: (row) => showAddresses(row)
                         },
-                        success: function(response) {
-                            shoporaToast.success('The customer has been deleted successfully.', 'Deleted!');
-                            table.ajax.reload(null, false);
-                        },
-                        error: function(xhr, status, error) {
-                            shoporaToast.error('Something went wrong while deleting the customer.', 'Error!');
+                        {
+                            type: 'delete',
+                            title: 'Delete',
+                            showLabel: false,
+                            onClick: (row) => confirmDelete(row)
                         }
-                    });
+                    ]
                 }
-            });
+            ],
+
+            enableSortColumns: ['name', 'email', 'ph_number', 'pan_number', 'is_registered', 'address_count', 'created_at'],
+
+            // No filter bar above this table, same as Categories: the header
+            // row and the search box are how you find someone.
+            filters: {
+                autoGenerateColumnFilters: false,
+                columnFilters: [
+                    { field: 'name', type: 'text', param: 'name', placeholder: 'Name' },
+                    { field: 'email', type: 'text', param: 'email', placeholder: 'Email' },
+                    { field: 'ph_number', type: 'text', param: 'ph_number', placeholder: 'Phone' },
+                    {
+                        field: 'is_registered',
+                        type: 'select',
+                        param: 'is_registered',
+                        options: [
+                            { value: '1', text: 'Registered' },
+                            { value: '0', text: 'Walk-in' }
+                        ]
+                    }
+                ]
+            },
+
+            search: { placeholder: 'Search name, email or phone...' }
         });
     });
+
+    function showAddresses(row) {
+        // Nothing saved - the modal would open on an empty table.
+        if (Number(row.address_count || 0) === 0) {
+            shoporaToast.info('This customer has no saved delivery addresses.', 'Nothing to show');
+            return;
+        }
+
+        const url = "{{ route('admin.customer.addresses', ['id' => ':id']) }}".replace(':id', row.id);
+        const rows = $('#addressModalRows');
+
+        rows.html('<tr><td colspan="5" class="text-center text-muted py-4">Loading...</td></tr>');
+        $('#addressModalCustomer').text('');
+        new bootstrap.Modal(document.getElementById('addressModal')).show();
+
+        $.get(url)
+            .done(function(response) {
+                $('#addressModalCustomer').text(response.customer || '');
+
+                if (!response.addresses || !response.addresses.length) {
+                    rows.html('<tr><td colspan="5" class="text-center text-muted py-4">No saved addresses.</td></tr>');
+                    return;
+                }
+
+                rows.html(response.addresses.map(function(address, index) {
+                    const text = (value) => TableHelper.escape(value || '-');
+                    const label = text(address.label || 'Address') +
+                        (address.is_default ? ' <span class="badge bg-success">Default</span>' : '');
+                    const line = text(address.single_line) +
+                        (address.landmark ? '<div class="text-muted small">Landmark: ' + text(address.landmark) + '</div>' : '');
+
+                    return '<tr>' +
+                        '<td>' + (index + 1) + '</td>' +
+                        '<td>' + label + '</td>' +
+                        '<td>' + line + '</td>' +
+                        '<td>' + text(address.recipient_name) + '</td>' +
+                        '<td>' + text(address.ph_number) + '</td>' +
+                        '</tr>';
+                }).join(''));
+            })
+            .fail(function() {
+                rows.html('<tr><td colspan="5" class="text-center text-danger py-4">Could not load those addresses.</td></tr>');
+            });
+    }
+
+    function confirmDelete(row) {
+        const deleteUrl = "{{ route('admin.customer.delete', ['id' => ':id']) }}".replace(':id', row.id);
+
+        Swal.fire({
+            title: 'Are you sure?',
+            text: "You won't be able to revert this!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Yes, delete it!'
+        }).then((result) => {
+            if (!result.isConfirmed) return;
+
+            $.get(deleteUrl, { "_token": "{{ csrf_token() }}" })
+                .done(() => {
+                    shoporaToast.success('The customer has been deleted successfully.', 'Deleted!');
+                    table.refresh();
+                })
+                .fail(() => shoporaToast.error('Something went wrong while deleting the customer.', 'Error!'));
+        });
+    }
 </script>
 
 @endsection
