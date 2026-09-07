@@ -121,6 +121,31 @@
         --purchase-field-focus: rgba(11, 178, 211, 0.25);
     }
 
+    /* modal-dialog-scrollable makes .modal-content a flex column and lets the
+       body shrink and scroll inside it. Here a <form> sits between the two, so
+       .modal-content's only child was a plain block that grew to its content -
+       the body never got a height to scroll within, and a long bill just ran
+       off the bottom of the screen. The form has to be the column as well. */
+    #purchaseInventoryFormModal .modal-content > form {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        max-height: 100%;
+    }
+
+    /* Scrollable, but without the bar down the side - the modal is a form, and
+       a track running through it is noise. It still scrolls by wheel, trackpad,
+       touch, arrow keys and Page Up/Down. */
+    #purchaseInventoryFormModal .modal-body {
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+
+    #purchaseInventoryFormModal .modal-body::-webkit-scrollbar {
+        width: 0;
+        height: 0;
+    }
+
     #purchaseInventoryFormModal .purchase-items-section {
         border: 1px solid #e5e7eb;
         border-radius: 8px;
