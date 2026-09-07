@@ -23,33 +23,59 @@
             toggleInventoryEmptyState();
         });
 
+        // Which page of the counter's list is on screen. The list grows by a
+        // page at a time; a filter starts it over.
+        let inventoryPage = 1;
+
         /**
-         * Refetch the counter's item list for whatever the search box and the
-         * category select currently say. Both narrow the same query, so both
-         * go through here rather than one filtering the other's results.
+         * Fetch the counter's item list for whatever the search box and the
+         * category select currently say.
+         *
+         * Both narrow the same query, so both come through here rather than
+         * one filtering the other's results - and because the server does the
+         * narrowing, a filter still reaches the whole catalogue, not just the
+         * rows already loaded.
          */
-        window.reloadInventoryList = function() {
+        function fetchInventoryList(page, append) {
             const category = $('#category-filter-select').val();
+            const $more = $('#inventory-load-more');
+
+            $more.prop('disabled', true);
 
             $.ajax({
                 url: '{{ route("admin.sales.index") }}',
                 method: 'GET',
                 data: {
                     search: $('#search-input').val(),
-                    category_id: category === 'all' ? '' : category
+                    category_id: category === 'all' ? '' : category,
+                    page: page
                 },
                 headers: { 'X-Requested-With': 'XMLHttpRequest' },
                 success: function(response) {
-                    updateInventoryList(response.inventories);
+                    inventoryPage = page;
+                    updateInventoryList(response.inventories, append);
+                    $more.toggleClass('d-none', !response.has_more);
                 },
                 error: function(xhr, status, error) {
                     console.error('Inventory list load failed:', error);
+                },
+                complete: function() {
+                    $more.prop('disabled', false);
                 }
             });
+        }
+
+        /** Start the list over at page one - what a changed filter needs. */
+        window.reloadInventoryList = function() {
+            fetchInventoryList(1, false);
         };
 
         $('#search-input').on('keyup', function() {
             window.reloadInventoryList();
+        });
+
+        $('#inventory-load-more').on('click', function() {
+            fetchInventoryList(inventoryPage + 1, true);
         });
 
         // Add inventory item to selected items
@@ -320,16 +346,14 @@
             });
         });
 
-        function updateInventoryList(items) {
+        function updateInventoryList(items, append) {
             const $inventoryListContainer = $('#inventory-list');
-            $inventoryListContainer.empty();
 
-            if (!items || items.length === 0) {
-                toggleInventoryEmptyState();
-                return;
+            if (!append) {
+                $inventoryListContainer.empty();
             }
 
-            items.forEach(function(item) {
+            (items || []).forEach(function(item) {
                 $inventoryListContainer.append(buildInventoryRow(item));
             });
 

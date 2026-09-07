@@ -23,11 +23,14 @@ class SalesController extends Controller
     }
 
     /**
-     * How many items the counter's list holds at once. Enough for a mart's
-     * whole catalogue; the search and the category filter are what narrow a
-     * longer one.
+     * Items the counter's list adds at a time.
+     *
+     * The whole catalogue in one page is a long list to draw and scroll for
+     * a counter that mostly wants two or three things, so it arrives ten at a
+     * time behind a Load more. The search and the category filter still run
+     * over the whole catalogue - they narrow the query, not the page.
      */
-    private const COUNTER_LIST_LIMIT = 50;
+    private const COUNTER_PAGE_SIZE = 10;
 
     public function index(Request $request)
     {
@@ -61,7 +64,17 @@ class SalesController extends Controller
                 });
             }
 
-            $inventories = $inventories->limit(self::COUNTER_LIST_LIMIT)->get();
+            $page = max((int) $request->input('page', 1), 1);
+
+            // One row more than a page: if it comes back there is another page,
+            // which is cheaper than counting the catalogue to draw ten rows.
+            $inventories = $inventories
+                ->skip(($page - 1) * self::COUNTER_PAGE_SIZE)
+                ->take(self::COUNTER_PAGE_SIZE + 1)
+                ->get();
+
+            $hasMore = $inventories->count() > self::COUNTER_PAGE_SIZE;
+            $inventories = $inventories->take(self::COUNTER_PAGE_SIZE)->values();
             if ($request->ajax()) {
                 $inventories = $inventories->map(function ($item) {
                     $item->image_url = inventoryItemImageUrl($item->image);
@@ -70,10 +83,17 @@ class SalesController extends Controller
                 });
 
                 return response()->json([
-                    'inventories' => $inventories
+                    'inventories' => $inventories,
+                    'has_more' => $hasMore,
                 ]);
             }
-            return view('sales.index', ['inventories' => $inventories, 'categories' => $categories, 'customers' => $customers, 'paymentModes' => $paymentModes]);
+            return view('sales.index', [
+                'inventories' => $inventories,
+                'inventoriesHasMore' => $hasMore,
+                'categories' => $categories,
+                'customers' => $customers,
+                'paymentModes' => $paymentModes,
+            ]);
         } catch (\Exception $e) {
             return redirect()->back()->with(['message' => 'Something went wrong', 'type' => 'error']);
         }

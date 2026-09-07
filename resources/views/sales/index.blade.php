@@ -306,6 +306,31 @@
         border-color: var(--sales-blue) !important;
     }
 
+    .sales-inventory-load-more {
+        display: block;
+        width: calc(100% - 2rem);
+        margin: 0.75rem 1rem;
+        padding: 0.55rem;
+        border: 1px solid #dbe3ef;
+        border-radius: 8px;
+        background: #fff;
+        color: var(--sales-blue);
+        font-size: 0.85rem;
+        font-weight: 600;
+        transition: background 0.15s ease, border-color 0.15s ease;
+    }
+
+    .sales-inventory-load-more:hover {
+        background: #f1f6ff;
+        border-color: var(--sales-blue);
+    }
+
+    .sales-inventory-load-more:disabled {
+        color: #9aa4ae;
+        border-color: #e5e7eb;
+        background: #fff;
+    }
+
     .sales-inventory-empty {
         text-align: center;
         padding: 1.25rem 1rem;
@@ -814,6 +839,11 @@
                                 </tbody>
                             </table>
                         </div>
+                        <button type="button"
+                                id="inventory-load-more"
+                                class="sales-inventory-load-more {{ ($inventoriesHasMore ?? false) ? '' : 'd-none' }}">
+                            Load more
+                        </button>
                         <div id="inventory-list-empty" class="sales-inventory-empty {{ $inventories->isEmpty() ? '' : 'd-none' }}">
                             <i class="bx bx-package"></i>
                             <p>No items found</p>
