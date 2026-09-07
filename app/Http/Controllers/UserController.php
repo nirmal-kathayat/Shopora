@@ -46,12 +46,31 @@ class UserController extends Controller
     public function store(UserRequest $request)
     {
         try {
-            $admin = $this->repo->storeAdmin($request->validated());
-            $admin->roles()->sync($request->input('roles', []));
+            $data = $request->validated();
+
+            // Written out rather than $this->repo->storeAdmin(): that one
+            // hands the whole validated payload to create(), the roles array
+            // with it, and the model guards nothing - so MySQL is asked to
+            // insert a `roles` column that does not exist and the save blows
+            // up. It also assembles a created_by and then discards it.
+            $admin = Admin::create([
+                'name' => $data['name'],
+                'username' => $data['username'],
+                'email' => $data['email'],
+                // Hashed by the model's password mutator.
+                'password' => $data['password'],
+                'created_by' => auth()->guard(config('permission.guard'))->id(),
+            ]);
+
+            $admin->roles()->sync($data['roles'] ?? []);
             Admin::clearPermissionCache($admin->id);
+
             return redirect()->route('admin.user')->with(['message' => 'User created successfully', 'type' => 'success']);
-        } catch (\Exception $e) {
-            return redirect()->back()->with(['message' => 'Somthing were wrong', 'type' => 'error']);
+        } catch (\Throwable $e) {
+            \Log::error('User create failed: ' . $e->getMessage());
+
+            return redirect()->back()->withInput()
+                ->with(['message' => 'Somthing were wrong', 'type' => 'error']);
         }
     }
 
