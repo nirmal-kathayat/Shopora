@@ -1143,33 +1143,23 @@ class TableHelper {
                 toDate = todayDate;
         }
 
-        // Set values without triggering change events
-        const $fromInput = $(fromSelector);
-        const $toInput = $(toSelector);
+        const fromEl = document.querySelector(fromSelector);
+        const toEl = document.querySelector(toSelector);
+        if (!fromEl || !toEl) return;
 
-        if ($fromInput.length && $toInput.length) {
-            // Temporarily unbind all change events to prevent double requests
-            const fromChangeHandlers = $._data($fromInput[0], 'events')?.change || [];
-            const toChangeHandlers = $._data($toInput[0], 'events')?.change || [];
+        // Written straight in. Neither path here fires a change event -
+        // assigning .value never does, and flatpickr's setDate is asked not to
+        // - so there is nothing to guard against.
+        //
+        // The original guarded anyway, by saving the inputs' change handlers,
+        // calling .off('change') and putting them back. $._data(el,'events')
+        // hands out jQuery's own live array, and .off() empties that array in
+        // place, so what came back was always empty: after one Clear the two
+        // date boxes stopped reloading the table until the page was reloaded.
+        this._setDateInput(fromEl, fromDate);
+        this._setDateInput(toEl, toDate);
 
-            $fromInput.off('change');
-            $toInput.off('change');
-
-            // Set the values. Through flatpickr where there is one, or its
-            // calendar opens on today while the box shows another date.
-            this._setDateInput($fromInput[0], fromDate);
-            this._setDateInput($toInput[0], toDate);
-
-            // Re-attach change handlers
-            fromChangeHandlers.forEach(handler => {
-                $fromInput.on('change', handler.handler);
-            });
-            toChangeHandlers.forEach(handler => {
-                $toInput.on('change', handler.handler);
-            });
-
-            this._dateRangeInitialized = true;
-        }
+        this._dateRangeInitialized = true;
     }
 
     init() {
