@@ -32,9 +32,8 @@
         <!--end breadcrumb-->
         <hr />
 
-        {{-- The dashboard's own filter, on the shop's catalogue. Here the dates
-             are about when an item was added, and it starts on every item -
-             a list of what the shop sells has no reason to open on one day. --}}
+        {{-- One filter bar. The dashboard keeps its quick-range tabs; here the
+             range opens on the current month and is simply picked. --}}
         <div class="shopora-date-filter">
             <div class="date-field">
                 <label for="fromDate">From Date</label>
@@ -50,29 +49,19 @@
                     <i class='bx bx-calendar cal-icon'></i>
                 </div>
             </div>
-            <button type="button" class="btn-clear-filter" id="clearDateFilter">Clear</button>
-            <div class="range-tabs" role="tablist">
-                <button type="button" class="range-tab active" data-range="all">All time</button>
-                <button type="button" class="range-tab" data-range="today">Today</button>
-                <button type="button" class="range-tab" data-range="7days">7 days</button>
-                <button type="button" class="range-tab" data-range="1month">1 Month</button>
+            <div class="date-field is-wide">
+                <label for="categoryFilter">Filter by Category</label>
+                <select id="categoryFilter" class="form-select form-control">
+                    <option value="">All Category</option>
+                </select>
             </div>
+            {{-- id is the component's own, so it binds and clears every filter
+                 here in one go rather than this page binding a second handler --}}
+            <button type="button" class="btn-clear-filter" id="clearFilters">Clear</button>
         </div>
 
         <div class="card">
             <div class="card-body">
-                <div class="row mb-4">
-                    <div class="col-md-6">
-                        <div class="d-flex align-items-center gap-3">
-                            <label for="categoryFilter" class="form-label mb-0 text-nowrap">Filter by Category</label>
-                            <select id="categoryFilter" class="form-select form-control select2-container" style="width: 50%; flex: 1;">
-                                <option value="">All Category</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-                {{-- TableHelper renders the whole table in here: header,
-                     filter row, body, pager and the search box above it. --}}
                 <div id="inventory-grid" class="shopora-grid"></div>
             </div>
         </div>
@@ -114,25 +103,37 @@
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="{{asset('assets/js/table-helper.js')}}?v=1"></script>
 <style>
-    .select2-container--default .select2-selection--single {
-        border-radius: 0.375rem;
-        border: 1px solid #0d6efd;
-        padding: 0.75rem;
-        min-height: 42px;
-        font-size: 1rem;
+    /* The category sits in the filter bar beside the two date boxes, so it
+       takes their border, radius and height rather than its own blue one. */
+    .shopora-date-filter .select2-container--default .select2-selection--single {
+        height: 42px;
+        padding: 8px 12px;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        font-size: 14px;
+    }
+
+    .shopora-date-filter .select2-container--default.select2-container--focus .select2-selection--single {
+        border-color: #008cff;
+        box-shadow: 0 0 0 3px rgba(0, 140, 255, 0.12);
+    }
+
+    html.dark-theme .shopora-date-filter .select2-container--default .select2-selection--single {
+        background: #0d1315;
+        border-color: #2a3236;
+    }
+
+    html.dark-theme .shopora-date-filter .select2-selection__rendered {
+        color: #eef1f3 !important;
     }
     
-    .select2-container--default.select2-container--focus .select2-selection--single {
-        border-color: #0d6efd;
-        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    .shopora-date-filter .select2-container--default .select2-selection--single .select2-selection__rendered {
+        padding: 0;
+        line-height: 24px;
+        font-size: 14px;
     }
-    
-    .select2-container--default .select2-selection--single .select2-selection__rendered {
-        line-height: 18px;
-        font-size: 0.95rem;
-    }
-    
-    .select2-container--default .select2-selection--single .select2-selection__arrow {
+
+    .shopora-date-filter .select2-container--default .select2-selection--single .select2-selection__arrow {
         height: 40px;
     }
     
@@ -156,53 +157,10 @@
     }
 </style>
 <script>
-    let table; // Global variable to store DataTable instance
-    let fromPicker, toPicker;
-    // Set while a quick range writes both boxes, so the pickers' own onChange
-    // does not redraw the table twice and unset the tab that just set them.
-    let applyingRange = false;
-
-    function startOfDay(date) {
-        const d = new Date(date);
-        d.setHours(0, 0, 0, 0);
-        return d;
-    }
-
-    /** What each quick range means. "all" clears both boxes. */
-    function getRangeDates(range) {
-        if (range === 'all') return { from: null, to: null };
-
-        const today = startOfDay(new Date());
-        const from = new Date(today);
-
-        if (range === '7days') {
-            from.setDate(from.getDate() - 6);
-        } else if (range === '1month') {
-            from.setMonth(from.getMonth() - 1);
-        }
-
-        return { from: from, to: today };
-    }
-
-    function setActiveTab(range) {
-        $('.range-tab').removeClass('active');
-        if (range) {
-            $('.range-tab[data-range="' + range + '"]').addClass('active');
-        }
-    }
-
-    function applyDateRange(from, to, tab) {
-        applyingRange = true;
-        if (from) { fromPicker.setDate(from, false); } else { fromPicker.clear(false); }
-        if (to) { toPicker.setDate(to, false); } else { toPicker.clear(false); }
-        applyingRange = false;
-
-        setActiveTab(tab);
-        table.applyFilters();
-    }
+    let table;
 
     $(document).ready(function() {
-        $('#categoryFilter').select2({ allowClear: false, width: '50%' });
+        $('#categoryFilter').select2({ allowClear: false, width: '100%' });
         $('#categoryFilter').val('').trigger('change');
         loadCategories();
 
@@ -211,14 +169,27 @@
         table = new TableHelper({
             containerId: 'inventory-grid',
             apiUrl: "{{ route('admin.inventoryItem') }}",
-            perPage: 25,
+            perPage: 10,
             pagination: true,
             // A catalogue is read, not acted on in bulk - no select column.
             enableCheckbox: false,
-            // The quick-range tabs need the picker objects, so this page makes
-            // them itself rather than letting the helper do it.
-            autoInitDatePickers: false,
             emptyMessage: 'No inventory items match these filters',
+
+            // Opens on the month so far, which is the range someone asking
+            // about stock almost always wants, and Clear comes back to it.
+            dateRangeDefaults: {
+                type: 'thisMonth',
+                fromSelector: '#fromDate',
+                toSelector: '#toDate',
+            },
+
+            // Select2 draws its own box, so resetting the underlying <select>
+            // is not enough - it has to be told, and told with the namespaced
+            // event so the table does not reload a second time.
+            onClear: function() {
+                $('#categoryFilter').val('').trigger('change.select2');
+                table.applyDefaultDateRange();
+            },
 
             columns: [
                 { name: 'S.no', isSerialNo: true, width: '64px', align: 'center' },
@@ -271,7 +242,7 @@
                 // every item, not today.
                 dateRange: { fromId: 'fromDate', toId: 'toDate' },
                 additional: [{ id: 'categoryFilter', param: 'category_id' }],
-                autoReload: ['#categoryFilter'],
+                autoReload: ['#categoryFilter', '#fromDate', '#toDate'],
                 autoGenerateColumnFilters: false,
                 columnFilters: [
                     { field: 'title', type: 'text', param: 'title', placeholder: 'Item' },
@@ -284,33 +255,8 @@
 
         window.inventoryItemDataTable = table;
 
-        // ---- date range ----
-        // Both boxes start empty: the table opens on every item, and picking a
-        // date is what narrows it.
-        const pickerOptions = {
-            dateFormat: "Y-m-d",
-            onChange: function() {
-                if (applyingRange) return;
-                // A hand-picked date is not one of the quick ranges any more,
-                // unless it happens to have emptied both boxes again.
-                const none = !$('#fromDate').val() && !$('#toDate').val();
-                setActiveTab(none ? 'all' : null);
-                table.applyFilters();
-            }
-        };
-
-        fromPicker = flatpickr("#fromDate", pickerOptions);
-        toPicker = flatpickr("#toDate", pickerOptions);
-
-        $('.range-tab').on('click', function() {
-            const range = $(this).data('range');
-            const dates = getRangeDates(range);
-            applyDateRange(dates.from, dates.to, range);
-        });
-
-        $('#clearDateFilter').on('click', function() {
-            applyDateRange(null, null, 'all');
-        });
+        // The pickers themselves are the component's - it finds .date-picker
+        // and binds flatpickr, then fills them with the default range.
     });
 
     function openWishlist(id) {

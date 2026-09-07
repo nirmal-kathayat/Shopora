@@ -1060,6 +1060,25 @@ class TableHelper {
      * @param {string} todayDate - Date in YYYY-MM-DD format
      * @returns {string} First day of month in YYYY-MM-DD format
      */
+    /**
+     * Write a date into one of the range boxes.
+     *
+     * Everything that sets these dates goes through here, because a picker
+     * keeps its own idea of the value: assigning .value alone leaves the box
+     * reading one date and the calendar opening on another.
+     */
+    _setDateInput(el, value) {
+        if (!el) return;
+
+        if (el._flatpickr) {
+            if (value) el._flatpickr.setDate(value, false);
+            else el._flatpickr.clear(false);
+            return;
+        }
+
+        el.value = value || '';
+    }
+
     /** A Y-m-d shifted by whole days, still Y-m-d. */
     _shiftDays(date, days) {
         const d = new Date(date + 'T00:00:00');
@@ -1081,6 +1100,19 @@ class TableHelper {
      * - fromDate/toDate: for custom type
      * Sets the date inputs without triggering change events
      */
+    /**
+     * Put the range back to what the screen opens on.
+     *
+     * The private one runs once per instance, so after a Clear the defaults
+     * were gone for good and the boxes were left empty or on today - whatever
+     * the screen had actually chosen to open with was unreachable. This is the
+     * public way back, and the onClear hook is where a screen calls it.
+     */
+    applyDefaultDateRange() {
+        this._dateRangeInitialized = false;
+        this._applyDefaultDateRange();
+    }
+
     _applyDefaultDateRange() {
         if (this._dateRangeInitialized || !this.config.dateRangeDefaults) return;
 
@@ -1123,9 +1155,10 @@ class TableHelper {
             $fromInput.off('change');
             $toInput.off('change');
 
-            // Set the values
-            $fromInput.val(fromDate);
-            $toInput.val(toDate);
+            // Set the values. Through flatpickr where there is one, or its
+            // calendar opens on today while the box shows another date.
+            this._setDateInput($fromInput[0], fromDate);
+            this._setDateInput($toInput[0], toDate);
 
             // Re-attach change handlers
             fromChangeHandlers.forEach(handler => {
@@ -2645,10 +2678,7 @@ class TableHelper {
 
         [fromId, toId].forEach((id) => {
             const el = document.getElementById(id);
-            if (el && !el.value) {
-                if (el._flatpickr) el._flatpickr.setDate(today, false);
-                else el.value = today;
-            }
+            if (el && !el.value) this._setDateInput(el, today);
         });
     }
 
@@ -2882,14 +2912,7 @@ class TableHelper {
             const { fromId = 'from-datepicker', toId = 'to-datepicker' } = filters.dateRange;
 
             [fromId, toId].forEach((id) => {
-                const el = document.getElementById(id);
-                if (!el) return;
-                if (el._flatpickr) {
-                    if (clearTo) el._flatpickr.setDate(clearTo, false);
-                    else el._flatpickr.clear(false);
-                } else {
-                    el.value = clearTo;
-                }
+                this._setDateInput(document.getElementById(id), clearTo);
             });
         }
 

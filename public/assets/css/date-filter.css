@@ -169,3 +169,11 @@ html.dark-theme .shopora-date-filter .range-tab.active {
         width: 100%;
     }
 }
+
+/* A field that holds something wider than a date - a category select, say.
+   Same column shape as .date-field so the labels sit on one line. */
+.shopora-date-filter .date-field.is-wide {
+    min-width: 260px;
+    flex: 1 1 260px;
+    max-width: 360px;
+}
