@@ -6,7 +6,6 @@ use App\Http\Requests\DealSectionRequest;
 use App\Models\DealCard;
 use App\Models\DealSection;
 use App\Repository\DealSectionRepository;
-use Yajra\DataTables\DataTables;
 
 class DealSectionController extends Controller
 {
@@ -17,23 +16,54 @@ class DealSectionController extends Controller
         $this->dealRepo = $dealRepo;
     }
 
+    /**
+     * The screen, and the JSON behind its table.
+     *
+     * A TableHelper, so the envelope is { success, data, total }.
+     */
     public function index()
     {
         try {
-            if (request()->ajax()) {
-                $sections = $this->dealRepo->getDealSections();
-
-                return DataTables::of($sections)
-                    ->addIndexColumn()
-                    ->editColumn('heading', fn ($section) => str_replace('*', '', (string) $section->heading))
-                    ->editColumn('updated_at', fn ($section) => $section->updated_at?->format('d M Y, g:i a'))
-                    ->addColumn('image_url', fn ($section) => inventoryItemImageUrl($section->image))
-                    ->rawColumns([])
-                    ->make(true);
+            if (! request()->ajax()) {
+                return view('dealSection.index');
             }
 
-            return view('dealSection.index');
-        } catch (\Exception $e) {
+            $perPage = min(max((int) request()->input('per_page', 10), 1), 100);
+            $page = max((int) request()->input('page', 1), 1);
+
+            $rows = $this->dealRepo->getDealSectionsForListing([
+                'heading' => request()->input('heading'),
+                'status' => request()->input('status'),
+                'search' => request()->input('search'),
+                'sort_field' => request()->input('sort_field'),
+                'sort_direction' => request()->input('sort_direction'),
+            ])->paginate($perPage, ['*'], 'page', $page);
+
+            return response()->json([
+                'success' => true,
+                'data' => collect($rows->items())->map(fn ($section) => [
+                    'id' => $section->id,
+                    // The * markers are the storefront's own emphasis.
+                    'heading' => str_replace('*', '', (string) $section->heading),
+                    'subheading' => $section->subheading,
+                    'cards_count' => (int) $section->cards_count,
+                    'status' => (int) $section->status,
+                    'image_url' => $section->image ? inventoryItemImageUrl($section->image) : null,
+                    'updated_at' => $section->updated_at?->format('d M Y, g:i a'),
+                ]),
+                'total' => $rows->total(),
+            ]);
+        } catch (\Throwable $e) {
+            \Log::error('Deal section list failed: ' . $e->getMessage());
+
+            if (request()->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'title' => 'Could not load',
+                    'message' => 'The deals section list could not be loaded.',
+                ]);
+            }
+
             return redirect()->back()->with(['message' => 'Something went wrong!', 'type' => 'error']);
         }
     }

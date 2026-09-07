@@ -30,6 +30,52 @@ class DealSectionRepository
             ->orderByDesc('id');
     }
 
+    /**
+     * The list, filtered and sorted for the table.
+     *
+     * The default order is the active one first - it is the band the
+     * storefront is actually serving, so it belongs at the top.
+     */
+    public function getDealSectionsForListing(array $options = [])
+    {
+        $query = $this->getDealSections()->reorder();
+
+        $heading = trim((string) ($options['heading'] ?? ''));
+        if ($heading !== '') {
+            $query->where('heading', 'like', '%' . $heading . '%');
+        }
+
+        $status = trim((string) ($options['status'] ?? ''));
+        if ($status === '0' || $status === '1') {
+            $query->where('status', (int) $status);
+        }
+
+        // One box over the whole row: the heading or the line under it.
+        $search = trim((string) ($options['search'] ?? ''));
+        if ($search !== '') {
+            $query->where(function ($q) use ($search) {
+                $like = '%' . $search . '%';
+                $q->where('heading', 'like', $like)->orWhere('subheading', 'like', $like);
+            });
+        }
+
+        return $this->sortListing($query, $options['sort_field'] ?? null, $options['sort_direction'] ?? null);
+    }
+
+    /**
+     * Order the listing. By column name only - the field arrives in a query
+     * string, and a column name is not something to take on trust.
+     */
+    private function sortListing($query, $field, $direction)
+    {
+        $sortable = ['heading', 'status', 'updated_at', 'cards_count'];
+        if (! in_array($field, $sortable, true)) {
+            return $query->orderByDesc('status')->orderByDesc('id');
+        }
+
+        return $query->orderBy($field, strtolower((string) $direction) === 'asc' ? 'asc' : 'desc');
+    }
+
     /** The active one, with its cards, ready for the storefront. */
     public function activeDealSection(): ?DealSection
     {
