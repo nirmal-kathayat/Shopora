@@ -73,16 +73,31 @@
                                                     @foreach($route as $otherRoute)
                                                     @if($otherRoute !== 'admin/dashboard')
                                                     @php
-                                                    $arr = explode('/', $otherRoute);
-                                                    $actionLabel = count($arr) > 2
-                                                        ? ucfirst(str_replace('-', ' ', $arr[2]))
-                                                        : ucfirst(str_replace('-', ' ', end($arr)));
+                                                    // Everything after admin/<module>, minus the URL
+                                                    // parameters: "{id}" is not a name anyone reads, and
+                                                    // two routes that differ only by what follows it came
+                                                    // out as the same label. camelCase is split the way
+                                                    // the card title above is.
+                                                    $parts = array_filter(
+                                                        array_slice(explode('/', $otherRoute), 2),
+                                                        fn ($part) => $part !== '' && ! str_starts_with($part, '{')
+                                                    );
+                                                    $actionLabel = ucfirst(preg_replace(
+                                                        '/([a-z])([A-Z])/', '$1 $2',
+                                                        str_replace('-', ' ', implode(' ', $parts))
+                                                    ));
                                                     @endphp
                                                     <li class="mb-2">
                                                         <div class="form-check">
                                                             <input class="form-check-input permission-uri-checkbox" type="checkbox" name="access_uri[]" value="{{$otherRoute}}" id="{{$otherRoute}}" {{ isset($permission) && is_array($permission->access_uri) && in_array($otherRoute, $permission->access_uri) ? 'checked' : '' }}>
-                                                            <label class="form-check-label" for="{{$otherRoute}}">
-                                                                {{ $actionLabel }} {{ucfirst($key)}}
+                                                            {{-- The URI on the label: two routes in one module
+                                                                 can read the same in English, and this is the
+                                                                 only place that says exactly what is granted. --}}
+                                                            <label class="form-check-label" for="{{$otherRoute}}" title="{{$otherRoute}}">
+                                                                {{-- camelCase split here too, so this reads
+                                                                     "Store Inventory Item" like the rows above
+                                                                     it rather than "Store InventoryItem". --}}
+                                                                {{ $actionLabel }} {{preg_replace('/([a-z])([A-Z])/', '$1 $2', ucfirst($key))}}
                                                             </label>
                                                         </div>
                                                     </li>
@@ -92,7 +107,7 @@
                                                     <li class="mb-2">
                                                         <div class="form-check">
                                                             <input class="form-check-input permission-uri-checkbox" type="checkbox" name="access_uri[]" value="{{$route}}" id="{{$route}}" {{ isset($permission) && is_array($permission->access_uri) && in_array($route, $permission->access_uri) ? 'checked' : '' }}>
-                                                            <label class="form-check-label" for="{{$route}}">
+                                                            <label class="form-check-label" for="{{$route}}" title="{{$route}}">
                                                                 @if($itemKey === 'full-control')
                                                                     Full control <span class="text-muted">(entire system access)</span>
                                                                 @else
