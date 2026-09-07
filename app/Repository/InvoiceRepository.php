@@ -15,18 +15,20 @@ class InvoiceRepository
         $this->invoice = $invoice;
     }
 
-    public function getSalesInvoice($filterType = null, $fromDate = null, $toDate = null)
+    /**
+     * The bill list.
+     *
+     * No date range unless one is asked for. It used to default to the last
+     * month, so a bill older than that was simply not on the screen and
+     * nothing said why - on a list whose whole job is finding one bill.
+     *
+     * Whoever rang up the sale is admins.name for a counter sale and the
+     * plain sales.order_by string for the two writers that store a name
+     * rather than an id, which is why both are searched.
+     */
+    public function getSalesInvoice(array $options = [])
     {
-        if ($fromDate && $toDate) {
-            $dateRange = [
-                Carbon::createFromFormat('Y-m-d', $fromDate)->startOfDay(),
-                Carbon::createFromFormat('Y-m-d', $toDate)->endOfDay()
-            ];
-        } else {
-            $dateRange = $this->getDateRange($filterType ?? 'Monthly');
-        }
-        
-        $data = DB::table('sales')
+        $query = DB::table('sales')
             ->leftJoin('admins', 'admins.id', '=', 'sales.order_by')
             ->leftJoin('customers', 'customers.id', '=', 'sales.customer_id')
             ->whereNotIn('sales.status', ['cancelled', 'pending_payment'])
@@ -34,10 +36,76 @@ class InvoiceRepository
                 'sales.*',
                 DB::raw("COALESCE(admins.name, NULLIF(sales.order_by, '')) as order_by_name"),
                 'customers.name as customer_title'
-            )
-            ->whereBetween('sales.created_at', $dateRange)
-            ->orderBy('sales.id', 'desc');
-        return $data;
+            );
+
+        if ($from = $this->parseDate($options['start_date'] ?? null)) {
+            $query->where('sales.created_at', '>=', $from->startOfDay());
+        }
+
+        if ($to = $this->parseDate($options['end_date'] ?? null)) {
+            $query->where('sales.created_at', '<=', $to->endOfDay());
+        }
+
+        $orderBy = trim((string) ($options['order_by_name'] ?? ''));
+        if ($orderBy !== '') {
+            $query->where(function ($q) use ($orderBy) {
+                $q->where('admins.name', 'like', '%' . $orderBy . '%')
+                    ->orWhere('sales.order_by', 'like', '%' . $orderBy . '%');
+            });
+        }
+
+        $customer = trim((string) ($options['customer_title'] ?? ''));
+        if ($customer !== '') {
+            $query->where('customers.name', 'like', '%' . $customer . '%');
+        }
+
+        // One box over the whole row: who rang it up, who bought it, or the
+        // bill number typed with or without its T.
+        $search = trim((string) ($options['search'] ?? ''));
+        if ($search !== '') {
+            $query->where(function ($q) use ($search) {
+                $like = '%' . $search . '%';
+                $q->where('admins.name', 'like', $like)
+                    ->orWhere('sales.order_by', 'like', $like)
+                    ->orWhere('customers.name', 'like', $like)
+                    ->orWhere('sales.id', 'like', ltrim($search, 'Tt') . '%');
+            });
+        }
+
+        return $this->sortInvoices($query, $options['sort_field'] ?? null, $options['sort_direction'] ?? null);
+    }
+
+    /** Order the list. By column name only - the field arrives in a URL. */
+    private function sortInvoices($query, $field, $direction)
+    {
+        $sortable = [
+            'id' => 'sales.id',
+            'order_by_name' => 'order_by_name',
+            'customer_title' => 'customers.name',
+            'status' => 'sales.status',
+            'created_at' => 'sales.created_at',
+        ];
+
+        $column = $sortable[$field] ?? null;
+        if (! $column) {
+            return $query->orderByDesc('sales.id');
+        }
+
+        return $query->orderBy($column, strtolower((string) $direction) === 'asc' ? 'asc' : 'desc');
+    }
+
+    /** A Y-m-d, or null for anything the picker did not write. */
+    private function parseDate($date): ?Carbon
+    {
+        if (! is_string($date) || trim($date) === '') {
+            return null;
+        }
+
+        try {
+            return Carbon::createFromFormat('Y-m-d', trim($date));
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     public function getInvoiceById($id)
@@ -146,7 +214,7 @@ class InvoiceRepository
      * "T95-83/84". The Nepali fiscal year runs 1 Shrawan to 31 Ashar, so a bill
      * dated in Baisakh, Jestha or Ashar still belongs to the year before.
      */
-    private function billNumber(int $id, ?string $nepaliDate): string
+    public function billNumber(int $id, ?string $nepaliDate): string
     {
         $year = null;
 

@@ -15,27 +15,56 @@ class InvoiceController extends Controller
         $this->invoiceRepo = $invoiceRepo;
     }
 
+    /**
+     * The bill list, and the JSON behind its table.
+     *
+     * A TableHelper, so the envelope is { success, data, total }. The bill
+     * number is worked out here rather than in the page: the same helper the
+     * bill itself uses, so the list and the bill cannot print two different
+     * numbers for one sale.
+     */
     public function index(Request $request)
     {
         try {
-            if (request()->ajax()) {
-                $fromDate = $request->get('from_date');
-                $toDate = $request->get('to_date');
-                $data = $this->invoiceRepo->getSalesInvoice(null, $fromDate, $toDate);
-                return DataTables::of($data)
-                    ->addIndexColumn()
-                    ->filterColumn('order_by_name', function ($query, $keyword) {
-                        $query->where(function ($q) use ($keyword) {
-                            $q->where('admins.name', 'like', "%{$keyword}%")
-                                ->orWhere('sales.order_by', 'like', "%{$keyword}%");
-                        });
-                    })
-                    ->rawColumns([])
-                    ->make(true);
+            if (! $request->ajax()) {
+                // The bill resolves its own payment modes server-side now.
+                return view('invoice.index');
             }
-            // The bill resolves its own payment modes server-side now.
-            return view('invoice.index');
-        } catch (\Exception $e) {
+
+            $query = $this->invoiceRepo->getSalesInvoice([
+                'order_by_name' => $request->input('order_by_name'),
+                'customer_title' => $request->input('customer_title'),
+                'search' => $request->input('search'),
+                'sort_field' => $request->input('sort_field'),
+                'sort_direction' => $request->input('sort_direction'),
+            ]);
+
+            $perPage = min(max((int) $request->input('per_page', 10), 1), 100);
+            $page = max((int) $request->input('page', 1), 1);
+
+            $rows = $query->skip(($page - 1) * $perPage)->take($perPage)->get()
+                ->map(function ($row) {
+                    $row->bill_no = $this->invoiceRepo->billNumber((int) $row->id, $row->nepali_date);
+
+                    return $row;
+                });
+
+            return response()->json([
+                'success' => true,
+                'data' => $rows,
+                'total' => $query->getCountForPagination(),
+            ]);
+        } catch (\Throwable $e) {
+            \Log::error('Invoice list failed: ' . $e->getMessage());
+
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'title' => 'Could not load',
+                    'message' => 'The invoice list could not be loaded.',
+                ]);
+            }
+
             return redirect()->back()->with(['message' => 'Something went wrong!', 'type' => 'error']);
         }
     }

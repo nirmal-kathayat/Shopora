@@ -1,7 +1,7 @@
 @extends("layouts.app")
 
 @section("style")
-<link href="{{asset('assets/plugins/datatable/css/dataTables.bootstrap5.min.css')}}" rel="stylesheet" />
+<link href="{{asset('assets/css/gridtable.css')}}?v=1" rel="stylesheet" />
 
 @endsection
 
@@ -25,22 +25,9 @@
         <hr />
         <div class="card">
             <div class="card-body">
-                <div class="table-responsive">
-                    <table id="invoiceTable" class="table table-striped table-bordered" style="width:100%">
-                        <thead>
-                            <tr>
-                                <th>S.no</th>
-                                <th>Order By</th>
-                                <th>Bill No</th>
-                                <th>Customers</th>
-                                <th>Payment</th>
-                                <th>Status</th>
-                                <th>Created_at</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                    </table>
-                </div>
+                {{-- TableHelper renders the whole table in here: header,
+                     filter row, body, pager and the search box above it. --}}
+                <div id="invoice-grid" class="shopora-grid"></div>
             </div>
         </div>
     </div>
@@ -50,11 +37,7 @@
 @endsection
 
 @section("script")
-
-<!-- DataTables -->
-<script src="{{asset('assets/plugins/datatable/js/jquery.dataTables.min.js')}}"></script>
-<script src="{{asset('assets/plugins/datatable/js/dataTables.bootstrap5.min.js')}}"></script>
-
+<script src="{{asset('assets/js/table-helper.js')}}?v=1"></script>
 <script>
     const STATUS_TONES = {
         placed: 'bg-secondary',
@@ -64,102 +47,100 @@
         cancelled: 'bg-danger',
     };
 
-    function escapeText(value) {
-        return $('<div>').text(value === null || value === undefined || value === '' ? '-' : value).html();
-    }
-
     $(document).ready(function() {
-        $('#invoiceTable').DataTable({
-            processing: true,
-            serverSide: true,
-            ajax: "{{ route('admin.invoice.index') }}",
-            pageLength: 10,
-            columns: [{
-                    data: 'id',
-                    name: 'id',
-                    searchable: false,
-                    render: function(data, type, full, meta) {
-                        return full?.DT_RowIndex
-                    }
-                },
-                {
-                    data: 'order_by_name',
-                    name: 'order_by_name',
-                    orderable: false,
+        const esc = TableHelper.escape;
 
-                },
-                {
-                    data: 'id',
-                    name: 'sales.id',
-                    orderable: false,
-                    render: function(data, type, full, meta) {
-                        return 'T' + data + '-80/81';
-                    }
-                },
-                {
-                    data: 'customer_title',
-                    name: 'customers.name',
-                    orderable: false,
+        new TableHelper({
+            containerId: 'invoice-grid',
+            apiUrl: "{{ route('admin.invoice.index') }}",
+            perPage: 10,
+            pagination: true,
+            enableCheckbox: false,
+            emptyMessage: 'No bills match this search',
 
-                },
+            columns: [
+                { name: 'S.no', isSerialNo: true, width: '64px', align: 'center' },
+                { name: 'Order By', field: 'order_by_name' },
                 {
-                    data: 'payment_method',
-                    name: 'sales.payment_method',
-                    orderable: false,
-                    searchable: false,
-                    render: function(data, type, full) {
+                    name: 'Bill No',
+                    field: 'id',
+                    // Worked out by the server, with the same helper the bill
+                    // itself uses - the fiscal year was hard-coded here.
+                    render: (row) => esc(row.bill_no)
+                },
+                { name: 'Customers', field: 'customer_title' },
+                {
+                    name: 'Payment',
+                    field: 'payment_method',
+                    render: function(row) {
                         // A counter sale leaves payment_method/payment_status at their
                         // defaults, so the bill was settled at the till and the
                         // storefront method/status pair says nothing useful here.
-                        if (full.channel !== 'storefront') {
+                        if (row.channel !== 'storefront') {
                             return '<span class="fw-medium">Counter</span>'
                                 + '<div class="mt-1"><span class="badge bg-success">Paid</span></div>';
                         }
-                        const label = data === 'esewa' ? 'eSewa' : 'Cash on Delivery';
+
+                        const label = row.payment_method === 'esewa' ? 'eSewa' : 'Cash on Delivery';
                         let badge;
-                        if (full.payment_status === 'paid') {
+
+                        if (row.payment_status === 'paid') {
                             badge = '<span class="badge bg-success">Paid</span>';
-                        } else if (full.payment_status === 'failed') {
+                        } else if (row.payment_status === 'failed') {
                             badge = '<span class="badge bg-danger">Failed</span>';
-                        } else if (data === 'cod') {
+                        } else if (row.payment_method === 'cod') {
                             // COD is collected by the rider, so "unpaid" here just
                             // means the cash is due on delivery, not that anything failed.
                             badge = '<span class="badge bg-secondary">On delivery</span>';
                         } else {
                             badge = '<span class="badge bg-danger">Unpaid</span>';
                         }
-                        return '<span class="fw-medium">' + escapeText(label) + '</span>'
+
+                        return '<span class="fw-medium">' + esc(label) + '</span>'
                             + '<div class="mt-1">' + badge + '</div>';
                     }
                 },
                 {
-                    data: 'status',
-                    name: 'sales.status',
-                    orderable: false,
-                    render: function(data) {
-                        const tone = STATUS_TONES[data] || 'bg-secondary';
-                        return '<span class="badge ' + tone + '">' + escapeText(data) + '</span>';
-                    }
+                    name: 'Status',
+                    field: 'status',
+                    align: 'center',
+                    render: (row) => '<span class="badge ' + (STATUS_TONES[row.status] || 'bg-secondary')
+                        + '">' + esc(row.status) + '</span>'
                 },
+                { name: 'Created At', field: 'created_at' },
                 {
-                    data: 'created_at',
-                    name: 'sales.created_at',
-                    orderable: false
-                },
-                {
-                    data: 'action',
-                    name: 'action',
-                    orderable: false,
-                    searchable: false,
-                    render: function(data, type, full, meta) {
-                        var viewButton = '<a class="btn btn-info btn-sm view-invoice" data-id="' + full.id + '"><i class="bx bx-show"></i></a>';
-                        var actionButton = '<div class="d-flex gap-sm-2">' + viewButton +'</div>';
-                        return actionButton;
-                    }
+                    name: 'Action',
+                    type: 'actions',
+                    actions: [
+                        {
+                            type: 'view',
+                            title: 'View bill',
+                            showLabel: false,
+                            // Straight to the shared bill loader. Its own
+                            // .view-invoice listener sits on document, and an
+                            // action button stops the click before it gets
+                            // there - the same reason Purchase Inventory's
+                            // Edit had to be called rather than delegated.
+                            onClick: (row) => loadInvoiceModal(row.id)
+                        }
+                    ]
                 }
-            ]
-        });
+            ],
 
+            enableSortColumns: ['id', 'order_by_name', 'customer_title', 'status', 'created_at'],
+
+            // No filter bar above this table, same as the other lists: the
+            // header row and the search box are how you find a bill.
+            filters: {
+                autoGenerateColumnFilters: false,
+                columnFilters: [
+                    { field: 'order_by_name', type: 'text', param: 'order_by_name', placeholder: 'Order by' },
+                    { field: 'customer_title', type: 'text', param: 'customer_title', placeholder: 'Customer' }
+                ]
+            },
+
+            search: { placeholder: 'Search bill no, customer or who rang it up...' }
+        });
     });
 </script>
 
