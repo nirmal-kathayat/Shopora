@@ -26,7 +26,11 @@ class InventoryItemController extends Controller
         try {
             if (request()->ajax()) {
                 $categoryId = request()->input('category_id');
-                $data = $this->inventoryItemRepo->getInventoryItems($categoryId);
+                $data = $this->inventoryItemRepo->getInventoryItems(
+                    $categoryId,
+                    request()->input('from_date'),
+                    request()->input('to_date'),
+                );
                 return DataTables::of($data)
                     ->addIndexColumn()
                     ->rawColumns([])

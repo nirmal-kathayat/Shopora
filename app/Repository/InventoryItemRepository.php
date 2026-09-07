@@ -4,6 +4,7 @@ namespace App\Repository;
 
 use App\Models\InventoryItem;
 use App\Models\ProductImage;
+use Carbon\Carbon;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 
@@ -21,7 +22,16 @@ class InventoryItemRepository
         return $this->query->select('id', 'title', 'image')->get();
     }
 
-    public function getInventoryItems($categoryId = null)
+    /**
+     * The list behind the Inventory Items table.
+     *
+     * The date range narrows it by when the item was added - the only date an
+     * item of stock has of its own. Left empty it means every item, which is
+     * the right resting state for a catalogue: unlike the dashboard, whose
+     * figures are always about some period, this is a list of what the shop
+     * sells and defaults to all of it.
+     */
+    public function getInventoryItems($categoryId = null, $fromDate = null, $toDate = null)
     {
         $query = $this->query
             ->leftJoin('categories', 'categories.id', '=', 'inventory_items.category_id')
@@ -53,7 +63,47 @@ class InventoryItemRepository
             $query->where('inventory_items.category_id', $categoryId);
         }
 
+        // Either end on its own is a valid question - "anything since Shrawan",
+        // "anything before we changed suppliers" - so they are applied apart.
+        if ($from = $this->startOfDay($fromDate)) {
+            $query->where('inventory_items.created_at', '>=', $from);
+        }
+
+        if ($to = $this->endOfDay($toDate)) {
+            $query->where('inventory_items.created_at', '<=', $to);
+        }
+
         return $query->orderBy('inventory_items.id', 'desc');
+    }
+
+    /** A Y-m-d from the picker, at midnight. Anything else is no filter. */
+    private function startOfDay($date): ?Carbon
+    {
+        return $this->parse($date)?->startOfDay();
+    }
+
+    /** The same, at the far end of the day, so "to today" includes today. */
+    private function endOfDay($date): ?Carbon
+    {
+        return $this->parse($date)?->endOfDay();
+    }
+
+    /**
+     * A blank box, a half-typed date or anything hand-edited into the query
+     * string means no filter rather than an error - a list that will not draw
+     * is worse than one that ignores a date it cannot read.
+     */
+    private function parse($date): ?Carbon
+    {
+        if (! is_string($date) || trim($date) === '') {
+            return null;
+        }
+
+        try {
+            return Carbon::createFromFormat('Y-m-d', trim($date));
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     public function storeInventoryItem(array $data)

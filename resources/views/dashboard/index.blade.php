@@ -1,119 +1,8 @@
 @extends("layouts.app")
 @section("style")
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<link href="{{ asset('assets/css/date-filter.css') }}?v=1" rel="stylesheet" />
 <style>
-    .shopora-date-filter {
-        background: #fff;
-        border: 1px solid #e4e4e4;
-        border-radius: 12px;
-        padding: 16px 18px;
-        margin-bottom: 20px;
-        display: flex;
-        flex-wrap: wrap;
-        align-items: flex-end;
-        gap: 14px 16px;
-    }
-
-    .shopora-date-filter .date-field {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-        min-width: 180px;
-    }
-
-    .shopora-date-filter .date-field label {
-        margin: 0;
-        font-size: 13px;
-        font-weight: 600;
-        color: #4b5563;
-    }
-
-    .shopora-date-filter .date-input-wrap {
-        position: relative;
-    }
-
-    .shopora-date-filter .date-input-wrap input {
-        width: 100%;
-        height: 42px;
-        padding: 8px 40px 8px 12px;
-        border: 1px solid #d1d5db;
-        border-radius: 8px;
-        font-size: 14px;
-        color: #1f2937;
-        background: #fff;
-    }
-
-    .shopora-date-filter .date-input-wrap input:focus {
-        outline: none;
-        border-color: #008cff;
-        box-shadow: 0 0 0 3px rgba(0, 140, 255, 0.12);
-    }
-
-    .shopora-date-filter .date-input-wrap .cal-icon {
-        position: absolute;
-        right: 12px;
-        top: 50%;
-        transform: translateY(-50%);
-        color: #9ca3af;
-        font-size: 18px;
-        pointer-events: none;
-    }
-
-    .shopora-date-filter .btn-clear-filter {
-        height: 42px;
-        padding: 0 18px;
-        border: 0;
-        border-radius: 8px;
-        background: #008cff;
-        color: #fff;
-        font-weight: 600;
-        font-size: 14px;
-        line-height: 1;
-    }
-
-    .shopora-date-filter .btn-clear-filter:hover {
-        background: #0077db;
-        color: #fff;
-    }
-
-    .shopora-date-filter .range-tabs {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin-left: auto;
-        flex-wrap: wrap;
-    }
-
-    .shopora-date-filter .range-tab {
-        height: 36px;
-        padding: 0 14px;
-        border: 1px solid #dbe3ef;
-        border-radius: 999px;
-        background: #fff;
-        color: #4b5563;
-        font-size: 13px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.2s ease;
-    }
-
-    .shopora-date-filter .range-tab:hover {
-        border-color: #008cff;
-        color: #008cff;
-    }
-
-    .shopora-date-filter .range-tab.active {
-        background: #e8f1ff;
-        border-color: #008cff;
-        color: #008cff;
-    }
-
-    @media (max-width: 768px) {
-        .shopora-date-filter .range-tabs {
-            margin-left: 0;
-            width: 100%;
-        }
-    }
 
     .page-content.shopora-dash-page {
         position: relative;
@@ -774,11 +663,6 @@
     /* ===================== Dark mode ===================== */
     html.dark-theme .shopora-stat-card,
     html.dark-theme .shopora-panel-card,
-    html.dark-theme .shopora-date-filter {
-        background: #12181a;
-        border-color: #2a3236;
-    }
-
     html.dark-theme .shopora-stat-label {
         color: #aab3bb;
     }
@@ -792,32 +676,6 @@
     html.dark-theme .shopora-chart-sub,
     html.dark-theme .shopora-stat-meta.is-flat {
         color: #8b949c;
-    }
-
-    html.dark-theme .shopora-date-filter .date-field label {
-        color: #cbd2d8;
-    }
-
-    html.dark-theme .shopora-date-filter .date-input-wrap input {
-        background: #0d1315;
-        border-color: #2a3236;
-        color: #eef1f3;
-    }
-
-    html.dark-theme .shopora-date-filter .date-input-wrap .cal-icon {
-        color: #8b949c;
-    }
-
-    html.dark-theme .shopora-date-filter .range-tab {
-        background: #0d1315;
-        border-color: #2a3236;
-        color: #cbd2d8;
-    }
-
-    html.dark-theme .shopora-date-filter .range-tab.active {
-        background: rgba(0, 140, 255, 0.16);
-        border-color: #008cff;
-        color: #4aa8ff;
     }
 
     html.dark-theme .shopora-tabs {

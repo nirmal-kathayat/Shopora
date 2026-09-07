@@ -2,6 +2,8 @@
 
 @section("style")
 <link href="{{asset('assets/plugins/datatable/css/dataTables.bootstrap5.min.css')}}" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<link href="{{ asset('assets/css/date-filter.css') }}?v=1" rel="stylesheet" />
 @endsection
 
 @section("wrapper")
@@ -29,6 +31,34 @@
         </div>
         <!--end breadcrumb-->
         <hr />
+
+        {{-- The dashboard's own filter, on the shop's catalogue. Here the dates
+             are about when an item was added, and it starts on every item -
+             a list of what the shop sells has no reason to open on one day. --}}
+        <div class="shopora-date-filter">
+            <div class="date-field">
+                <label for="fromDate">From Date</label>
+                <div class="date-input-wrap">
+                    <input type="text" id="fromDate" class="date-picker" placeholder="Select From Date" readonly />
+                    <i class='bx bx-calendar cal-icon'></i>
+                </div>
+            </div>
+            <div class="date-field">
+                <label for="toDate">To Date</label>
+                <div class="date-input-wrap">
+                    <input type="text" id="toDate" class="date-picker" placeholder="Select To Date" readonly />
+                    <i class='bx bx-calendar cal-icon'></i>
+                </div>
+            </div>
+            <button type="button" class="btn-clear-filter" id="clearDateFilter">Clear</button>
+            <div class="range-tabs" role="tablist">
+                <button type="button" class="range-tab active" data-range="all">All time</button>
+                <button type="button" class="range-tab" data-range="today">Today</button>
+                <button type="button" class="range-tab" data-range="7days">7 days</button>
+                <button type="button" class="range-tab" data-range="1month">1 Month</button>
+            </div>
+        </div>
+
         <div class="card">
             <div class="card-body">
                 <div class="row mb-4">
@@ -96,6 +126,7 @@
 @section("script")
 <script src="{{asset('assets/plugins/datatable/js/jquery.dataTables.min.js')}}"></script>
 <script src="{{asset('assets/plugins/datatable/js/dataTables.bootstrap5.min.js')}}"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <style>
     .select2-container--default .select2-selection--single {
         border-radius: 0.375rem;
@@ -140,6 +171,49 @@
 </style>
 <script>
     let table; // Global variable to store DataTable instance
+    let fromPicker, toPicker;
+    // Set while a quick range writes both boxes, so the pickers' own onChange
+    // does not redraw the table twice and unset the tab that just set them.
+    let applyingRange = false;
+
+    function startOfDay(date) {
+        const d = new Date(date);
+        d.setHours(0, 0, 0, 0);
+        return d;
+    }
+
+    /** What each quick range means. "all" clears both boxes. */
+    function getRangeDates(range) {
+        if (range === 'all') return { from: null, to: null };
+
+        const today = startOfDay(new Date());
+        const from = new Date(today);
+
+        if (range === '7days') {
+            from.setDate(from.getDate() - 6);
+        } else if (range === '1month') {
+            from.setMonth(from.getMonth() - 1);
+        }
+
+        return { from: from, to: today };
+    }
+
+    function setActiveTab(range) {
+        $('.range-tab').removeClass('active');
+        if (range) {
+            $('.range-tab[data-range="' + range + '"]').addClass('active');
+        }
+    }
+
+    function applyDateRange(from, to, tab) {
+        applyingRange = true;
+        if (from) { fromPicker.setDate(from, false); } else { fromPicker.clear(false); }
+        if (to) { toPicker.setDate(to, false); } else { toPicker.clear(false); }
+        applyingRange = false;
+
+        setActiveTab(tab);
+        table.draw();
+    }
 
     $(document).ready(function() {
         // Initialize Select2
@@ -163,6 +237,8 @@
                 type: 'GET',
                 data: function(d) {
                     d.category_id = $('#categoryFilter').val();
+                    d.from_date = $('#fromDate').val();
+                    d.to_date = $('#toDate').val();
                 },
                 error: function(xhr) {
                     console.error('Inventory table load failed:', xhr.responseText || xhr.statusText);
@@ -241,6 +317,34 @@
         // Category filter change event
         $('#categoryFilter').on('change', function() {
             table.draw();
+        });
+
+        // ---- date range ----
+        // Both boxes start empty: the table opens on every item, and picking a
+        // date is what narrows it.
+        const pickerOptions = {
+            dateFormat: "Y-m-d",
+            onChange: function() {
+                if (applyingRange) return;
+                // A hand-picked date is not one of the quick ranges any more,
+                // unless it happens to have emptied both boxes again.
+                const none = !$('#fromDate').val() && !$('#toDate').val();
+                setActiveTab(none ? 'all' : null);
+                table.draw();
+            }
+        };
+
+        fromPicker = flatpickr("#fromDate", pickerOptions);
+        toPicker = flatpickr("#toDate", pickerOptions);
+
+        $('.range-tab').on('click', function() {
+            const range = $(this).data('range');
+            const dates = getRangeDates(range);
+            applyDateRange(dates.from, dates.to, range);
+        });
+
+        $('#clearDateFilter').on('click', function() {
+            applyDateRange(null, null, 'all');
         });
 
         // who saved this product
