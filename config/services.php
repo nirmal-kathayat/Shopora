@@ -35,6 +35,23 @@ return [
         'status_url' => env('ESEWA_STATUS_URL', 'https://rc.esewa.com.np/api/epay/transaction/status/'),
     ],
 
+    // Stripe, through hosted Checkout. There is no default: with no secret key
+    // the gateway reports itself unconfigured and the storefront never offers
+    // it. Test keys (sk_test_...) work from anywhere, which is what makes this
+    // usable in Nepal, where Stripe does not yet sign up merchants.
+    'stripe' => [
+        'secret' => env('STRIPE_SECRET', ''),
+        // Stripe signs every webhook with this; without it we have no verified
+        // way of being told a payment succeeded, so the gateway stays off.
+        'webhook_secret' => env('STRIPE_WEBHOOK_SECRET', ''),
+        // The shop prices in rupees and Stripe settles in them, so there is no
+        // conversion to explain to the customer.
+        'currency' => env('STRIPE_CURRENCY', 'npr'),
+        'api_url' => env('STRIPE_API_URL', 'https://api.stripe.com/v1'),
+        // Left empty, Stripe answers in the version the account is pinned to.
+        'api_version' => env('STRIPE_API_VERSION', ''),
+    ],
+
     // Where to send the customer's browser back to after an off-site payment.
     'frontend' => [
         'url' => env('FRONTEND_URL', 'http://localhost:3000'),

@@ -2,7 +2,9 @@
 
 namespace App\Providers;
 
-use App\Services\EsewaPaymentService;
+use App\Services\Payments\EsewaPaymentService;
+use App\Services\Payments\PaymentGateways;
+use App\Services\Payments\StripePaymentService;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Sanctum\PersonalAccessToken;
@@ -19,9 +21,17 @@ class AppServiceProvider extends ServiceProvider
             require_once $filename;
         }
 
-        // The eSewa client takes its credentials as constructor scalars, so the
-        // container needs to be told how to build it.
+        // The gateway clients take their credentials as constructor scalars, so
+        // the container needs to be told how to build each one - and then which
+        // of them the shop has, since everything that deals with more than one
+        // gateway resolves them by name through the registry.
         $this->app->singleton(EsewaPaymentService::class, fn () => EsewaPaymentService::fromConfig());
+        $this->app->singleton(StripePaymentService::class, fn () => StripePaymentService::fromConfig());
+
+        $this->app->singleton(PaymentGateways::class, fn ($app) => new PaymentGateways(
+            $app->make(EsewaPaymentService::class),
+            $app->make(StripePaymentService::class),
+        ));
     }
 
     /**

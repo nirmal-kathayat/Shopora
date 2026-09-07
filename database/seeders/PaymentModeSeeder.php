@@ -15,7 +15,7 @@ class PaymentModeSeeder extends Seeder
     {
         // payment mode seeder - updateOrInsert so re-seeding an existing
         // database adds what is missing instead of duplicating the list.
-        $modes = ['Cash', 'Fonepay', 'eSewa', 'Bank', 'Khalti', 'Cash on Delivery'];
+        $modes = ['Cash', 'Fonepay', 'eSewa', 'Bank', 'Khalti', 'Cash on Delivery', 'Stripe'];
 
         foreach ($modes as $title) {
             DB::table('payment_modes')->updateOrInsert(

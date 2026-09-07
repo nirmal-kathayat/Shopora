@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Services;
+namespace App\Services\Payments;
 
+use App\Models\Sales;
 use Illuminate\Support\Facades\Http;
 
 /**
@@ -10,10 +11,16 @@ use Illuminate\Support\Facades\Http;
  * signs the response it sends back, so neither side can tamper with the amount
  * or the reference in flight.
  *
+ * eSewa has no webhook. The only word that a payment went through rides back on
+ * the customer's own browser, which is why verifyCallback() trusts nothing it is
+ * not given a signature for, and why payments:reconcile exists at all.
+ *
  * @see https://developer.esewa.com.np/pages/Epay#integration
  */
-class EsewaPaymentService
+class EsewaPaymentService implements PaymentGateway
 {
+    use SignsCallbacks;
+
     public function __construct(
         private readonly string $productCode,
         private readonly string $secret,
@@ -29,6 +36,21 @@ class EsewaPaymentService
         return new self($c['product_code'], $c['secret'], $c['form_url'], $c['status_url']);
     }
 
+    public function key(): string
+    {
+        return 'esewa';
+    }
+
+    public function title(): string
+    {
+        return 'eSewa';
+    }
+
+    public function configured(): bool
+    {
+        return $this->productCode !== '' && $this->secret !== '';
+    }
+
     public function productCode(): string
     {
         return $this->productCode;
@@ -40,31 +62,35 @@ class EsewaPaymentService
     }
 
     /**
-     * The fields eSewa's payment form needs, signature included. The amounts
-     * are passed through as strings so the exact characters we sign are the
+     * eSewa is paid by POSTing a form at it, so the handover is that form:
+     * every field it needs, signature included. The amounts are passed through
+     * as the strings we were given, so the exact characters we sign are the
      * exact characters we post - eSewa compares the two verbatim.
      */
-    public function formFields(string $uuid, string $amount, string $deliveryCharge, string $totalAmount, string $successUrl, string $failureUrl): array
+    public function checkout(CheckoutRequest $request): Handoff
     {
         $signature = $this->sign([
-            'total_amount' => $totalAmount,
-            'transaction_uuid' => $uuid,
+            'total_amount' => $request->total,
+            'transaction_uuid' => $request->uuid,
             'product_code' => $this->productCode,
         ]);
 
-        return [
-            'amount' => $amount,
+        return Handoff::post($this->formUrl, [
+            'amount' => $request->amount,
             'tax_amount' => '0',
-            'total_amount' => $totalAmount,
-            'transaction_uuid' => $uuid,
+            'total_amount' => $request->total,
+            'transaction_uuid' => $request->uuid,
             'product_code' => $this->productCode,
             'product_service_charge' => '0',
-            'product_delivery_charge' => $deliveryCharge,
-            'success_url' => $successUrl,
-            'failure_url' => $failureUrl,
+            'product_delivery_charge' => $request->delivery,
+            'success_url' => route('payment.esewa.success'),
+            'failure_url' => route('payment.esewa.failure', [
+                'oid' => $request->uuid,
+                'sig' => $this->callbackToken($request->uuid),
+            ]),
             'signed_field_names' => 'total_amount,transaction_uuid,product_code',
             'signature' => $signature,
-        ];
+        ]);
     }
 
     /**
@@ -107,40 +133,18 @@ class EsewaPaymentService
         return $payload;
     }
 
-    /** eSewa says the payment went through, for the amount we expected. */
-    public const STATUS_COMPLETE = 'complete';
-
-    /** eSewa says it did not (pending, cancelled, not found, wrong amount). */
-    public const STATUS_INCOMPLETE = 'incomplete';
-
-    /** We could not reach eSewa to ask - neither a yes nor a no. */
-    public const STATUS_UNKNOWN = 'unknown';
-
     /**
-     * Ask eSewa's server directly whether this transaction completed - the
-     * authoritative check, independent of the redirect. Tri-state on purpose:
-     * a definite "no" must block the order, but a network hiccup must not lose
-     * a genuinely paid one, since the signed callback has already proven it.
+     * Ask eSewa's server directly whether this transaction completed, and get
+     * its own reference for it when there is one - what a reconciliation run
+     * needs, since it never sees the callback that would otherwise carry it.
      */
-    public function checkStatus(string $uuid, string $totalAmount): string
-    {
-        return $this->fetchStatus($uuid, $totalAmount)['state'];
-    }
-
-    /**
-     * The same question, with eSewa's own reference for the transaction when
-     * there is one - what a reconciliation run needs, since it never sees the
-     * callback that would otherwise carry it.
-     *
-     * @return array{state: string, reference: ?string, reported: ?string}
-     */
-    public function fetchStatus(string $uuid, string $totalAmount): array
+    public function fetchStatus(Sales $order, string $totalAmount): array
     {
         try {
             $response = Http::acceptJson()->timeout(15)->get($this->statusUrl, [
                 'product_code' => $this->productCode,
                 'total_amount' => $totalAmount,
-                'transaction_uuid' => $uuid,
+                'transaction_uuid' => (string) $order->payment_uuid,
             ]);
         } catch (\Throwable $e) {
             return ['state' => self::STATUS_UNKNOWN, 'reference' => null, 'reported' => null];
@@ -171,21 +175,9 @@ class EsewaPaymentService
         return abs((float) str_replace(',', '', $a) - (float) str_replace(',', '', $b)) < 0.01;
     }
 
-    /**
-     * A token proving a failure callback for this uuid came back through a
-     * link we ourselves handed eSewa. Unlike the success callback, the failure
-     * one carries no signed payload of eSewa's own, so without this anyone who
-     * knew a uuid could cancel a stranger's pending order.
-     */
-    public function callbackToken(string $uuid): string
+    protected function callbackSecret(): string
     {
-        return substr(hash_hmac('sha256', 'esewa-failure:' . $uuid, $this->secret), 0, 32);
-    }
-
-    public function callbackTokenMatches(string $uuid, ?string $token): bool
-    {
-        return is_string($token) && $token !== ''
-            && hash_equals($this->callbackToken($uuid), $token);
+        return $this->secret;
     }
 
     private function sign(array $data): string

@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\ProductReviewController;
 use App\Http\Controllers\Api\StockAlertController;
+use App\Http\Controllers\Api\StripePaymentController;
 use App\Http\Controllers\Api\WishlistController;
 use Illuminate\Support\Facades\Route;
 
@@ -81,18 +82,32 @@ Route::prefix('orders')->middleware(['auth:sanctum', 'abilities:customer'])->gro
     Route::post('{id}/cancel', [OrderController::class, 'cancel'])->whereNumber('id');
 });
 
-// Online payment. Starting a payment is the customer's own action; the two
-// callbacks are public because eSewa redirects the browser to them with no
-// token to offer - they are secured by the signed payload instead.
+// Online payment. Starting one is the customer's own action; the callbacks are
+// public because a gateway redirects the browser to them with no token to
+// offer - each is secured by what the gateway signed, or by a token of ours.
 Route::prefix('payment')->group(function () {
-    Route::post('esewa/initiate', [PaymentController::class, 'initiateEsewa'])
+    // What the checkout may offer. Public: it names the gateways this shop has
+    // turned on and nothing else.
+    Route::get('methods', [PaymentController::class, 'methods']);
+
+    Route::post('{gateway}/initiate', [PaymentController::class, 'initiate'])
+        ->whereIn('gateway', ['esewa', 'stripe'])
         ->middleware(['auth:sanctum', 'abilities:customer']);
+
     // A real customer hits each of these once. The limit is there so a
     // stranger cannot sit and grind at them.
     Route::middleware('throttle:30,1')->group(function () {
         Route::get('esewa/success', [PaymentController::class, 'esewaSuccess'])->name('payment.esewa.success');
         Route::get('esewa/failure', [PaymentController::class, 'esewaFailure'])->name('payment.esewa.failure');
+
+        Route::get('stripe/return', [StripePaymentController::class, 'complete'])->name('payment.stripe.return');
+        Route::get('stripe/cancel', [StripePaymentController::class, 'cancel'])->name('payment.stripe.cancel');
     });
+
+    // Stripe's own callback, not a browser's: signed, retried on failure, and
+    // deliberately outside the throttle above - a burst of retries must not be
+    // turned away, and a bad signature is refused before anything else runs.
+    Route::post('stripe/webhook', [StripePaymentController::class, 'webhook'])->name('payment.stripe.webhook');
 });
 
 // The signed-in customer's saved products.

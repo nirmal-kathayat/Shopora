@@ -29,6 +29,7 @@ class Sales extends Model
         'payment_status',
         'payment_ref',
         'payment_uuid',
+        'payment_session',
     ];
     protected $guarded = [];
     protected $table = 'sales';

@@ -31,6 +31,7 @@ class OrderRepository
     public const MODE_TITLES = [
         'cod' => 'Cash on Delivery',
         'esewa' => 'eSewa',
+        'stripe' => 'Stripe',
     ];
 
     public function __construct(private readonly CatalogueRepository $catalogue)
@@ -192,6 +193,32 @@ class OrderRepository
             ->value('total');
 
         return (float) $lines + (float) $order->delivery_fee;
+    }
+
+    /**
+     * The order's lines, as a customer would read them - one row per product,
+     * with the price it was actually sold at.
+     *
+     * For gateways that put an itemised page in front of the customer before
+     * they pay. It deliberately mirrors total(): the same rows, at the same
+     * prices, so what Stripe shows adds up to what we later check the payment
+     * against.
+     *
+     * @return list<array{name: string, qty: int, unit_amount: float}>
+     */
+    public function lines(Sales $order): array
+    {
+        return DB::table('sales_products')
+            ->join('inventory_items', 'inventory_items.id', '=', 'sales_products.product_id')
+            ->where('sales_products.sales_id', $order->id)
+            ->orderBy('sales_products.id')
+            ->get(['inventory_items.title as name', 'sales_products.qty', 'sales_products.price_per_unit'])
+            ->map(fn ($row) => [
+                'name' => (string) $row->name,
+                'qty' => (int) $row->qty,
+                'unit_amount' => (float) $row->price_per_unit,
+            ])
+            ->all();
     }
 
     /**

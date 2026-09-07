@@ -2,51 +2,83 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Api\Concerns\ReturnsToStorefront;
 use App\Http\Controllers\Controller;
-use App\Models\Sales;
 use App\Repository\OrderRepository;
-use App\Services\EsewaPaymentService;
+use App\Services\Payments\CheckoutRequest;
+use App\Services\Payments\EsewaPaymentService;
+use App\Services\Payments\PaymentGateway;
+use App\Services\Payments\PaymentGatewayException;
+use App\Services\Payments\PaymentGateways;
+use App\Services\Payments\PaymentSettlement;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Online payment for a storefront order. Right now that means eSewa (ePay v2).
+ * Online payment for a storefront order.
  *
  * The order is created up front in 'pending_payment' - reserving its stock but
  * counting for nothing in the reports - and only becomes a real, 'placed' order
- * once eSewa confirms the money. The customer leaves the site to pay and comes
- * back through a signed callback, so the two ends of the flow live here: one
- * authenticated call to start it, and two public redirects to finish it.
+ * once a gateway confirms the money. The customer leaves the site to pay and
+ * comes back through a callback, so the flow lives in two halves: one
+ * authenticated call to start it, here, and a set of public callbacks to finish
+ * it - eSewa's below, Stripe's in StripePaymentController.
  *
- * eSewa has no server-to-server webhook: the only word we get is carried by the
- * customer's own browser, which may never arrive. Everything a returning
- * browser tells us is verified, and everything it fails to tell us is picked up
- * later by payments:reconcile.
+ * Which gateways exist is the registry's business, not this controller's: it
+ * asks for one by name, hands it the order, and passes whatever handover it
+ * gets back to the browser.
  */
 class PaymentController extends Controller
 {
+    use ReturnsToStorefront;
+
     public function __construct(
         private readonly OrderRepository $orders,
+        private readonly PaymentGateways $gateways,
+        private readonly PaymentSettlement $settlement,
         private readonly EsewaPaymentService $esewa,
     ) {
     }
 
     /**
-     * Start an eSewa payment. Creates the pending order and hands the browser
-     * back everything it needs to POST eSewa's form - action URL and fields,
-     * signature included.
+     * The online payment methods this shop can actually take right now.
+     *
+     * The storefront asks before it draws the checkout, so a gateway with no
+     * credentials is never offered and then found to be broken. Cash on
+     * delivery is not in here - it needs no gateway and is always available.
      */
-    public function initiateEsewa(Request $request): JsonResponse
+    public function methods(): JsonResponse
+    {
+        return response()->json([
+            'methods' => array_map(fn (PaymentGateway $gateway) => [
+                'key' => $gateway->key(),
+                'title' => $gateway->title(),
+            ], $this->gateways->available()),
+        ]);
+    }
+
+    /**
+     * Start a payment. Creates the pending order and hands the browser back
+     * everything it needs to leave for the gateway - a form to POST, or a URL
+     * to follow, depending on which one was asked for.
+     */
+    public function initiate(Request $request, string $gateway): JsonResponse
     {
         $customer = $request->user();
 
         $data = $request->validate([
             'address_id' => ['required', 'integer'],
         ]);
+
+        $paymentGateway = $this->gateways->find($gateway);
+        if (! $paymentGateway) {
+            throw ValidationException::withMessages([
+                'payment' => 'That payment method is not available right now.',
+            ]);
+        }
 
         $address = $customer->addresses()->find($data['address_id']);
         if (! $address) {
@@ -59,35 +91,51 @@ class PaymentController extends Controller
         // never quietly tied up by an abandoned checkout.
         $this->orders->cancelPendingPayments($customer);
 
-        $result = $this->orders->place($customer, $address, 'esewa', 'pending_payment');
+        $result = $this->orders->place($customer, $address, $paymentGateway->key(), 'pending_payment');
         $order = $result['order'];
 
         $uuid = $order->id . '-' . strtoupper(Str::random(6));
         $order->update(['payment_uuid' => $uuid]);
 
-        $amount = $this->money($result['subtotal']);
-        $delivery = $this->money($result['deliveryFee']);
-        $total = $this->money($result['total']);
-
-        $fields = $this->esewa->formFields(
-            $uuid,
-            $amount,
-            $delivery,
-            $total,
-            route('payment.esewa.success'),
-            route('payment.esewa.failure', [
-                'oid' => $uuid,
-                // Our own token, so only a browser coming back through the link
-                // we handed eSewa can cancel this order.
-                'sig' => $this->esewa->callbackToken($uuid),
-            ]),
+        $checkout = new CheckoutRequest(
+            order: $order,
+            uuid: $uuid,
+            amount: $this->settlement->amount($result['subtotal']),
+            delivery: $this->settlement->amount($result['deliveryFee']),
+            total: $this->settlement->amount($result['total']),
+            lines: $this->orders->lines($order),
         );
 
-        $this->log('initiated', $uuid, ['order_id' => $order->id, 'total' => $total]);
+        try {
+            $handoff = $paymentGateway->checkout($checkout);
+        } catch (PaymentGatewayException $e) {
+            // The customer never reached the gateway, so nothing is in flight
+            // and the units should go straight back rather than wait out the
+            // reconciler. The shop is not told: it was asked for nothing.
+            $this->orders->failPending($order, tellShop: false);
 
-        return response()->json([
-            'action' => $this->esewa->formUrl(),
-            'fields' => $fields,
+            $this->settlement->log($paymentGateway->key(), 'could not be started', $uuid, [
+                'order_id' => $order->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            throw ValidationException::withMessages([
+                'payment' => 'We could not open the payment page. Please try again in a moment.',
+            ]);
+        }
+
+        // Some gateways mint their own id for the attempt. It is the only handle
+        // we have on the payment if no callback ever arrives.
+        if ($handoff->session) {
+            $order->update(['payment_session' => $handoff->session]);
+        }
+
+        $this->settlement->log($paymentGateway->key(), 'initiated', $uuid, [
+            'order_id' => $order->id,
+            'total' => $checkout->total,
+        ]);
+
+        return response()->json($handoff->toArray() + [
             'order' => ['id' => $order->id, 'code' => $order->code],
         ]);
     }
@@ -103,42 +151,42 @@ class PaymentController extends Controller
         $payload = $this->esewa->verifyCallback($request->query('data'));
 
         if (! $payload) {
-            $this->log('callback rejected: bad signature or payload', null, [
+            $this->settlement->log('esewa', 'callback rejected: bad signature or payload', null, [
                 'data' => (string) $request->query('data'),
             ]);
 
-            return $this->redirectFront('/checkout?payment=failed');
+            return $this->paymentFailed();
         }
 
         $uuid = (string) $payload['transaction_uuid'];
-        $order = Sales::storefront()->where('payment_uuid', $uuid)->first();
+        $order = $this->settlement->find($uuid);
 
         if (! $order) {
-            $this->log('callback rejected: no such order', $uuid);
+            $this->settlement->log('esewa', 'callback rejected: no such order', $uuid);
 
-            return $this->redirectFront('/checkout?payment=failed');
+            return $this->paymentFailed();
         }
 
         // Already settled - a refreshed callback, or one that raced another.
         if ($order->payment_status === 'paid') {
-            $this->log('callback replayed, already paid', $uuid, ['order_id' => $order->id]);
+            $this->settlement->log('esewa', 'callback replayed, already paid', $uuid, ['order_id' => $order->id]);
 
-            return $this->redirectFront('/account?section=orders&payment=success');
+            return $this->paymentSucceeded();
         }
 
-        $total = $this->money($this->orders->total($order));
+        $total = $this->settlement->total($order);
         $amountOk = $this->esewa->amountsMatch((string) $payload['total_amount'], $total);
 
         // A definite "no" from eSewa blocks it; an unreachable status API does
         // not, because the signed callback already vouched for the payment.
         // Asked outside any transaction - a lock must not wait on the network.
-        $status = $this->esewa->checkStatus($uuid, $total);
-        $rejected = $status === EsewaPaymentService::STATUS_INCOMPLETE;
+        $status = $this->esewa->fetchStatus($order, $total)['state'];
+        $rejected = $status === PaymentGateway::STATUS_INCOMPLETE;
 
         if (! $amountOk || $rejected) {
-            $cancelled = $this->orders->failPending($order);
+            $cancelled = $this->settlement->fail($order);
 
-            $this->log('callback rejected', $uuid, [
+            $this->settlement->log('esewa', 'callback rejected', $uuid, [
                 'order_id' => $order->id,
                 'reason' => ! $amountOk ? 'amount mismatch' : 'gateway says incomplete',
                 'claimed' => (string) $payload['total_amount'],
@@ -146,19 +194,19 @@ class PaymentController extends Controller
                 'cancelled' => $cancelled,
             ]);
 
-            return $this->redirectFront('/checkout?payment=failed');
+            return $this->paymentFailed();
         }
 
-        $settled = $this->orders->settlePaid($order, $payload['transaction_code'] ?? null);
+        $settled = $this->settlement->settle($order, $payload['transaction_code'] ?? null);
 
-        $this->log($settled ? 'paid' : 'already settled by another call', $uuid, [
+        $this->settlement->log('esewa', $settled ? 'paid' : 'already settled by another call', $uuid, [
             'order_id' => $order->id,
             'total' => $total,
             'gateway_status' => $status,
             'ref' => $payload['transaction_code'] ?? null,
         ]);
 
-        return $this->redirectFront('/account?section=orders&payment=success');
+        return $this->paymentSucceeded();
     }
 
     /**
@@ -174,36 +222,19 @@ class PaymentController extends Controller
         $uuid = (string) $request->query('oid');
 
         if (! $this->esewa->callbackTokenMatches($uuid, $request->query('sig'))) {
-            $this->log('failure callback rejected: bad token', $uuid, [
+            $this->settlement->log('esewa', 'cancel callback rejected: bad token', $uuid, [
                 'ip' => $request->ip(),
             ]);
 
-            return $this->redirectFront('/checkout?payment=failed');
+            return $this->paymentFailed();
         }
 
-        $order = Sales::storefront()->where('payment_uuid', $uuid)->first();
+        $order = $this->settlement->find($uuid);
 
-        if ($order && $this->orders->failPending($order)) {
-            $this->log('cancelled by customer at gateway', $uuid, ['order_id' => $order->id]);
+        if ($order && $this->settlement->fail($order)) {
+            $this->settlement->log('esewa', 'cancelled by customer at gateway', $uuid, ['order_id' => $order->id]);
         }
 
-        return $this->redirectFront('/checkout?payment=failed');
-    }
-
-    /** eSewa compares amounts verbatim, so keep them plain: no separators, no trailing zeros. */
-    private function money(float $value): string
-    {
-        return rtrim(rtrim(number_format($value, 2, '.', ''), '0'), '.');
-    }
-
-    private function redirectFront(string $path): RedirectResponse
-    {
-        return redirect()->away(rtrim(config('services.frontend.url'), '/') . $path);
-    }
-
-    /** One line per payment decision, kept for disputes. @see config/logging.php */
-    private function log(string $event, ?string $uuid, array $context = []): void
-    {
-        Log::channel('payment')->info('esewa: ' . $event, ['uuid' => $uuid] + $context);
+        return $this->paymentFailed();
     }
 }
