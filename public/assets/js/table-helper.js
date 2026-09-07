@@ -635,6 +635,23 @@ class TableHelper {
                 box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.1) !important;
             }
 
+            /* Action buttons.
+               Not a .btn-group: Bootstrap joins those into one segmented
+               control, flattening the corners where they meet - right for a
+               toolbar of one choice, wrong for two separate actions. These are
+               separate things, so they are spaced and each keeps its own
+               border all the way round. */
+            .th-actions {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+            }
+
+            .th-actions > .btn,
+            .th-actions > a.btn {
+                border-radius: 6px;
+            }
+
             /* Sortable header hover effect */
             .sortable-header {
                 user-select: none;
@@ -750,14 +767,14 @@ class TableHelper {
                 }
 
                 /* Stack action buttons on mobile */
-                .btn-group {
+                .th-actions {
                     display: flex;
                     flex-direction: column;
                     gap: 5px;
                     width: 100%;
                 }
 
-                .btn-group .btn {
+                .th-actions > .btn {
                     width: 100%;
                 }
 
@@ -1904,7 +1921,7 @@ class TableHelper {
             `;
         }).filter(html => html.trim() !== '').join(' ');
 
-        return `<div class="btn-group" role="group">${buttonGroup}</div>`;
+        return `<div class="th-actions" role="group">${buttonGroup}</div>`;
     }
 
     renderBody(data) {
