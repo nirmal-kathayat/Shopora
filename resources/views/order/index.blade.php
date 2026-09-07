@@ -1,7 +1,9 @@
 @extends("layouts.app")
 
 @section("style")
-<link href="{{asset('assets/plugins/datatable/css/dataTables.bootstrap5.min.css')}}" rel="stylesheet" />
+<link href="{{asset('assets/css/gridtable.css')}}?v=1" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<link href="{{ asset('assets/css/date-filter.css') }}?v=1" rel="stylesheet" />
 <style>
     /* ===== Order modal =====
        Two tinted panels for the people, a plain table for the goods, and the
@@ -160,39 +162,47 @@
         </div>
         <!--end breadcrumb-->
         <hr />
+        {{-- Same bar as Inventory Items, with the two things an order is
+             looked up by: how it was paid and where it has got to. --}}
+        <div class="shopora-date-filter">
+            <div class="date-field">
+                <label for="fromDate">From Date</label>
+                <div class="date-input-wrap">
+                    <input type="text" id="fromDate" class="date-picker" placeholder="Select From Date" readonly />
+                    <i class='bx bx-calendar cal-icon'></i>
+                </div>
+            </div>
+            <div class="date-field">
+                <label for="toDate">To Date</label>
+                <div class="date-input-wrap">
+                    <input type="text" id="toDate" class="date-picker" placeholder="Select To Date" readonly />
+                    <i class='bx bx-calendar cal-icon'></i>
+                </div>
+            </div>
+            <div class="date-field">
+                <label for="paymentFilter">Payment Method</label>
+                <select id="paymentFilter" class="form-select form-control">
+                    <option value="">All Payments</option>
+                    <option value="cod">Cash on Delivery</option>
+                    <option value="esewa">eSewa</option>
+                </select>
+            </div>
+            <div class="date-field">
+                <label for="statusFilter">Status</label>
+                <select id="statusFilter" class="form-select form-control">
+                    <option value="">All Statuses</option>
+                    @foreach($statuses as $status)
+                        <option value="{{ $status }}">{{ ucfirst($status) }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <button type="button" class="btn-clear-filter" id="clearFilters">Clear</button>
+        </div>
+
         <div class="card">
             <div class="card-body">
-                <div class="row mb-4">
-                    <div class="col-md-4">
-                        <div class="d-flex align-items-center gap-3">
-                            <label for="statusFilter" class="form-label mb-0 text-nowrap">Status</label>
-                            <select id="statusFilter" class="form-select">
-                                <option value="">All</option>
-                                @foreach($statuses as $status)
-                                    <option value="{{ $status }}">{{ ucfirst($status) }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="table-responsive">
-                    <table id="orderTable" class="table table-striped table-bordered" style="width:100%">
-                        <thead>
-                            <tr>
-                                <th>S.no</th>
-                                <th>Order</th>
-                                <th>Customer</th>
-                                <th>Items</th>
-                                <th>Total</th>
-                                <th>Payment</th>
-                                <th>Status</th>
-                                <th>Placed</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                    </table>
-                </div>
+                {{-- TableHelper renders the whole table in here. --}}
+                <div id="order-grid" class="shopora-grid"></div>
             </div>
         </div>
     </div>
@@ -229,8 +239,8 @@
 @endsection
 
 @section("script")
-<script src="{{asset('assets/plugins/datatable/js/jquery.dataTables.min.js')}}"></script>
-<script src="{{asset('assets/plugins/datatable/js/dataTables.bootstrap5.min.js')}}"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="{{asset('assets/js/table-helper.js')}}?v=1"></script>
 <script>
     /** The glyph beside the status pill in the order modal's header. */
     const STATUS_ICONS = {
@@ -257,91 +267,103 @@
         return $('<div>').text(value === null || value === undefined || value === '' ? '-' : value).html();
     }
 
+    let table;
+
     $(document).ready(function() {
         let openOrderId = null;
 
-        const table = $('#orderTable').DataTable({
-            processing: true,
-            serverSide: true,
-            ajax: {
-                url: "{{ route('admin.order') }}",
-                data: function(d) {
-                    d.status = $('#statusFilter').val();
-                }
+        const esc = TableHelper.escape;
+
+        table = new TableHelper({
+            containerId: 'order-grid',
+            apiUrl: "{{ route('admin.order') }}",
+            perPage: 10,
+            pagination: true,
+            enableCheckbox: false,
+            emptyMessage: 'No orders match these filters',
+
+            // Opens on the month so far, and Clear comes back to it - the
+            // range someone asking about orders almost always wants.
+            dateRangeDefaults: {
+                type: 'thisMonth',
+                fromSelector: '#fromDate',
+                toSelector: '#toDate',
             },
-            pageLength: 25,
+
+            onClear: function() {
+                table.applyDefaultDateRange();
+            },
+
             columns: [
-                { data: 'id', name: 'sales.id', searchable: false, render: (d, t, full) => full.DT_RowIndex },
-                { data: 'code', name: 'sales.id', orderable: false, searchable: false },
+                { name: 'S.no', isSerialNo: true, width: '64px', align: 'center' },
+                { name: 'Order', field: 'code' },
                 {
-                    data: 'customer_name',
-                    name: 'customers.name',
-                    orderable: false,
-                    render: function(data, type, full) {
-                        return escapeText(full.customer_name) +
-                            '<div class="text-muted small">' + escapeText(full.customer_phone) + '</div>';
-                    }
+                    name: 'Customer',
+                    field: 'customer_name',
+                    render: (row) => esc(row.customer_name)
+                        + '<div class="text-muted small">' + esc(row.customer_phone) + '</div>'
                 },
-                { data: 'item_count', name: 'item_count', orderable: false, searchable: false },
+                { name: 'Items', field: 'item_count', align: 'center' },
+                { name: 'Total', field: 'total', align: 'right', render: (row) => money(row.total) },
                 {
-                    data: 'total',
-                    name: 'total',
-                    orderable: false,
-                    searchable: false,
-                    render: (data) => money(data)
-                },
-                {
-                    data: 'payment_method',
-                    name: 'sales.payment_method',
-                    orderable: false,
-                    searchable: false,
-                    render: function(data, type, full) {
-                        const label = data === 'esewa' ? 'eSewa' : 'Cash on Delivery';
+                    name: 'Payment',
+                    field: 'payment_method',
+                    render: function(row) {
+                        const label = row.payment_method === 'esewa' ? 'eSewa' : 'Cash on Delivery';
                         let badge;
-                        if (full.payment_status === 'paid') {
+
+                        if (row.payment_status === 'paid') {
                             badge = '<span class="badge bg-success">Paid</span>';
-                        } else if (data === 'cod') {
+                        } else if (row.payment_method === 'cod') {
                             // COD is collected by the rider, so "unpaid" here just
                             // means the cash is due on delivery, not that anything failed.
                             badge = '<span class="badge bg-secondary">On delivery</span>';
                         } else {
                             badge = '<span class="badge bg-danger">Unpaid</span>';
                         }
-                        return '<span class="fw-medium">' + escapeText(label) + '</span>'
+
+                        return '<span class="fw-medium">' + esc(label) + '</span>'
                             + '<div class="mt-1">' + badge + '</div>';
                     }
                 },
                 {
-                    data: 'status',
-                    name: 'sales.status',
-                    orderable: false,
-                    render: function(data) {
-                        const tone = STATUS_TONES[data] || 'bg-secondary';
-                        return '<span class="badge ' + tone + '">' + escapeText(data) + '</span>';
-                    }
+                    name: 'Status',
+                    field: 'status',
+                    align: 'center',
+                    render: (row) => '<span class="badge ' + (STATUS_TONES[row.status] || 'bg-secondary')
+                        + '">' + esc(row.status) + '</span>'
                 },
-                { data: 'created_at', name: 'sales.created_at', orderable: false, searchable: false },
+                { name: 'Placed', field: 'created_at' },
                 {
-                    data: 'action',
-                    name: 'action',
-                    orderable: false,
-                    searchable: false,
-                    render: function(data, type, full) {
-                        return '<a class="btn btn-primary btn-sm viewOrder" href="javascript:void(0)" data-id="' + full.id + '"><i class="bx bx-show"></i></a>';
-                    }
+                    name: 'Action',
+                    type: 'actions',
+                    actions: [
+                        {
+                            type: 'view',
+                            title: 'View order',
+                            showLabel: false,
+                            class: 'btn btn-sm btn-primary',
+                            onClick: (row) => openOrder(row.id)
+                        }
+                    ]
                 }
-            ]
+            ],
+
+            enableSortColumns: ['code', 'customer_name', 'item_count', 'total', 'status', 'created_at'],
+
+            filters: {
+                dateRange: { fromId: 'fromDate', toId: 'toDate' },
+                additional: [
+                    { id: 'paymentFilter', param: 'payment_method' },
+                    { id: 'statusFilter', param: 'status' }
+                ],
+                autoReload: ['#paymentFilter', '#statusFilter', '#fromDate', '#toDate'],
+                autoGenerateColumnFilters: false
+            },
+
+            search: { placeholder: 'Search order no, customer or phone...' }
         });
 
-        $('#statusFilter').on('change', () => table.draw());
-
-        $('#orderTable').on('click', '.viewOrder', function() {
-            openOrder($(this).data('id'));
-        });
-
-        // Also reachable as ?order=123 - that is the link the header bell puts
-        // on a notification, so tapping "New order" lands on the order itself
-        // rather than on a list to go hunting through.
         function openOrder(id) {
             openOrderId = id;
             const url = "{{ route('admin.order.show', ['id' => ':id']) }}".replace(':id', openOrderId);
@@ -455,7 +477,7 @@
                 status: $('#orderStatusSelect').val()
             }).done(function(response) {
                 bootstrap.Modal.getInstance(document.getElementById('orderModal')).hide();
-                table.draw(false);
+                table.refresh();
                 shoporaToast.info(response.message);
             }).fail(function(xhr) {
                 shoporaToast.error((xhr.responseJSON && xhr.responseJSON.message) || 'Could not update that order.');

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Sales;
 use App\Repository\OrderRepository;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Yajra\DataTables\DataTables;
 
 class OrderController extends Controller
@@ -16,23 +17,69 @@ class OrderController extends Controller
         $this->orderRepo = $orderRepo;
     }
 
+    /**
+     * The orders screen, and the JSON behind its table.
+     *
+     * A TableHelper, so the envelope is { success, data, total }. The date
+     * range is sent as start_date / end_date - those names are fixed in the
+     * component - and works on when the order was placed.
+     */
     public function index(Request $request)
     {
         try {
-            if ($request->ajax()) {
-                $orders = $this->orderRepo->getOrders($request->input('status'));
-
-                return DataTables::of($orders)
-                    ->addIndexColumn()
-                    ->addColumn('code', fn ($order) => $order->code)
-                    ->addColumn('total', fn ($order) => (float) $order->items_total + (float) $order->delivery_fee)
-                    ->editColumn('created_at', fn ($order) => $order->created_at?->format('d M Y, g:i a'))
-                    ->rawColumns([])
-                    ->make(true);
+            if (! $request->ajax()) {
+                return view('order.index', ['statuses' => array_keys(Sales::FLOW)]);
             }
 
-            return view('order.index', ['statuses' => array_keys(Sales::FLOW)]);
-        } catch (\Exception $e) {
+            $query = $this->orderRepo->getOrders($request->input('status'), [
+                'payment_method' => $request->input('payment_method'),
+                'start_date' => $request->input('start_date'),
+                'end_date' => $request->input('end_date'),
+                'search' => $request->input('search'),
+                'sort_field' => $request->input('sort_field'),
+                'sort_direction' => $request->input('sort_direction'),
+            ]);
+
+            $perPage = min(max((int) $request->input('per_page', 10), 1), 100);
+            $page = max((int) $request->input('page', 1), 1);
+
+            // Counted through a subquery: this list carries selectSub columns,
+            // and getCountForPagination() does not survive them.
+            $total = DB::table(DB::raw('(' . $query->toSql() . ') as counted'))
+                ->mergeBindings($query->getQuery())
+                ->count();
+
+            $rows = $query->skip(($page - 1) * $perPage)->take($perPage)->get()
+                ->map(fn ($order) => [
+                    'id' => $order->id,
+                    'code' => $order->code,
+                    'customer_name' => $order->customer_name,
+                    'customer_phone' => $order->customer_phone ?: $order->delivery_phone,
+                    'item_count' => (int) $order->item_count,
+                    // What the customer actually owes: the lines plus delivery.
+                    'total' => (float) $order->items_total + (float) $order->delivery_fee,
+                    'payment_method' => $order->payment_method,
+                    'payment_status' => $order->payment_status,
+                    'status' => $order->status,
+                    'created_at' => $order->created_at?->format('d M Y, g:i a'),
+                ]);
+
+            return response()->json([
+                'success' => true,
+                'data' => $rows,
+                'total' => $total,
+            ]);
+        } catch (\Throwable $e) {
+            \Log::error('Order list failed: ' . $e->getMessage());
+
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'title' => 'Could not load',
+                    'message' => 'The order list could not be loaded.',
+                ]);
+            }
+
             return redirect()->back()->with(['message' => 'Something went wrong!', 'type' => 'error']);
         }
     }

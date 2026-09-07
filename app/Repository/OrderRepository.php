@@ -311,8 +311,13 @@ class OrderRepository
         }
     }
 
-    /** The list query - one row per order, totals folded in. */
-    public function getOrders(?string $status = null)
+    /**
+     * The list query - one row per order, totals folded in.
+     *
+     * Everything the screen can narrow by goes in $options; the date range
+     * works on when the order was placed.
+     */
+    public function getOrders(?string $status = null, array $options = [])
     {
         $lineTotal = DB::table('sales_products')
             ->selectRaw('COALESCE(SUM(qty * price_per_unit), 0)')
@@ -340,14 +345,72 @@ class OrderRepository
                 'customers.ph_number as customer_phone',
             ])
             ->selectSub($lineTotal, 'items_total')
-            ->selectSub($itemCount, 'item_count')
-            ->orderByDesc('sales.id');
+            ->selectSub($itemCount, 'item_count');
 
         if ($status) {
             $query->where('sales.status', $status);
         }
 
-        return $query;
+        if ($method = trim((string) ($options['payment_method'] ?? ''))) {
+            $query->where('sales.payment_method', $method);
+        }
+
+        if ($from = $this->parseDate($options['start_date'] ?? null)) {
+            $query->where('sales.created_at', '>=', $from->startOfDay());
+        }
+
+        if ($to = $this->parseDate($options['end_date'] ?? null)) {
+            $query->where('sales.created_at', '<=', $to->endOfDay());
+        }
+
+        // One box over the row: the customer, their phone, or the order code
+        // typed with or without its ORD- prefix.
+        $search = trim((string) ($options['search'] ?? ''));
+        if ($search !== '') {
+            $query->where(function ($q) use ($search) {
+                $like = '%' . $search . '%';
+                $q->where('customers.name', 'like', $like)
+                    ->orWhere('customers.ph_number', 'like', $like)
+                    ->orWhere('sales.delivery_phone', 'like', $like)
+                    ->orWhere('sales.id', 'like', '%' . ltrim(preg_replace('/^ORD-\d{4}-/i', '', $search), '0') . '%');
+            });
+        }
+
+        return $this->sortOrders($query, $options['sort_field'] ?? null, $options['sort_direction'] ?? null);
+    }
+
+    /** Order the list. By column name only - the field arrives in a URL. */
+    private function sortOrders($query, $field, $direction)
+    {
+        $sortable = [
+            'code' => 'sales.id',
+            'customer_name' => 'customers.name',
+            'item_count' => 'item_count',
+            'total' => 'items_total',
+            'status' => 'sales.status',
+            'created_at' => 'sales.created_at',
+        ];
+
+        $column = $sortable[$field] ?? null;
+        if (! $column) {
+            return $query->orderByDesc('sales.id');
+        }
+
+        return $query->orderBy($column, strtolower((string) $direction) === 'asc' ? 'asc' : 'desc');
+    }
+
+    /** A Y-m-d, or null for anything the picker did not write. */
+    private function parseDate($date): ?\Carbon\Carbon
+    {
+        if (! is_string($date) || trim($date) === '') {
+            return null;
+        }
+
+        try {
+            return \Carbon\Carbon::createFromFormat('Y-m-d', trim($date));
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     public function find(int $id): Sales
