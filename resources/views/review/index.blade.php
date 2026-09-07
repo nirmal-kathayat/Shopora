@@ -1,13 +1,13 @@
 @extends("layouts.app")
 
 @section("style")
-<link href="{{asset('assets/plugins/datatable/css/dataTables.bootstrap5.min.css')}}" rel="stylesheet" />
+<link href="{{asset('assets/css/gridtable.css')}}?v=1" rel="stylesheet" />
 <style>
     .rev-stars { color: #f59e0b; letter-spacing: 1px; }
 
-    /* .table-responsive sets white-space: nowrap app-wide, so a long review
-       ran off in one line and stretched the whole table. Cap the column and
-       cut the overflow with an ellipsis so every row stays one line tall. */
+    /* The grid keeps cells on one line, so a long review would run off and
+       stretch the whole table. Cap the column and cut the overflow with an
+       ellipsis; the full text stays reachable on hover. */
     .rev-body {
         width: 340px;
         max-width: 340px;
@@ -39,21 +39,8 @@
 
         <div class="card">
             <div class="card-body">
-                <div class="table-responsive">
-                    <table id="reviewTable" class="table table-striped table-bordered" style="width:100%">
-                        <thead>
-                            <tr>
-                                <th>S.no</th>
-                                <th>Product</th>
-                                <th>Customer</th>
-                                <th>Rating</th>
-                                <th>Review</th>
-                                <th>Date</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                    </table>
-                </div>
+                {{-- TableHelper renders the whole table in here. --}}
+                <div id="review-grid" class="shopora-grid"></div>
             </div>
         </div>
     </div>
@@ -61,54 +48,97 @@
 @endsection
 
 @section("script")
-<script src="{{asset('assets/plugins/datatable/js/jquery.dataTables.min.js')}}"></script>
-<script src="{{asset('assets/plugins/datatable/js/dataTables.bootstrap5.min.js')}}"></script>
+<script src="{{asset('assets/js/table-helper.js')}}?v=1"></script>
 <script>
     $(document).ready(function() {
-        const esc = (v) => $('<div>').text(v == null ? '' : v).html();
-        const stars = (n) => '★'.repeat(Number(n)) + '☆'.repeat(5 - Number(n));
+        const esc = TableHelper.escape;
+        const stars = (n) => '\u2605'.repeat(Number(n)) + '\u2606'.repeat(5 - Number(n));
 
-        const table = $('#reviewTable').DataTable({
-            processing: true,
-            serverSide: true,
-            ajax: "{{ route('admin.review') }}",
+        new TableHelper({
+            containerId: 'review-grid',
+            apiUrl: "{{ route('admin.review') }}",
+            perPage: 10,
+            pagination: true,
+            enableCheckbox: false,
+            emptyMessage: 'No reviews match this search',
+
             columns: [
-                { data: 'id', name: 'product_reviews.id', searchable: false, orderable: false,
-                  render: (d, t, full, meta) => meta.row + 1 },
-                { data: 'product_title', name: 'inventory_items.title',
-                  render: (d) => `<span class="fw-semibold">${esc(d)}</span>` },
-                { data: 'customer_name', name: 'customers.name', render: esc },
-                { data: 'rating', name: 'product_reviews.rating', searchable: false,
-                  render: (d) => `<span class="rev-stars">${stars(d)}</span> <span class="text-muted">${Number(d)}</span>` },
-                { data: 'body', name: 'product_reviews.body', orderable: false,
-                  render: (d, t, full) => {
-                    const title = full.title ? `<div class="fw-semibold rev-text">${esc(full.title)}</div>` : '';
-                    // Cut to one line with an ellipsis; the full text stays reachable on hover.
-                    // esc() leaves quotes alone, which would break out of the attribute.
-                    const tip = esc([full.title, d].filter(Boolean).join(' — ')).replace(/"/g, '&quot;');
-                    return `<div class="rev-body" title="${tip}">${title}<div class="text-muted small rev-text">${esc(d) || '—'}</div></div>`;
-                  }},
-                { data: 'created_at', name: 'product_reviews.created_at', searchable: false },
-                { data: 'action', name: 'action', orderable: false, searchable: false,
-                  render: (d, t, full) => `<a class="btn btn-danger deleteAction btn-sm" href="javascript:void(0)" data-id="${full.id}"><i class="bx bx-trash"></i></a>` }
-            ]
-        });
+                { name: 'S.no', isSerialNo: true, width: '64px', align: 'center' },
+                {
+                    name: 'Product',
+                    field: 'product_title',
+                    render: (row) => `<span class="fw-semibold">${esc(row.product_title)}</span>`
+                },
+                { name: 'Customer', field: 'customer_name' },
+                {
+                    name: 'Rating',
+                    field: 'rating',
+                    render: (row) => `<span class="rev-stars">${stars(row.rating)}</span>`
+                        + ` <span class="text-muted">${Number(row.rating)}</span>`
+                },
+                {
+                    name: 'Review',
+                    field: 'body',
+                    render: function(row) {
+                        const heading = row.title
+                            ? `<div class="fw-semibold rev-text">${esc(row.title)}</div>`
+                            : '';
+                        // One line with an ellipsis; the whole thing is in the
+                        // title attribute. escape() leaves quotes alone, which
+                        // would otherwise break out of the attribute.
+                        const tip = esc([row.title, row.body].filter(Boolean).join(' \u2014 ')).replace(/"/g, '&quot;');
 
-        $('#reviewTable').on('click', '.deleteAction', function(e) {
-            e.preventDefault();
-            const id = $(this).data('id');
-            const deleteUrl = "{{ route('admin.review.delete', ['id' => ':id']) }}".replace(':id', id);
-            Swal.fire({
-                title: 'Delete this review?',
-                text: "This removes the customer's review permanently.",
-                icon: 'warning', showCancelButton: true,
-                confirmButtonColor: '#3085d6', cancelButtonColor: '#d33', confirmButtonText: 'Yes, delete it!'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    window.location.href = deleteUrl;
+                        return `<div class="rev-body" title="${tip}">${heading}`
+                            + `<div class="text-muted small rev-text">${esc(row.body) || '\u2014'}</div></div>`;
+                    }
+                },
+                { name: 'Date', field: 'created_at' },
+                {
+                    name: 'Action',
+                    type: 'actions',
+                    actions: [
+                        {
+                            type: 'delete',
+                            title: 'Delete',
+                            showLabel: false,
+                            onClick: (row) => confirmDelete(row.id)
+                        }
+                    ]
                 }
-            });
+            ],
+
+            enableSortColumns: ['product_title', 'customer_name', 'rating', 'created_at'],
+
+            // No filter bar above this table: the header row and the search
+            // box are how you find a review.
+            filters: {
+                autoGenerateColumnFilters: false,
+                columnFilters: [
+                    { field: 'product_title', type: 'text', param: 'product_title', placeholder: 'Product' },
+                    { field: 'customer_name', type: 'text', param: 'customer_name', placeholder: 'Customer' }
+                ]
+            },
+
+            search: { placeholder: 'Search product, customer or review text...' }
         });
     });
+
+    function confirmDelete(id) {
+        const deleteUrl = "{{ route('admin.review.delete', ['id' => ':id']) }}".replace(':id', id);
+
+        Swal.fire({
+            title: 'Delete this review?',
+            text: "This removes the customer's review permanently.",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Yes, delete it!'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                window.location.href = deleteUrl;
+            }
+        });
+    }
 </script>
 @endsection

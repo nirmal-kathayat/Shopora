@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ProductReview;
+use Illuminate\Http\Request;
 use Yajra\DataTables\DataTables;
 
 /**
@@ -11,33 +12,91 @@ use Yajra\DataTables\DataTables;
  */
 class ReviewController extends Controller
 {
-    public function index()
+    /**
+     * The reviews screen, and the JSON behind its table.
+     *
+     * A TableHelper, so the envelope is { success, data, total }. Reviews go
+     * live the moment they are written, so this list is where the shop reads
+     * what has been said about it - newest first.
+     */
+    public function index(Request $request)
     {
         try {
-            if (request()->ajax()) {
-                $reviews = ProductReview::query()
-                    ->leftJoin('inventory_items', 'inventory_items.id', '=', 'product_reviews.inventory_item_id')
-                    ->leftJoin('customers', 'customers.id', '=', 'product_reviews.customer_id')
-                    ->select([
-                        'product_reviews.id',
-                        'product_reviews.rating',
-                        'product_reviews.title',
-                        'product_reviews.body',
-                        'product_reviews.created_at',
-                        'inventory_items.title as product_title',
-                        'customers.name as customer_name',
-                    ])
-                    ->orderByDesc('product_reviews.created_at');
-
-                return DataTables::of($reviews)
-                    ->addIndexColumn()
-                    ->editColumn('created_at', fn ($r) => $r->created_at?->format('d M Y, g:i a'))
-                    ->rawColumns([])
-                    ->make(true);
+            if (! $request->ajax()) {
+                return view('review.index');
             }
 
-            return view('review.index');
-        } catch (\Exception $e) {
+            $query = ProductReview::query()
+                ->leftJoin('inventory_items', 'inventory_items.id', '=', 'product_reviews.inventory_item_id')
+                ->leftJoin('customers', 'customers.id', '=', 'product_reviews.customer_id')
+                ->select([
+                    'product_reviews.id',
+                    'product_reviews.rating',
+                    'product_reviews.title',
+                    'product_reviews.body',
+                    'product_reviews.created_at',
+                    'inventory_items.title as product_title',
+                    'customers.name as customer_name',
+                ]);
+
+            foreach (['product_title' => 'inventory_items.title', 'customer_name' => 'customers.name'] as $key => $column) {
+                if ($value = trim((string) $request->input($key))) {
+                    $query->where($column, 'like', '%' . $value . '%');
+                }
+            }
+
+            // One box over the row: the product, who wrote it, or what it says.
+            if ($search = trim((string) $request->input('search'))) {
+                $like = '%' . $search . '%';
+                $query->where(function ($q) use ($like) {
+                    $q->where('inventory_items.title', 'like', $like)
+                        ->orWhere('customers.name', 'like', $like)
+                        ->orWhere('product_reviews.title', 'like', $like)
+                        ->orWhere('product_reviews.body', 'like', $like);
+                });
+            }
+
+            $sortable = [
+                'product_title' => 'inventory_items.title',
+                'customer_name' => 'customers.name',
+                'rating' => 'product_reviews.rating',
+                'created_at' => 'product_reviews.created_at',
+            ];
+            $column = $sortable[$request->input('sort_field')] ?? null;
+
+            $column
+                ? $query->orderBy($column, strtolower((string) $request->input('sort_direction')) === 'asc' ? 'asc' : 'desc')
+                : $query->orderByDesc('product_reviews.created_at');
+
+            $perPage = min(max((int) $request->input('per_page', 10), 1), 100);
+            $page = max((int) $request->input('page', 1), 1);
+            $total = $query->getCountForPagination();
+
+            return response()->json([
+                'success' => true,
+                'data' => $query->skip(($page - 1) * $perPage)->take($perPage)->get()
+                    ->map(fn ($r) => [
+                        'id' => $r->id,
+                        'rating' => (int) $r->rating,
+                        'title' => $r->title,
+                        'body' => $r->body,
+                        'product_title' => $r->product_title,
+                        'customer_name' => $r->customer_name,
+                        'created_at' => $r->created_at?->format('d M Y, g:i a'),
+                    ]),
+                'total' => $total,
+            ]);
+        } catch (\Throwable $e) {
+            \Log::error('Review list failed: ' . $e->getMessage());
+
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'title' => 'Could not load',
+                    'message' => 'The review list could not be loaded.',
+                ]);
+            }
+
             return redirect()->back()->with(['message' => 'Something went wrong!', 'type' => 'error']);
         }
     }
