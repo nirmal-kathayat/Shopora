@@ -16,13 +16,7 @@ class PurchaseInventoryRepository
         $this->query = $query;
     }
 
-    /**
-     * The purchase bill listing.
-     *
-     * The date range works on bill_date - the date on the vendor's bill, not
-     * when it was typed in. Left empty it means every bill, because this is
-     * the list you go through looking for one.
-     */
+    /** The purchase bill listing. */
     public function getPurchaseInventory(array $options = [])
     {
         $query = $this->query
@@ -32,14 +26,6 @@ class PurchaseInventoryRepository
                 'purchase_inventory.bill_date as purchase_date',
                 'purchase_inventory.vat_amount',
             );
-
-        if ($from = $this->parseDate($options['start_date'] ?? null)) {
-            $query->whereDate('purchase_inventory.bill_date', '>=', $from);
-        }
-
-        if ($to = $this->parseDate($options['end_date'] ?? null)) {
-            $query->whereDate('purchase_inventory.bill_date', '<=', $to);
-        }
 
         // The header-row box under Vendor Name.
         $vendor = trim((string) ($options['vendor_name'] ?? ''));
@@ -79,23 +65,6 @@ class PurchaseInventoryRepository
         return $query->orderBy($column, strtolower((string) $direction) === 'asc' ? 'asc' : 'desc');
     }
 
-    /**
-     * A Y-m-d from the picker. A blank box, a half-typed date or anything
-     * hand-edited into the query string means no filter rather than an error -
-     * a list that will not draw is worse than one that ignores a bad date.
-     */
-    private function parseDate($date): ?Carbon
-    {
-        if (! is_string($date) || trim($date) === '') {
-            return null;
-        }
-
-        try {
-            return Carbon::createFromFormat('Y-m-d', trim($date));
-        } catch (\Throwable) {
-            return null;
-        }
-    }
 
     public function store(array $data)
     {

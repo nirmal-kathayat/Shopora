@@ -21,9 +21,7 @@ class PurchaseInventoryController extends Controller
     /**
      * The screen, and the JSON behind its table.
      *
-     * A TableHelper, so the envelope is { success, data, total }. Its date
-     * range is sent as start_date / end_date - those names are fixed in the
-     * component - and works on the date on the vendor's bill.
+     * A TableHelper, so the envelope is { success, data, total }.
      */
     public function index()
     {
@@ -39,8 +37,6 @@ class PurchaseInventoryController extends Controller
             $page = max((int) request()->input('page', 1), 1);
 
             $rows = $this->purchaseInventoryRepo->getPurchaseInventory([
-                'start_date' => request()->input('start_date'),
-                'end_date' => request()->input('end_date'),
                 'vendor_name' => request()->input('vendor_name'),
                 'search' => request()->input('search'),
                 'sort_field' => request()->input('sort_field'),

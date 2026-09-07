@@ -2,8 +2,6 @@
 
 @section("style")
 <link href="{{asset('assets/css/gridtable.css')}}?v=1" rel="stylesheet" />
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-<link href="{{ asset('assets/css/date-filter.css') }}?v=1" rel="stylesheet" />
 
 @endsection
 
@@ -32,27 +30,6 @@
         </div>
         <!--end breadcrumb-->
         <hr />
-
-        {{-- The range works on the date on the vendor's bill. It opens empty -
-             every bill - because this is the list you go through looking for
-             one, and hiding older bills on arrival would defeat that. --}}
-        <div class="shopora-date-filter">
-            <div class="date-field">
-                <label for="fromDate">From Date</label>
-                <div class="date-input-wrap">
-                    <input type="text" id="fromDate" class="date-picker" placeholder="Select From Date" readonly />
-                    <i class='bx bx-calendar cal-icon'></i>
-                </div>
-            </div>
-            <div class="date-field">
-                <label for="toDate">To Date</label>
-                <div class="date-input-wrap">
-                    <input type="text" id="toDate" class="date-picker" placeholder="Select To Date" readonly />
-                    <i class='bx bx-calendar cal-icon'></i>
-                </div>
-            </div>
-            <button type="button" class="btn-clear-filter" id="clearFilters">Clear</button>
-        </div>
 
         <div class="card">
             <div class="card-body">
@@ -89,7 +66,6 @@
 </div>
 
 @section("script")
-<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="{{asset('assets/js/table-helper.js')}}?v=1"></script>
 <script>
     let table;
@@ -135,10 +111,9 @@
 
             enableSortColumns: ['vendor_name', 'purchase_date'],
 
+            // No filter bar above this table, same as Categories: the header
+            // row and the search box are how you find a bill.
             filters: {
-                // emptyMeans stays 'all' - a blank box is every bill.
-                dateRange: { fromId: 'fromDate', toId: 'toDate' },
-                autoReload: ['#fromDate', '#toDate'],
                 autoGenerateColumnFilters: false,
                 columnFilters: [
                     { field: 'vendor_name', type: 'text', param: 'vendor_name', placeholder: 'Vendor' }
