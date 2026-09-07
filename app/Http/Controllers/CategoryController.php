@@ -16,22 +16,56 @@ class CategoryController extends Controller
         $this->categoryRepo = $categoryRepo;
     }
 
+    /**
+     * The screen, and the JSON behind its table.
+     *
+     * A TableHelper, so the envelope is { success, data, total }. There is no
+     * filter bar above this one - a shop has a handful of aisles, and the
+     * header row and the search box are enough to find one.
+     */
     public function index()
     {
         try {
-            if (request()->ajax()) {
-                $categories = $this->categoryRepo->getCategoriesForListing();
-
-                return DataTables::of($categories)
-                    ->addIndexColumn()
-                    ->editColumn('updated_at', fn ($category) => $category->updated_at?->format('d M Y, g:i a'))
-                    ->addColumn('image_url', fn ($category) => inventoryItemImageUrl($category->image))
-                    ->rawColumns([])
-                    ->make(true);
+            if (! request()->ajax()) {
+                return view('category.index');
             }
 
-            return view('category.index');
-        } catch (\Exception $e) {
+            $perPage = min(max((int) request()->input('per_page', 10), 1), 100);
+            $page = max((int) request()->input('page', 1), 1);
+
+            $rows = $this->categoryRepo->getCategoriesForListing([
+                'title' => request()->input('title'),
+                'slug' => request()->input('slug'),
+                'search' => request()->input('search'),
+                'sort_field' => request()->input('sort_field'),
+                'sort_direction' => request()->input('sort_direction'),
+            ])->paginate($perPage, ['*'], 'page', $page);
+
+            return response()->json([
+                'success' => true,
+                'data' => collect($rows->items())->map(fn ($category) => [
+                    'id' => $category->id,
+                    'title' => $category->title,
+                    'slug' => $category->slug,
+                    'status' => (int) $category->status,
+                    'sort_order' => (int) $category->sort_order,
+                    'inventory_items_count' => (int) $category->inventory_items_count,
+                    'image_url' => $category->image ? inventoryItemImageUrl($category->image) : null,
+                    'updated_at' => $category->updated_at?->format('d M Y, g:i a'),
+                ]),
+                'total' => $rows->total(),
+            ]);
+        } catch (\Throwable $e) {
+            \Log::error('Category list failed: ' . $e->getMessage());
+
+            if (request()->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'title' => 'Could not load',
+                    'message' => 'The category list could not be loaded.',
+                ]);
+            }
+
             return redirect()->back()->with(['message' => 'Something went wrong!', 'type' => 'error']);
         }
     }

@@ -1,32 +1,1045 @@
-/* ===== TableHelper =====
-   An AJAX table: server-side paging, a filter row, global search, sorting,
-   row selection with bulk actions, an action-button column and a totals row.
-   One class, one <div>, one JSON endpoint - no DataTables.
+# TableHelper — Complete Guide
 
-   Ported from the author's own component (TABLE-HELPER-GUIDE.md). What changed
-   for Shopora, and why:
+A dependency-light, vanilla-JS AJAX data table (`class TableHelper`) that renders a Bootstrap 5
+table with server-side pagination, column filters, global search, sorting, row selection,
+bulk actions, an action-button column, and a server-computed totals row.
 
-   - Dates are AD on flatpickr, not Bikram Sambat on nepali-datepicker. This
-     panel works in AD throughout; BS appears only on the bill, derived there.
-   - An empty date box means "everything" rather than "today". The original
-     forced today whenever a box was blank, which is right for a dashboard and
-     wrong for a list of what the shop stocks. Screens that want the old
-     behaviour say so: dateRange.emptyMeans: 'today'.
-   - Icons are boxicons, which is what the panel loads.
-   - Errors go through shoporaToast, so a table's complaint looks like every
-     other result in the admin.
-   - Cell values are escaped. Rows here carry customer names, staff-typed
-     product titles and review text written by the public, and every cell is
-     written with innerHTML. A column's own render() is still raw - that is
-     the escape hatch, and the page author owns it.
-   - A field holding 0 or '' renders as itself, not as the word "N/A".
-   - The two fetches send same-origin credentials and X-Requested-With.
-   - The running console.log commentary is gone.
+Written for a Laravel + Blade + Bootstrap 5 stack, but the class itself only needs a DOM
+container and a JSON endpoint — you can drop it into any project.
 
-   Known limit, unchanged from the original: the class assumes ONE table per
-   page. #applyFilters, #clearFilters, #select-all-checkbox and the sort click
-   handler are not namespaced per instance. Two on one page will interfere.
-*/
+> **Everything you need is in this file.** The full source of both files is inlined at the
+> bottom ([Appendix A](#appendix-a--full-source-table-helperjs), [Appendix B](#appendix-b--full-source-gridtablecss)).
+> Copy them out and you are done.
+
+---
+
+## Table of contents
+
+1. [Install](#1-install)
+2. [Quick start](#2-quick-start)
+3. [Backend contract](#3-backend-contract)
+4. [Configuration reference](#4-configuration-reference)
+5. [Columns](#5-columns)
+6. [Filters](#6-filters)
+7. [Global search](#7-global-search)
+8. [Sorting](#8-sorting)
+9. [Row selection & bulk actions](#9-row-selection--bulk-actions)
+10. [Action buttons column](#10-action-buttons-column)
+11. [Totals row](#11-totals-row)
+12. [Grouped / multi-row headers, colspan & rowspan](#12-grouped--multi-row-headers-colspan--rowspan)
+13. [Static helpers: `TableHelper.ajax` and `TableHelper.loadDropdown`](#13-static-helpers)
+14. [Instance API](#14-instance-api)
+15. [Styling](#15-styling)
+16. [Laravel backend recipe](#16-laravel-backend-recipe)
+17. [Gotchas — read this before you debug](#17-gotchas--read-this-before-you-debug)
+18. [Porting checklist for a new project](#18-porting-checklist-for-a-new-project)
+19. [Appendix A — full source: table-helper.js](#appendix-a--full-source-table-helperjs)
+20. [Appendix B — full source: gridtable.css](#appendix-b--full-source-gridtablecss)
+
+---
+
+## 1. Install
+
+### Files
+
+| File | Where it goes | What it does |
+| --- | --- | --- |
+| `table-helper.js` | `public/assets/js/table-helper.js` | The whole component. Exposes `window.TableHelper`. |
+| `gridtable.css` | `public/assets/css/custom/gridtable.css` | The "standard table look" (borders, header colour, zebra rows, selected-row highlight). **Optional** — the JS injects its own layout CSS at runtime. |
+
+### Load order
+
+```blade
+{{-- <head> --}}
+<meta name="csrf-token" content="{{ csrf_token() }}">
+<link rel="stylesheet" href="{{ asset('assets/css/custom/gridtable.css') }}">
+
+{{-- before </body> --}}
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="bootstrap.bundle.min.js"></script>
+<script src="{{ asset('assets/js/table-helper.js') }}"></script>
+```
+
+### Dependencies
+
+| Library | Required? | Used for |
+| --- | --- | --- |
+| **jQuery** | **Yes** | `setupFilters()`, `clearFilters()`, `validateFilters()`, `_applyDefaultDateRange()` all use `$`. The table render/paging path itself is vanilla `fetch`. |
+| **Bootstrap 5** (CSS + JS) | Practically yes | Table/pagination/button classes; `bootstrap.Modal` for `action.modal`; `bootstrap.Tooltip` for `action.tooltip`. Falls back to jQuery `.modal()` and then to manual `display:block`. |
+| **Bootstrap Icons** or **FontAwesome** | Optional | Default action icons are `bi bi-*`; the sort indicator markup is `<i class="fa-solid fa-sort">`. Pick whichever and pass your own `icon` strings. |
+| **jquery-toast-plugin** (`$.toast`) | Optional | Error/validation alerts. Without it, falls back to `alert()`. |
+| **Select2** | Optional | Only for `TableHelper.loadDropdown(..., { select2: true })`. |
+| **nepali-datepicker** (`$.fn.nepaliDatePicker`, `NepaliFunctions`) | Optional | Only if you use the Bikram Sambat calendar. Remove `_autoInitDatePickers()` / `_getTodayBS()` if you don't. |
+
+**No build step. No npm package. It is one plain `<script>` file.**
+
+---
+
+## 2. Quick start
+
+Markup — one empty div is all the table needs; filters live outside it and are wired by id:
+
+```html
+<div class="d-flex gap-2 mb-3">
+    <input type="text" id="from-datepicker" class="form-control form-control-sm w-auto">
+    <input type="text" id="to-datepicker"   class="form-control form-control-sm w-auto">
+
+    <select id="statusFilter" class="form-select form-select-sm w-auto">
+        <option value="">All</option>
+        <option value="1">Active</option>
+        <option value="0">Inactive</option>
+    </select>
+
+    <button type="button" id="applyFilters" class="btn btn-primary btn-sm">Search</button>
+    <button type="button" id="clearFilters" class="btn btn-secondary btn-sm">Clear</button>
+</div>
+
+<div id="table-gridjs"></div>
+```
+
+Script:
+
+```js
+$(document).ready(function () {
+    const table = new TableHelper({
+        containerId: 'table-gridjs',
+        apiUrl: '/api/orders',
+
+        columns: [
+            { name: 'S.no',      isSerialNo: true, width: '60px', align: 'center' },
+            { name: 'Order No',  field: 'orderNo' },
+            { name: 'Customer',  field: 'customerName' },
+            { name: 'Amount',    field: 'amount', align: 'right' },
+            {
+                name: 'Status',
+                render: (row) => row.status === 'PAID'
+                    ? '<span class="badge bg-success">Paid</span>'
+                    : '<span class="badge bg-warning text-dark">Pending</span>'
+            },
+            {
+                name: 'Action',
+                type: 'actions',
+                actions: [
+                    { type: 'view', onClick: (row) => openDetail(row.id) },
+                    {
+                        type: 'delete',
+                        confirm: 'Delete this order?',
+                        onClick: (row, i, btn, helper) => destroy(row.id).then(() => helper.refresh())
+                    }
+                ]
+            }
+        ],
+
+        filters: {
+            dateRange: { fromId: 'from-datepicker', toId: 'to-datepicker' },
+            additional: [{ id: 'statusFilter', param: 'status' }],
+            autoGenerateColumnFilters: false,
+            columnFilters: [
+                { field: 'orderNo',      type: 'text', param: 'orderNo' },
+                { field: 'customerName', type: 'text', param: 'customerName' }
+            ]
+        },
+
+        perPage: 10,
+        pagination: true,
+        enableCheckbox: false,
+        search: { placeholder: 'Search order no…' }
+    });
+});
+```
+
+That's it — the constructor calls `init()`, which initialises date pickers, applies the
+default date range, binds the filter buttons, wires sorting, and fires the first request.
+
+---
+
+## 3. Backend contract
+
+### What the table SENDS (GET query string)
+
+Built by `buildApiUrl()` → `getFilterValues()`. Empty values are dropped.
+
+| Param | Always sent? | Source |
+| --- | --- | --- |
+| `page` | yes | current page (1-based) |
+| `per_page` | yes | `config.perPage` / the "Rows per page" select |
+| `start_date`, `end_date` | if `filters.dateRange` | the two date inputs, raw string value |
+| `date_type` | if `filters.dateRange.dateTypeParam` | that element's value |
+| *(your param names)* | if `filters.additional` | each additional filter |
+| *(your param names)* | if column filters have values | header-row filter inputs |
+| `search` | if search box has a term | `config.search.param` (default `search`) |
+| `sort_field`, `sort_direction` | when a sortable header is clicked | `asc` / `desc` |
+| *(anything)* | if `config.extraParams` is a function | merged last, **overrides** everything above |
+
+`buildApiUrl` appends with `?` or `&` depending on whether `apiUrl` already has a query string,
+so `apiUrl: '/api/orders?view=all'` is safe.
+
+### What the table EXPECTS back
+
+`loadTable()` accepts **four** response shapes, checked in this order:
+
+```js
+// 1 — preferred
+{ "success": true, "data": [ {...}, {...} ], "total": 1234 }
+
+// 2 — a raw Laravel paginator
+{ "data": { "data": [ ... ], "total": 1234 } }
+
+// 3
+{ "rows": [ ... ], "total": 1234 }
+
+// 4 — a bare array (total = array length, so pagination is wrong beyond page 1)
+[ {...}, {...} ]
+```
+
+Anything else → a "Unexpected response format from server" warning and an empty table.
+
+### Error responses
+
+Return HTTP 200 with `success: false` to show a controlled message instead of the generic
+error toast:
+
+```json
+{ "success": false, "title": "Invalid range", "message": "Max 32 days allowed.", "icon": "warning" }
+```
+
+A non-2xx status or a network failure falls into `.catch()` → generic
+`"Error loading data. Please try again."`.
+
+### Row `id` matters
+
+`_getRowId(row, i)` returns `row.id` when present, otherwise the row index. Row selection,
+`getSelectedRows()`, the select-all checkbox and shift-click ranges all key off it. **Give
+every row a stable unique `id`** if you use checkboxes. A common trick (used in this codebase)
+is to stamp a running serial in the controller:
+
+```php
+foreach ($result['data'] as $index => $row) {
+    $row->id = (($page - 1) * $limit) + $index + 1;
+}
+```
+
+---
+
+## 4. Configuration reference
+
+Everything is one flat object passed to `new TableHelper({...})`. Unknown keys are kept
+(`...config` spread), so you can stash your own page state on `this.config`.
+
+### Core
+
+| Option | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `containerId` | string | `'table-container'` | id of the empty `<div>`. Also namespaces every generated id (search box, pagination, per-page select, column-filter inputs, bulk toolbar). |
+| `apiUrl` | string | — | **required**. GET endpoint. |
+| `columns` | array | `[]` | See [Columns](#5-columns). |
+| `perPage` | number | `10` | Sent as `per_page`. Mutated when the user changes the "Rows per page" select. |
+| `perPageOptions` | number[] | `[10, 25, 50, 100]` | Empty array hides the select. |
+| `pagination` | bool | **falsy** | Must be explicitly `true` or you get no pager at all. |
+| `emptyMessage` | string | `'No matching records found'` | |
+| `tableClass` | string | `'table'` | Extra classes on `<table>`. |
+| `stickyHeader` | bool | `true` | Sticky `<thead>` + dynamic container height. `false` = plain `.table-responsive`. |
+
+### Behaviour hooks
+
+| Option | Type | Signature |
+| --- | --- | --- |
+| `onRowClick` | fn | `(rowData, rowIndex, event)` — also adds `cursor-pointer` and toggles `.table-row-selected` highlight. |
+| `onDataLoaded` | fn | `(data, rawResult)` — runs after every fetch, before render. The place to recompute columns from the response. |
+| `onSelectionChange` | fn | `(selectedRowsSet)` — a `Set` of **string** row ids. |
+| `onClear` | fn | `()` — runs inside `clearFilters()` **before** the reload. Use this to reset select2 widgets or page-local selects. |
+| `rowClass` | string \| fn | `(rowData, rowIndex) => 'text-danger'` — extra `<tr>` classes. |
+| `extraParams` | fn | `() => ({ view_type: currentView })` — merged into every list **and** totals request. |
+
+### Filtering & search
+
+| Option | Type | Notes |
+| --- | --- | --- |
+| `filters` | object | `{ dateRange, additional, autoReload, columnFilters, autoGenerateColumnFilters, excludeColumns }` — see [Filters](#6-filters). |
+| `dateValidation` | object | `{ enabled, fromSelector, toSelector, maxDays, requiredMessage }`. |
+| `dateRangeDefaults` | object | `{ type, fromSelector, toSelector, useNepaliCalendar, fromDate, toDate }`. |
+| `search` | bool \| object | `{ placeholder, param, buttonLabel, inputStyle, buttonStyle, style: 'premium' }`. |
+| `globalSearchStandalone` | bool | Search ignores all other filters instead of clearing them. |
+| `autoInitDatePickers` | bool | `true`. Auto-inits any `.nepali-datepicker`, `[id*=datepicker]`, `[id*=date-picker]`. Set `false` in a non-Nepali project. |
+
+### Selection, sorting, totals, headers
+
+| Option | Type | Notes |
+| --- | --- | --- |
+| `enableCheckbox` | bool \| fn | **defaults to `true`** — turn it off explicitly on read-only tables. |
+| `dynamicCheckbox` | bool | Set `true` when `enableCheckbox` is a function `(helper) => bool`, re-evaluated on every load. |
+| `bulkActions` | array | `[{ label, icon, class, handler(selectedRows, helper) }]`. |
+| `enableSortColumns` | string[] | Field names that get a clickable sort header. Empty/absent = nothing sortable. |
+| `totals` | object | `{ enabled, apiUrl, label, columns: { columnField: totalsKey } }`. |
+| `headerRows` | array[] | Grouped multi-row header. See [§12](#12-grouped--multi-row-headers-colspan--rowspan). |
+| `maxVisibleRows` | number | **Accepted but unused** — height comes from `perPage`. Ignore it. |
+
+---
+
+## 5. Columns
+
+A column is an object. Three shorthand forms are also normalised by `_normalizeColumns()`:
+
+```js
+columns: [
+    'Customer Name',            // → { name: 'Customer Name', field: 'customerName' }
+    'Order No|orderNo',         // → { name: 'Order No',      field: 'orderNo' }
+    { name: 'Amount', field: 'amount' }
+]
+```
+
+### Column properties
+
+| Key | Type | Meaning |
+| --- | --- | --- |
+| `name` (or `header`) | string | Header label. Also becomes the `data-label` used by the mobile card layout. |
+| `field` | string | Key to read from the row object. |
+| `render` | fn | `(rowData, rowIndex, helper) => htmlString`. Wins over `field`. |
+| `isSerialNo` / `isIndex` | bool | Prints `((page-1) * perPage) + i + 1`. |
+| `type: 'actions'` / `actions: [...]` | | Renders the action button group. |
+| `width` | string | Applied to `<th>` as `style="width: …"`. |
+| `align` | string | `left` \| `center` \| `right` on the `<td>`. |
+| `class` | string | Extra classes on the `<td>`. |
+| `colspan` | number \| fn | `(rowData, rowIndex) => n` — subsequent columns in that row are skipped. |
+| `rowspan` | number \| fn | `(rowData, rowIndex) => n` — the cell is skipped in the next `n-1` rows. |
+
+> `filterableField` is written in a lot of existing blades. **It does nothing** — the JS never
+> reads it. Column filters are declared in `filters.columnFilters`, matched to a column by
+> `field`. Harmless, but don't rely on it.
+
+### Cell fallbacks and escaping
+
+```js
+content = rowData[column.field] || 'N/A';
+```
+
+Falsy values become the literal string `N/A` — so `0`, `''`, `false` all render as `N/A`.
+When zero is meaningful, use `render`:
+
+```js
+{ name: 'Qty', field: 'qty', render: (r) => r.qty ?? 0 }
+```
+
+**There is no HTML escaping anywhere.** `render()` output and raw field values are injected
+via `innerHTML`. Escape untrusted data yourself:
+
+```js
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c =>
+    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+```
+
+### Dynamic column sets
+
+Two helpers build a column array conditionally, and `updateColumns()` re-renders **without**
+refetching (page, filters and search are preserved):
+
+```js
+onDataLoaded: (data, result) => {
+    const cols = table.buildColumnsWithPositioning(BASE_COLUMNS, {
+        shouldInsert: currentStatus === 'cancelled',
+        insertAfterIndex: 1,
+        insertColumns: [{ name: 'Cancelled Date', field: 'cancelledDate' }],
+        shouldAppend: showAudit,
+        appendColumns: [{ name: 'Updated By', field: 'updatedBy' }]
+    });
+    table.updateColumns(cols);
+}
+```
+
+`buildColumnsWithConditions(base, conditions, conditionalColumns)` is the simpler
+append-only variant.
+
+---
+
+## 6. Filters
+
+### 6.1 Date range
+
+```js
+filters: {
+    dateRange: {
+        fromId: 'from-datepicker',   // bare element id, no '#'
+        toId: 'to-datepicker',
+        dateTypeParam: 'date-filters' // optional: id of a select, sent as `date_type`
+    }
+}
+```
+
+Sent as `start_date` / `end_date` (names are **not** configurable).
+
+**Important:** `setupFilters()` starts with `if (!filters.dateRange) return;`. Without a
+`dateRange` block, `#applyFilters`, `#clearFilters` and `filters.autoReload` are **never
+bound**. If your page has no dates, either declare a dummy `dateRange` pointing at hidden
+inputs, or bind those buttons yourself.
+
+### 6.2 Default date range
+
+```js
+dateRangeDefaults: {
+    type: 'thisMonth',            // 'today' | 'thisMonth' | 'lastMonth' | 'custom'
+    fromSelector: '#from-datepicker',  // NOTE: a jQuery selector, WITH the '#'
+    toSelector:   '#to-datepicker',
+    useNepaliCalendar: true,
+    fromDate: '2081-01-01',       // 'custom' only
+    toDate:   '2081-01-15'
+}
+```
+
+- `today` → both = today. `thisMonth` → 1st of month → today. `lastMonth` → 30 days back → today.
+- Values are set with change handlers temporarily detached, so it does not fire an extra request.
+- It runs **once** (`_dateRangeInitialized`). It will not re-apply after `clearFilters()`.
+- Beware the selector style mismatch: `filters.dateRange` wants **`fromId`** (no `#`),
+  `dateRangeDefaults` and `dateValidation` want **`fromSelector`** (with `#`).
+
+### 6.3 Date validation
+
+```js
+dateValidation: {
+    enabled: true,
+    fromSelector: '#from-datepicker',
+    toSelector: '#to-datepicker',
+    maxDays: 32,                       // rejects when diff >= maxDays → real max is 31 days
+    requiredMessage: 'Please select both From and To dates.'
+}
+```
+
+Runs on Apply and on every `autoReload` change. Comparison is plain string `>` — fine for
+`YYYY-MM-DD` in both AD and BS.
+
+### 6.4 Additional (page-level) filters
+
+```js
+filters: {
+    additional: [
+        { id: 'statusFilter', param: 'status', defaultValue: 'active' },
+        'operatorId'    // shorthand: id = 'operatorId', param = 'operator_id' (camel → snake)
+    ]
+}
+```
+
+`defaultValue` is only used by `clearFilters()` — it is what the input is reset **to**, not
+what it starts as. Set the initial value in your HTML.
+
+### 6.5 Auto-reload filters
+
+```js
+filters: {
+    autoReload: ['#statusFilter', '#operatorId']   // jQuery selectors
+}
+```
+
+Reloads on `change` (with validation) instead of waiting for the Apply button.
+
+### 6.6 Column filters (the header filter row)
+
+A second `<tr>` in the `<thead>` with one input/select per column.
+
+```js
+filters: {
+    autoGenerateColumnFilters: false,   // ← almost always what you want
+    columnFilters: [
+        { field: 'orderNo', type: 'text', param: 'orderNo', placeholder: 'Order No' },
+        {
+            field: 'status', type: 'select', param: 'status',
+            options: [{ value: '1', label: 'Active' }, { value: '0', label: 'Inactive' }],
+            allowBlank: true            // false removes the "All" option
+        },
+        {
+            field: 'operatorName', type: 'select', param: 'operator_id',
+            optionsUrl: '/api/operators',   // fetched once, cached per URL on the instance
+            valueField: 'id', labelField: 'name'
+        }
+    ],
+    excludeColumns: ['internalNote']    // these columns get an empty filter cell
+}
+```
+
+Normalisation (`_normalizeColumnFilters`):
+- `param` defaults to `field`.
+- `id` defaults to **`${containerId}-cf-${param}`** — you will need this id for custom
+  export buttons that mirror the grid's filters.
+- `column` (the index the input sits under) is resolved by matching `field` against
+  `columns[].field`. **If no column has that `field`, the input is never rendered** — a
+  common cause of "my filter doesn't show up". For a `render`-only column, give it a
+  matching `field` too.
+
+Behaviour: `input` for text / `change` for select, debounced 500 ms, resets to page 1,
+clears the global search, and stores values in `this.columnFilterValues`.
+
+**Auto-generation:** if `autoGenerateColumnFilters` is not `false`, the first non-empty
+response is inspected and a text filter is generated for **every key** of the first row
+(minus a small skip list: `id`, `ticketDetailId`, `tripMasterId`, `passengerDetailId`,
+`operatorId`, `merchantCommission`, `serviceCode`, plus `filters.excludeColumns`). It fires
+once, then re-renders the whole table. Convenient for a scratch page, noisy for a real one —
+**set it to `false` on anything you ship.**
+
+---
+
+## 7. Global search
+
+```js
+search: {
+    placeholder: 'Ticket / serial no…',
+    param: 'search',          // query-string key
+    buttonLabel: 'Search',
+    inputStyle: 'max-width: 320px; flex: 1;',
+    style: 'premium'          // optional teal input-group look
+},
+globalSearchStandalone: true
+```
+
+The search box is injected as a sibling **before** the container, id
+`${containerId}-search`, button `${containerId}-search-btn`. Triggers on click, on `Enter`;
+`Escape` clears and reloads.
+
+Two modes:
+
+- **Default** — searching calls `_clearOtherFilters()`, wiping the date inputs, additional
+  filters and column filters in the DOM. Search then owns the query.
+- **`globalSearchStandalone: true`** — the UI keeps every filter visible and selected, but
+  while a search term exists `getFilterValues()` returns **only** the search param. The
+  filters silently apply again when the search is cleared. This is what you want for a
+  "find this exact ticket, whatever range is on screen" lookup.
+
+Applying any filter clears the search (`_clearGlobalSearch()`), so the two never fight.
+
+---
+
+## 8. Sorting
+
+```js
+enableSortColumns: ['orderNo', 'customerName', 'amount']
+```
+
+Only listed `field`s get the clickable header + indicator. Clicking cycles
+`asc → desc → off`, resets to page 1 and reloads with `sort_field` / `sort_direction`.
+**Sorting is fully server-side — the client never reorders anything.**
+
+```php
+$allowed = ['orderNo' => 'o.order_no', 'customerName' => 'c.name', 'amount' => 'o.amount'];
+$col = $allowed[$request->get('sort_field')] ?? 'o.id';
+$dir = strtolower($request->get('sort_direction')) === 'asc' ? 'ASC' : 'DESC';
+$sql .= " ORDER BY {$col} {$dir}";
+```
+
+Never interpolate `sort_field` straight into SQL — whitelist it.
+
+Sort click handlers are bound with `$(document).on('click.tableHelper', '.sortable-header', …)`,
+which is **document-wide and not namespaced per instance**. Two sortable TableHelpers on one
+page will both react to a click on either. See [Gotchas](#17-gotchas--read-this-before-you-debug).
+
+---
+
+## 9. Row selection & bulk actions
+
+**Checkboxes are ON by default.** Read-only tables should say so:
+
+```js
+enableCheckbox: false
+```
+
+Full setup:
+
+```js
+enableCheckbox: true,
+bulkActions: [
+    {
+        label: 'Cancel selected',
+        icon: 'bi bi-x-circle',
+        class: 'btn btn-sm btn-danger',
+        handler: (selected, helper) => {
+            // selected = [{ id, data }, ...] for the CURRENT PAGE ONLY
+            const ids = selected.map(s => s.data.ticketId);
+            cancelTickets(ids).then(() => { helper.clearAllSelections(); helper.refresh(); });
+        }
+    }
+],
+onSelectionChange: (set) => console.log(set.size, 'selected')
+```
+
+- A toolbar (`${containerId}-bulk-toolbar`) is inserted before the container and shown
+  whenever ≥1 row is selected, with your buttons plus "Clear Selection".
+- **Shift+click** on a checkbox (or a row) selects the range from the last click.
+- Selection lives in a `Set` of **string** ids and **survives paging** — but `getSelectedRows()`
+  only walks `this.gridData`, i.e. the rows currently loaded. Ids selected on page 1 stay in
+  the set yet are not returned while you are on page 2. If you need cross-page bulk actions,
+  keep your own map of `id → row` inside `onSelectionChange`.
+
+Conditional checkboxes:
+
+```js
+dynamicCheckbox: true,
+enableCheckbox: (helper) => helper.config.viewType === 'pending'
+```
+
+Re-evaluated on every load; when visibility flips, the whole table re-renders and any stale
+selection is cleared.
+
+---
+
+## 10. Action buttons column
+
+```js
+{
+    name: 'Action',
+    type: 'actions',
+    actions: [
+        'edit',                                  // string shorthand → built-in preset
+        {
+            type: 'view',                        // preset base, overridden below
+            label: 'Detail',
+            icon: 'bi bi-eye',
+            class: 'btn btn-sm btn-info',
+            title: 'Open detail',
+            tooltip: 'Full booking detail',
+            showIcon: true,
+            showLabel: false,                    // icon-only button
+            visible: (row) => row.status !== 'CANCELLED',
+            disabled: (row) => row.locked === 1,
+            dataAttributes: { id: (row) => row.id, code: 'X1' },   // → data-id, data-code
+            onClick: (rowData, rowIndex, buttonEl, helper) => openDetail(rowData)
+        },
+        { type: 'delete', confirm: 'Delete this row?', confirmTitle: 'Confirm', onClick: … },
+        { type: 'open',   modal: '#detailModal' },    // Bootstrap modal, row JSON on dataset.rowData
+        { type: 'go',     url: '/orders/{id}/edit' }  // {field} placeholders from the row
+    ]
+}
+```
+
+Built-in presets: `edit` (pencil, `btn-primary`), `delete` (trash, `btn-danger`),
+`show` / `view` (eye, `btn-info`). Anything else is `custom` with `btn-secondary`.
+
+`label` and `class` may be functions `(rowData, rowIndex) => string` for per-row styling.
+
+Order of effects in `_handleAction()`: `modal` → `url` (navigates away!) → `onClick`
+(or `action`). Don't combine `url` with `onClick`.
+
+`confirm` uses the browser's native `confirm()`. The convention in this codebase is to skip
+it and open your own Bootstrap modal from `onClick` instead.
+
+> The action column always renders **inside** `<div class="btn-group">`. `_setupActionButtons()`
+> re-binds by **cloning and replacing** every button after each render — so anything you
+> attached to those DOM nodes from outside is lost on the next reload. Put behaviour in
+> `onClick`, not in an external `addEventListener`.
+
+### Dropdown inside a cell
+
+The injected CSS ships a viewport-fixed dropdown that is never clipped by the table's
+`overflow`. Use the exact class names:
+
+```js
+render: (row) => `
+    <div class="th-dropdown">
+        <button class="btn btn-sm btn-primary th-dropdown-btn">SMS</button>
+        <ul class="th-dropdown-menu">
+            <li><a href="javascript:void(0)" onclick="sendSms(${row.id},'booking')">Booking SMS</a></li>
+            <li><a href="javascript:void(0)" onclick="sendSms(${row.id},'reminder')">Reminder</a></li>
+        </ul>
+    </div>`
+```
+
+The container handles open/close, closes others, closes on outside click and on sidebar
+hover (`.topnav`). Menu items keep working because clicks that aren't on `.th-dropdown-btn`
+are left alone.
+
+---
+
+## 11. Totals row
+
+A sticky summary row appended to `<tbody>`, computed by a **separate endpoint** that receives
+exactly the same filters (including `extraParams`) as the list.
+
+```js
+totals: {
+    enabled: true,
+    apiUrl: '/api/orders/totals',
+    label: 'TOTAL',
+    columns: {                       // column field  →  key in the API's `totals` object
+        amount:   'totalAmount',
+        discount: 'totalDiscount',
+        received: 'totalReceived'
+    }
+}
+```
+
+Endpoint must return:
+
+```json
+{ "success": true, "totals": { "totalAmount": 1234567.5, "totalDiscount": 400, "totalReceived": 1234167.5 } }
+```
+
+- A "Loading totals…" row shows while it fetches; failure removes the row silently
+  (check the console).
+- The **first column always gets the label**, whatever you mapped it to.
+- Numbers are formatted by `_formatTotalValue`: integers get thousands separators, decimals
+  get 2 places, `null` becomes `-`.
+- `clearFilters()` drops the cache and removes the row; `refreshTotals()` refetches on demand.
+- Compute totals **in SQL over the whole filtered set**, never in PHP over fetched rows — that
+  is what makes the row meaningful (and what stops it exhausting memory on big ranges).
+
+---
+
+## 12. Grouped / multi-row headers, colspan & rowspan
+
+```js
+headerRows: [
+    [ { label: 'Name', rowspan: 2 }, { label: 'Timeout', colspan: 2 }, { label: 'Booked', rowspan: 2 } ],
+    [ { label: 'Operator' }, { label: 'Customer' } ]
+]
+```
+
+Cell keys: `label`, `colspan`, `rowspan`, `width`, `align`, `class`.
+
+When `headerRows` is set it **replaces** the generated header — meaning per-column sorting
+headers are not rendered. The checkbox `<th>` is added automatically to row 0 with
+`rowspan = headerRows.length`.
+
+Body-side spans live on the columns:
+
+```js
+{ name: 'Route', field: 'route', rowspan: (row, i) => row.isGroupStart ? row.groupSize : 1 }
+{ name: 'Note',  field: 'note',  colspan: (row) => row.isFullWidth ? 4 : 1 }
+```
+
+`renderBody()` tracks remaining spans per column and skips the covered cells for you.
+
+---
+
+## 13. Static helpers
+
+Both are `static` — call them on the class, no instance needed.
+
+### `TableHelper.ajax(url, options)`
+
+Returns a Promise. Uses `$.ajax` when jQuery is present, otherwise `fetch`. Always sends
+`X-CSRF-TOKEN` from `<meta name="csrf-token">`, `Content-Type: application/json` and
+`Accept: application/json`. Shows a `$.toast` on error unless disabled, and **re-throws**.
+
+```js
+TableHelper.ajax('/api/orders/42/cancel', {
+    method: 'POST',
+    data: { reason: 'Customer request' },
+    showErrorAlert: true,
+    success: (res) => $.toast({ heading: 'Done', text: res.message, icon: 'success' })
+}).then(() => table.refresh())
+  .catch(() => {});   // it re-throws — always attach a catch
+```
+
+Options: `method`, `data`, `headers`, `useJQuery`, `showLoader`, `showErrorAlert`,
+`success`, `error`. Note: for `GET`, `data` is passed straight to `$.ajax` as a query object;
+for others it is JSON-stringified.
+
+### `TableHelper.loadDropdown(selectId, url, options)`
+
+Fills a `<select>` from an endpoint returning `{ data: [...] }` or a bare array.
+
+```js
+TableHelper.loadDropdown('operatorFilter', '/api/operators', {
+    valueField: 'id',
+    textField: 'name',
+    placeholder: 'Select Operator',
+    placeholderValue: '',
+    prependOptions: [{ value: 'all', text: 'All Operators', selected: true }],
+    select2: true,
+    select2Options: { dropdownParent: $('#someModal') },
+    formatter: (item) => `<option value="${item.id}">${item.code} — ${item.name}</option>`,
+    onSuccess: (data, el) => {},
+    onError: (err, el) => {}
+});
+```
+
+---
+
+## 14. Instance API
+
+| Method | What it does |
+| --- | --- |
+| `refresh()` | Reload the **current** page with current filters. |
+| `loadTable(page = 1)` | Fetch and render a specific page. |
+| `clearFilters()` | Reset dates to **today**, additional filters to `defaultValue`, column filters to empty, search to empty, sorting off, totals cache dropped, `onClear()` hook, then reload page 1. |
+| `clearGlobalSearch()` / `clearOtherFilters()` | Clear one side only, then reload. |
+| `getFilterValues()` / `getAppliedFilters()` | The exact param object that would be sent. Use it to build export URLs. |
+| `getRowData(i)` / `getAllData()` | Current page's rows. |
+| `getSelectedRows()` | `[{ id, data }]` for selected rows **on the current page**. |
+| `getSelectedCount()` | `selectedRows.size` (counts ids from other pages too). |
+| `selectRow(id)` / `deselectRow(id)` / `selectAllRows()` / `clearAllSelections()` | Programmatic selection. |
+| `updateConfig(newConfig)` | Shallow-merge config, re-normalise column filters, reload. |
+| `updateColumns(cols \| () => cols)` | Swap the column set and re-render from cached data — **no refetch**, page and filters preserved. |
+| `buildColumnsWithConditions()` / `buildColumnsWithPositioning()` | Conditional column assembly (see [§5](#5-columns)). |
+| `refreshTotals()` | Refetch just the totals row. |
+| `validateFilters()` | Run `dateValidation` manually; returns bool. |
+
+Useful instance state: `currentPage`, `totalPages`, `totalRecords`, `gridData`, `searchTerm`,
+`sortField`, `sortDirection`, `columnFilterValues`, `selectedRows`, `config`.
+
+### Export button pattern
+
+The cleanest way to make an export match the grid exactly:
+
+```js
+$('#exportBtn').on('click', function () {
+    const qs = new URLSearchParams(table.getAppliedFilters()).toString();
+    window.location.href = `/api/orders/export?${qs}`;
+});
+```
+
+`getAppliedFilters()` already includes the date range, additional filters, column filters,
+search term and `extraParams` — but **not** `page` / `per_page`, which is exactly right for
+"export everything that matches".
+
+---
+
+## 15. Styling
+
+There are **two** style sources, and knowing which is which saves a lot of confusion.
+
+### 15.1 Injected at runtime (always)
+
+`_injectStickyHeaderStyles()` appends one `<style id="table-helper-sticky-styles">` to
+`<head>` on first render. It owns:
+
+- `.table-sticky-header thead` — `position: sticky; top: 0` + z-index
+- `.table-responsive-sticky` — the scroll container
+- zebra rows, hover, cell padding
+- `.th-dropdown` / `.th-dropdown-menu` — the viewport-fixed cell dropdown
+- `.table-loader-overlay` + three bouncing dots, and the skeleton shimmer
+- `.sort-indicator` / `.sortable-header`
+- `.op-btn-search` (the "premium" search button)
+- `.table-totals-row`, `.totals-label`, `.totals-cell`
+- **A full mobile card layout at `max-width: 768px`** — the `<thead>` is hidden and each
+  `<td>` becomes a stacked label/value card using the `data-label` attribute (which is why
+  every cell wraps its content in `<span class="cell-value">`).
+
+You get all of this for free, in any project, with no extra CSS file.
+
+### 15.2 `gridtable.css` — the "house look" (optional)
+
+This file is **scoped to the literal id `#table-gridjs`**, not to a class:
+
+```css
+#table-gridjs table { … }
+#table-gridjs th    { … }
+#table-gridjs tbody tr.table-row-selected > td { … }
+```
+
+So a table rendered into `<div id="myTable">` gets the layout CSS but **not** the borders,
+navy header, or selected-row highlight. In the new project either:
+
+- keep using `containerId: 'table-gridjs'` (what every page in this codebase does), or
+- **better:** find/replace `#table-gridjs` → `.cq-grid` in the CSS and add that class to your
+  container. Then you can have two styled tables on one page.
+
+### 15.3 Height behaviour
+
+`_applyTableHeight()` runs after every render: if `rows <= perPage` the container is
+`height: auto` (no inner scrollbar); if there are more rows it fixes the height at
+`43px header + 45px/row (+45 filter row) (+40 totals)` and scrolls. Horizontal scroll is
+always on, so wide tables never break the page layout.
+
+---
+
+## 16. Laravel backend recipe
+
+### Route
+
+```php
+Route::get('/orders/list',  [OrderController::class, 'list'])->name('orders.list');
+Route::get('/orders/totals',[OrderController::class, 'totals'])->name('orders.totals');
+```
+
+### Controller
+
+```php
+public function list(Request $request)
+{
+    try {
+        $limit  = (int) ($request->get('per_page') ?? $request->get('limit') ?? 10);
+        $page   = (int) $request->get('page', 1);
+
+        [$start, $end] = $this->resolveDates($request);   // BS → AD if you use Nepali dates
+
+        $result = $this->service->getList([
+            'start_date' => $start,
+            'end_date'   => $end,
+            'status'     => $request->get('status'),
+            'orderNo'    => $request->get('orderNo'),      // column filter
+            'search'     => $request->get('search'),
+            'sort_field' => $request->get('sort_field'),
+            'sort_direction' => $request->get('sort_direction'),
+            'page'       => $page,
+            'limit'      => $limit,
+        ]);
+
+        $rows = [];
+        foreach ($result['data'] as $i => $row) {
+            $row->id = (($page - 1) * $limit) + $i + 1;   // stable row id for selection
+            $rows[]  = $row;
+        }
+
+        return response()->json(['success' => true, 'data' => $rows, 'total' => $result['total']]);
+    } catch (\Throwable $e) {
+        Log::error('Order list failed: '.$e->getMessage());
+        return response()->json(['success' => false, 'message' => 'Error: '.$e->getMessage()], 500);
+    }
+}
+
+public function totals(Request $request)
+{
+    return response()->json([
+        'success' => true,
+        'totals'  => $this->service->getTotals($request->all()),   // SUM(...) in SQL
+    ]);
+}
+```
+
+### Raw-SQL pagination macro
+
+This codebase paginates raw queries with a `DB::selectPaginate()` macro registered in
+`AppServiceProvider::boot()`. Copy it if your new project also uses raw SQL:
+
+```php
+DB::macro('selectPaginate', function ($query, $bindings = [], $page = 1, $perPage = 20) {
+    if (!is_int($page))    throw new \Exception('Page is not an integer');
+    if (!is_int($perPage)) throw new \Exception('Per page is not an integer');
+
+    $total  = (int) DB::selectOne("select count(*) as total from ($query) as total_table", $bindings)->total;
+    $offset = ($page - 1) * $perPage;
+    $items  = DB::select("$query LIMIT $offset, $perPage", $bindings);
+
+    return new LengthAwarePaginator(collect($items), $total, $perPage, $page, [
+        'path'  => request()->url(),
+        'query' => request()->query(),
+    ]);
+});
+```
+
+Usage → `['data' => $paginator->items(), 'total' => $paginator->total()]`.
+
+> Note: `$offset` and `$perPage` are interpolated into the SQL string, so **cast them to int
+> before they reach the macro** (the `is_int` guards do this for you — never pass request
+> strings straight through).
+
+### Filter-building pattern
+
+```php
+$where = ['1=1']; $bind = [];
+
+if ($p['start_date'] && $p['end_date']) { $where[] = 'o.created_at BETWEEN ? AND ?'; $bind[] = $p['start_date']; $bind[] = $p['end_date'].' 23:59:59'; }
+if ($p['status'] !== null && $p['status'] !== '') { $where[] = 'o.status = ?'; $bind[] = $p['status']; }
+if ($p['orderNo']) { $where[] = 'o.order_no LIKE ?'; $bind[] = '%'.$p['orderNo'].'%'; }
+if ($p['search'])  { $where[] = '(o.order_no LIKE ? OR c.name LIKE ?)'; $bind[] = "%{$p['search']}%"; $bind[] = "%{$p['search']}%"; }
+```
+
+Column filters map 1:1 onto `LIKE` conditions — that is the whole point of the header row.
+
+---
+
+## 17. Gotchas — read this before you debug
+
+These are all real, all in the current source. Most cost someone an afternoon at least once.
+
+### Configuration traps
+
+1. **`enableCheckbox` defaults to `true`.** Every read-only listing must pass
+   `enableCheckbox: false` or it grows a useless select column.
+2. **`pagination` has no default.** Forgetting `pagination: true` gives you a table with no
+   pager and no rows-per-page select, silently.
+3. **No `filters.dateRange` ⇒ `#applyFilters` / `#clearFilters` / `autoReload` are never
+   bound.** `setupFilters()` returns early. Bind them yourself or add a dummy date range.
+4. **`fromId` vs `fromSelector`.** `filters.dateRange` takes bare ids; `dateRangeDefaults`
+   and `dateValidation` take jQuery selectors with `#`. Mixing them fails silently.
+5. **`maxDays` is exclusive** (`diffDays >= maxDays` rejects) — `maxDays: 32` allows 31 days.
+6. **A column filter whose `field` matches no column is never rendered.** Give `render`-only
+   columns a `field` if you want them filterable.
+7. **`filterableField` on a column does nothing.** Decorative leftover.
+8. **`maxVisibleRows` does nothing.** Height derives from `perPage`.
+9. **`autoGenerateColumnFilters` is ON unless you set it to `false`** — one filter box per key
+   of the first row, including ones you never wanted.
+10. **`defaultValue` on an additional filter is the *reset* value, not the initial value.**
+
+### Runtime traps
+
+11. **`clearFilters()` resets dates to today (BS), ignoring `dateRangeDefaults`.** If your page
+    defaults to "this month", Clear will silently narrow it to today. Fix it in `onClear`.
+12. **`dateRangeDefaults` applies once per instance.** After a Clear it never re-applies.
+13. **Never bind your own `$('#clearFilters').on('click', ...)` handler** — the helper already
+     binds one, and yours would double every table + totals request. Use the `onClear` hook.
+14. **`0`, `''` and `false` render as `N/A`** via `rowData[field] || 'N/A'`. Use `render`.
+15. **Nothing is HTML-escaped.** Fields and `render()` output go through `innerHTML`.
+16. **Action buttons are cloned+replaced on every render** — external listeners on them die.
+17. **`getSelectedRows()` only returns rows in `gridData`** (current page), though the id `Set`
+     keeps ids from other pages. Cross-page bulk actions need your own row cache.
+18. **`extraParams` is merged last** and will overwrite a same-named filter param.
+19. **Sorting is server-side only.** No `enableSortColumns` → nothing sortable; a listed field
+     the backend ignores → clicking does nothing visible except a refetch.
+20. **The totals row's first column always shows the label**, regardless of your `columns` map.
+21. **The list request is a bare `fetch(url)`** — no CSRF header, no `credentials` option. Fine
+     for GET behind session cookies (same-origin sends them by default), but if you move the API
+     cross-origin or behind a token you must patch `loadTable()` and `_fetchAndRenderTotals()`.
+22. **Row `id` must be unique and stable** or selection highlights the wrong rows after paging.
+
+### Two-tables-on-one-page traps
+
+The class is written assuming **one table per page**. These ids/selectors are global, not
+namespaced by `containerId`:
+
+23. `#applyFilters`, `#clearFilters` — shared buttons; both instances react.
+24. `#select-all-checkbox` — duplicated id; `container.querySelector` finds the right one for
+     wiring, but it is still invalid HTML and CSS/tests will trip over it.
+25. `#table-totals-row` / `#table-totals-row-loading` — `document.getElementById`, so two
+     totals rows on a page will fight.
+26. `$(document).on('click.tableHelper', '.sortable-header', …)` — bound per instance on
+     `document`, so a click on one table's header runs **every** instance's handler.
+27. `$('.sort-indicator').removeClass(...)` in `clearFilters()` clears the other table's
+     indicators too.
+
+    *If you need two tables on one page:* prefix those ids with `this.config.containerId` in
+    the source (it is a mechanical change — six spots), and give each table its own
+    Apply/Clear buttons.
+
+### Cosmetic / cleanup
+
+28. The file `console.log`s on every render, every action-button build and every per-page
+     change. Strip them for production.
+29. `renderTableBody()` assigns a full `<tbody>…</tbody>` string into an existing `tbody`'s
+     `innerHTML`. Browsers drop the stray tags so it works, but it is wrong — the fix is
+     `renderBody()` returning rows only.
+30. `updateColumns()` re-renders `<table class="${stickyHeaderClass}">` and **drops
+     `config.tableClass`**. If you rely on `tableClass`, patch that template literal.
+31. `_openModal()` writes `JSON.stringify(rowData)` to `dataset.rowData` — huge rows bloat
+     the DOM; prefer `onClick` + a JS variable.
+
+---
+
+## 18. Porting checklist for a new project
+
+1. Copy `table-helper.js` to `public/assets/js/` and load it after jQuery + Bootstrap.
+2. Copy `gridtable.css` — and rename `#table-gridjs` to a class (e.g. `.cq-grid`) so it is
+   not tied to a single id.
+3. If the project is **not** Nepali-calendar based:
+   - set `autoInitDatePickers: false` in every config, or
+   - delete `_autoInitDatePickers()` / `_getTodayBS()` and make `_getTodayDate()` AD-only.
+     Also change `clearFilters()`'s `const todayBS = this._getTodayBS()`.
+4. Decide on the ids: `applyFilters`, `clearFilters`, `from-datepicker`, `to-datepicker` are
+   the conventional ones the defaults expect.
+5. Add the `DB::selectPaginate` macro if you use raw SQL; otherwise return
+   `['data' => $paginator->items(), 'total' => $paginator->total()]` from Eloquent.
+6. Standardise the response envelope as `{ success, data, total }` across all endpoints.
+7. Strip the `console.log` lines.
+8. If you want two tables on one page, do the id-namespacing fix from
+   [Gotchas §23–27](#two-tables-on-one-page-traps) **first** — retrofitting is worse.
+9. Optional hardening worth doing once, at the start:
+   - add an `escapeHtml` helper and use it in the `field` branch of `renderBody()`;
+   - change `rowData[column.field] || 'N/A'` to `rowData[column.field] ?? 'N/A'`;
+   - add `credentials: 'same-origin'` and a CSRF header to the two `fetch()` calls.
+
+---
+
+## Appendix A — full source: `table-helper.js`
+
+Save as `public/assets/js/table-helper.js`. Exposes `window.TableHelper`.
+
+```javascript
 /**
  * TableHelper - Vanilla JS table builder with AJAX, filtering, and pagination
  * Optimized for minimal blade file code
@@ -102,21 +1115,6 @@ class TableHelper {
         this.init();
     }
 
-    /**
-     * Nothing that reaches a cell is trusted. Rows here carry customer names,
-     * product titles typed in the panel and review text written by the public,
-     * and every cell is written with innerHTML.
-     *
-     * A column's own render() is deliberately left raw - that is the escape
-     * hatch for badges and buttons, and it is the page author's to get right.
-     */
-    static escape(value) {
-        if (value === null || value === undefined) return '';
-        return String(value).replace(/[&<>"']/g, (c) => ({
-            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-        }[c]));
-    }
-
     _isCheckboxEnabled() {
         if (this.dynamicCheckbox && this._enableCheckboxResolver) {
             try {
@@ -160,8 +1158,8 @@ class TableHelper {
 
         const handleError = (err) => {
             const errorMessage = err?.message || err?.responseJSON?.message || 'An error occurred';
-            if (showErrorAlert && typeof shoporaToast !== 'undefined') {
-                shoporaToast.error(errorMessage);
+            if (showErrorAlert && typeof $ !== 'undefined' && $.toast) {
+                $.toast({ heading: 'Error', text: errorMessage, icon: 'error', position: 'top-right', loader: false, hideAfter: 3000 });
             }
             if (error) error(err);
             throw err;
@@ -316,36 +1314,58 @@ class TableHelper {
         });
     }
 
-    /**
-     * Turn the date inputs into pickers.
-     *
-     * The original bound nepali-datepicker for Bikram Sambat. Shopora's admin
-     * works in AD throughout - the bill is the one place BS appears, and it is
-     * derived there - so this uses flatpickr, which the dashboard already
-     * loads, and every date in and out of this class is a plain Y-m-d.
-     */
     _autoInitDatePickers() {
         if (!this.config.autoInitDatePickers) return;
-        if (typeof flatpickr === 'undefined') return;
+        const dateInputs = document.querySelectorAll('.nepali-datepicker, [id*="datepicker"], [id*="date-picker"]');
+        
+        // Save existing values before reinitializing
+        const existingValues = {};
+        dateInputs.forEach(input => {
+            if (input.id || input.name) {
+                const key = input.id || input.name;
+                existingValues[key] = input.value;
+            }
+        });
+        
+        dateInputs.forEach(input => {
+            if (!input.nepaliDatePicker) return;
+            const todayBS = this._getTodayBS();
 
-        document.querySelectorAll('.date-picker, [id*="datepicker"], [id*="date-picker"]')
-            .forEach((input) => {
-                if (input._flatpickr) return;
-                flatpickr(input, { dateFormat: 'Y-m-d', allowInput: false });
+            input.nepaliDatePicker({
+                ndpYear: true, ndpMonth: true, ndpYearCount: 10,
+                ndpTriggerButton: true, ndpTriggerButtonText: "📅",
+                ndpEnglishInput: "nepali-datepicker-en",
+                miniEnglishDates: true
             });
+            
+            // Restore existing value if it was set, otherwise use today's date
+            const key = input.id || input.name;
+            if (existingValues[key]) {
+                input.value = existingValues[key];
+            } else if (!input.value) {
+                input.value = todayBS;
+            }
+        });
     }
 
-    /**
-     * Say something went wrong. The panel's own toast, so a table's complaint
-     * looks like every other result in the admin rather than a browser alert.
-     */
-    _showAlert(icon, title, text) {
-        if (typeof shoporaToast !== 'undefined') {
-            const tone = shoporaToast[icon] ? icon : 'error';
-            shoporaToast[tone](text, title);
-            return;
+    _getTodayBS() {
+        // Don't call initNepaliDatepickers() as it resets all datepicker values
+        // Calculate today's Nepali date directly instead
+        if (typeof NepaliFunctions !== 'undefined' && NepaliFunctions.BS && NepaliFunctions.BS.GetCurrentDate) {
+            const today = NepaliFunctions.BS.GetCurrentDate();
+            return `${today.year}-${String(today.month).padStart(2, '0')}-${String(today.day).padStart(2, '0')}`;
         }
-        alert(`${title}: ${text}`);
+        // Fallback to AD date if NepaliFunctions not available
+        const today = new Date();
+        return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    }
+
+    _showAlert(icon, title, text) {
+        if (typeof $ !== 'undefined' && $.toast) {
+            $.toast({ heading: title, text: text, icon: icon, position: 'top-right' });
+        } else {
+            alert(`${title}: ${text}`);
+        }
     }
 
     /**
@@ -381,6 +1401,7 @@ class TableHelper {
         `;
 
         wrapper.appendChild(loader);
+        console.log('Table loader shown');
     }
 
     /**
@@ -390,6 +1411,7 @@ class TableHelper {
         const loader = document.getElementById(`${this.config.containerId}-loader`);
         if (loader) {
             loader.remove();
+            console.log('Table loader hidden');
         }
     }
 
@@ -904,6 +1926,7 @@ class TableHelper {
             responsiveDiv.style.overflowX = 'auto';
         }
 
+        console.log(`Table height set to: ${actualRowCount <= perPage ? 'auto (show all)' : tableHeight + 'px'} (actual rows: ${actualRowCount}, per page: ${perPage})`);
     }
 
     /**
@@ -1047,7 +2070,10 @@ class TableHelper {
      * Get today's date in YYYY-MM-DD format
      * Supports both Nepali and AD calendar systems
      */
-    _getTodayDate() {
+    _getTodayDate(useNepaliCalendar = false) {
+        if (useNepaliCalendar && typeof initNepaliDatepickers === 'function') {
+            return this._getTodayBS();
+        }
         const today = new Date();
         const year = today.getFullYear();
         const month = String(today.getMonth() + 1).padStart(2, '0');
@@ -1060,32 +2086,6 @@ class TableHelper {
      * @param {string} todayDate - Date in YYYY-MM-DD format
      * @returns {string} First day of month in YYYY-MM-DD format
      */
-    /**
-     * Write a date into one of the range boxes.
-     *
-     * Everything that sets these dates goes through here, because a picker
-     * keeps its own idea of the value: assigning .value alone leaves the box
-     * reading one date and the calendar opening on another.
-     */
-    _setDateInput(el, value) {
-        if (!el) return;
-
-        if (el._flatpickr) {
-            if (value) el._flatpickr.setDate(value, false);
-            else el._flatpickr.clear(false);
-            return;
-        }
-
-        el.value = value || '';
-    }
-
-    /** A Y-m-d shifted by whole days, still Y-m-d. */
-    _shiftDays(date, days) {
-        const d = new Date(date + 'T00:00:00');
-        d.setDate(d.getDate() + days);
-        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    }
-
     _getFirstOfMonth(todayDate) {
         const parts = todayDate.split('-');
         const year = parts[0];
@@ -1098,29 +2098,19 @@ class TableHelper {
      * Options:
      * - type: 'today' (current day), 'thisMonth' (1st to today), 'lastMonth' (30 days back), 'custom'
      * - fromDate/toDate: for custom type
+     * - useNepaliCalendar: boolean (default false)
      * Sets the date inputs without triggering change events
      */
-    /**
-     * Put the range back to what the screen opens on.
-     *
-     * The private one runs once per instance, so after a Clear the defaults
-     * were gone for good and the boxes were left empty or on today - whatever
-     * the screen had actually chosen to open with was unreachable. This is the
-     * public way back, and the onClear hook is where a screen calls it.
-     */
-    applyDefaultDateRange() {
-        this._dateRangeInitialized = false;
-        this._applyDefaultDateRange();
-    }
-
     _applyDefaultDateRange() {
         if (this._dateRangeInitialized || !this.config.dateRangeDefaults) return;
 
         const config = this.config.dateRangeDefaults;
         const fromSelector = config.fromSelector || '#from-datepicker';
         const toSelector = config.toSelector || '#to-datepicker';
+        const useNepaliCalendar = config.useNepaliCalendar || false;
+
         let fromDate, toDate;
-        const todayDate = this._getTodayDate();
+        const todayDate = this._getTodayDate(useNepaliCalendar);
 
         switch (config.type) {
             case 'today':
@@ -1132,7 +2122,31 @@ class TableHelper {
                 break;
             case 'lastMonth':
                 toDate = todayDate;
-                fromDate = this._shiftDays(todayDate, -30);
+                // For both AD and Nepali calendar
+                if (useNepaliCalendar) {
+                    // Keep it simple for Nepali - 30 days back
+                    const parts = todayDate.split('-');
+                    let year = parseInt(parts[0]);
+                    let month = parseInt(parts[1]);
+                    let day = parseInt(parts[2]);
+
+                    // Go back 30 days in Nepali calendar
+                    day -= 30;
+                    if (day <= 0) {
+                        month -= 1;
+                        if (month <= 0) {
+                            month = 12;
+                            year -= 1;
+                        }
+                        day += 32; // Max days in a month (approximate)
+                    }
+                    fromDate = `${year}-${String(month).padStart(2, '0')}-${String(Math.max(1, day)).padStart(2, '0')}`;
+                } else {
+                    const lastMonthDate = new Date(new Date(todayDate).getTime() - 30 * 24 * 60 * 60 * 1000);
+                    fromDate = lastMonthDate.getFullYear() + '-' +
+                        String(lastMonthDate.getMonth() + 1).padStart(2, '0') + '-' +
+                        String(lastMonthDate.getDate()).padStart(2, '0');
+                }
                 break;
             case 'custom':
                 fromDate = config.fromDate || todayDate;
@@ -1143,23 +2157,32 @@ class TableHelper {
                 toDate = todayDate;
         }
 
-        const fromEl = document.querySelector(fromSelector);
-        const toEl = document.querySelector(toSelector);
-        if (!fromEl || !toEl) return;
+        // Set values without triggering change events
+        const $fromInput = $(fromSelector);
+        const $toInput = $(toSelector);
 
-        // Written straight in. Neither path here fires a change event -
-        // assigning .value never does, and flatpickr's setDate is asked not to
-        // - so there is nothing to guard against.
-        //
-        // The original guarded anyway, by saving the inputs' change handlers,
-        // calling .off('change') and putting them back. $._data(el,'events')
-        // hands out jQuery's own live array, and .off() empties that array in
-        // place, so what came back was always empty: after one Clear the two
-        // date boxes stopped reloading the table until the page was reloaded.
-        this._setDateInput(fromEl, fromDate);
-        this._setDateInput(toEl, toDate);
+        if ($fromInput.length && $toInput.length) {
+            // Temporarily unbind all change events to prevent double requests
+            const fromChangeHandlers = $._data($fromInput[0], 'events')?.change || [];
+            const toChangeHandlers = $._data($toInput[0], 'events')?.change || [];
 
-        this._dateRangeInitialized = true;
+            $fromInput.off('change');
+            $toInput.off('change');
+
+            // Set the values
+            $fromInput.val(fromDate);
+            $toInput.val(toDate);
+
+            // Re-attach change handlers
+            fromChangeHandlers.forEach(handler => {
+                $fromInput.on('change', handler.handler);
+            });
+            toChangeHandlers.forEach(handler => {
+                $toInput.on('change', handler.handler);
+            });
+
+            this._dateRangeInitialized = true;
+        }
     }
 
     init() {
@@ -1170,33 +2193,30 @@ class TableHelper {
         this.loadTable();
     }
 
-    /**
-     * A filter changed - validate, drop any search term, and reload page 1.
-     *
-     * Public, because a screen can own filters the component does not know
-     * about: this page's quick date ranges write the two boxes themselves.
-     * Without this they would call loadTable() directly and skip the search
-     * reset, and a term typed earlier would keep owning the query - the table
-     * silently ignoring every date the user then picked.
-     */
-    applyFilters() {
-        if (!this.validateFilters()) return false;
-
-        this._clearGlobalSearch();
-        this.currentPage = 1;
-        this.loadTable();
-        return true;
-    }
-
     setupFilters() {
         const { filters } = this.config;
         if (!filters.dateRange) return;
 
-        $('#applyFilters').on('click', () => this.applyFilters());
+        $('#applyFilters').on('click', () => {
+            if (this.validateFilters()) {
+                // Clear global search when applying filters
+                this._clearGlobalSearch();
+                this.currentPage = 1;
+                this.loadTable();
+            }
+        });
+
         $('#clearFilters').on('click', () => this.clearFilters());
 
-        filters.autoReload?.forEach((selector) => {
-            $(selector).on('change', () => this.applyFilters());
+        filters.autoReload?.forEach(selector => {
+            $(selector).on('change', () => {
+                if (this.validateFilters()) {
+                    // Clear global search when auto-reload filters change
+                    this._clearGlobalSearch();
+                    this.currentPage = 1;
+                    this.loadTable();
+                }
+            });
         });
     }
 
@@ -1441,7 +2461,7 @@ class TableHelper {
 
                 if (canSort) {
                     return `<th${width} data-field="${col.field || colIndex}" class="sortable-header" style="cursor: pointer;" title="Click to sort">
-                        ${name} <span class="sort-indicator"><i class="bx bx-sort-alt-2"></i></span>
+                        ${name} <span class="sort-indicator"><i class="fa-solid fa-sort"></i></span>
                     </th>`;
                 }
                 return `<th${width}>${name}</th>`;
@@ -1733,7 +2753,7 @@ class TableHelper {
             // Default action types with icons
             const actionDefaults = {
                 edit: {
-                    icon: 'bx bx-edit',
+                    icon: 'bi bi-pencil-square',
                     label: 'Edit',
                     class: 'btn btn-sm btn-primary',
                     title: 'Edit',
@@ -1741,7 +2761,7 @@ class TableHelper {
                     showLabel: true
                 },
                 delete: {
-                    icon: 'bx bx-trash',
+                    icon: 'bi bi-trash',
                     label: 'Delete',
                     class: 'btn btn-sm btn-danger',
                     title: 'Delete',
@@ -1749,7 +2769,7 @@ class TableHelper {
                     showLabel: true
                 },
                 show: {
-                    icon: 'bx bx-show',
+                    icon: 'bi bi-eye',
                     label: 'View',
                     class: 'btn btn-sm btn-info',
                     title: 'View',
@@ -1757,7 +2777,7 @@ class TableHelper {
                     showLabel: true
                 },
                 view: {
-                    icon: 'bx bx-show',
+                    icon: 'bi bi-eye',
                     label: 'View',
                     class: 'btn btn-sm btn-info',
                     title: 'View',
@@ -1812,6 +2832,7 @@ class TableHelper {
 
             // Debug: Log to see what's happening (remove after testing)
             if (typeof action === 'string') {
+                console.log(`Action: ${action}, Icon: ${icon}, ShowIcon: ${showIcon}, Label: ${label}`);
             }
 
             // Check visibility condition
@@ -1859,29 +2880,6 @@ class TableHelper {
 
             const disabledAttr = isDisabled ? ' disabled' : '';
             const tooltipAttr = tooltip ? ` data-bs-toggle="tooltip" data-bs-title="${tooltip}"` : '';
-
-            // An action whose whole job is to go somewhere is a link, not a
-            // button that navigates. Middle-click, ctrl-click and "open in new
-            // tab" are how an admin actually works through a list, and a
-            // <button> silently takes all three away. Anything with a confirm,
-            // a modal or an onClick still has to be a button - those must run
-            // before, or instead of, going anywhere.
-            if (url && !modal && !confirm && !onClick && !isDisabled) {
-                return `
-                <a
-                    href="${TableHelper.escape(this._resolveUrl(url, rowData))}"
-                    class="${resolvedClass}"
-                    id="${actionId}"
-                    title="${title}"
-                    ${tooltipAttr}
-                    ${dataAttrs}
-                    data-action-type="${type}"
-                    data-action-index="${actionIndex}"
-                >
-                    ${iconHtml}${labelHtml}
-                </a>
-            `;
-            }
 
             return `
                 <button 
@@ -1959,16 +2957,14 @@ class TableHelper {
                 } else if (column.render) {
                     content = column.render(rowData, rowIndex, this);
                 } else if (column.field) {
-                    // ?? not ||, so a price of 0 or an empty note is itself
-                    // rather than the word N/A.
-                    content = TableHelper.escape(rowData[column.field] ?? 'N/A');
+                    content = rowData[column.field] || 'N/A';
                 } else {
-                    content = TableHelper.escape(rowData[colIndex] ?? 'N/A');
+                    content = rowData[colIndex] || 'N/A';
                 }
 
                 const align = column.align ? ` style="text-align: ${column.align}"` : '';
                 const dataLabel = column.name || column.header || `Column ${colIndex + 1}`;
-                const dataLabelAttr = ` data-label="${TableHelper.escape(dataLabel)}"`;
+                const dataLabelAttr = ` data-label="${dataLabel}"`;
                 const colspanVal = column.colspan != null
                     ? (typeof column.colspan === 'function' ? column.colspan(rowData, rowIndex) : column.colspan)
                     : 1;
@@ -2125,6 +3121,7 @@ class TableHelper {
                 const actionIndex = parseInt(btn.dataset.bulkActionIndex);
                 const action = this.bulkActions[actionIndex];
 
+                console.log('Bulk action clicked:', { actionIndex, action, selectedCount: this.selectedRows.size });
 
                 if (action && typeof action.handler === 'function') {
                     try {
@@ -2161,10 +3158,7 @@ class TableHelper {
         // Show animated loader
         this._showTableLoader('Fetching data...');
 
-        fetch(this.buildApiUrl(page), {
-            credentials: 'same-origin',
-            headers: { 'X-Requested-With': 'XMLHttpRequest', Accept: 'application/json' },
-        })
+        fetch(this.buildApiUrl(page))
             .then(response => response.json().then(result => ({ response, result })))
             .then(({ result }) => {
                 // Hide loader when data arrives
@@ -2257,7 +3251,7 @@ class TableHelper {
         if (this.config.search && !document.getElementById(searchId)) {
             const wrapper = document.createElement('div');
             wrapper.id = searchId;
-            wrapper.className = 'mb-1 d-flex gap-2 align-items-center op-search-container th-search';
+            wrapper.className = 'mb-1 d-flex gap-2 align-items-center op-search-container'; // Lower margin as we use modal structure
 
             // Get search configuration
             const searchConfig = typeof this.config.search === 'object' ? this.config.search : {};
@@ -2316,9 +3310,6 @@ class TableHelper {
             if (existing) existing.remove();
             const wrapper = document.createElement('div');
             wrapper.id = pagId;
-            // A stable class too - the id carries the container name, so a
-            // stylesheet cannot reach the pager of a table it does not know.
-            wrapper.className = 'th-pagination';
             wrapper.innerHTML = this.renderPagination();
             container.parentNode.insertBefore(wrapper, container.nextSibling);
         }
@@ -2575,6 +3566,7 @@ class TableHelper {
                         this.currentPage = 1;  // Reset to first page when changing per_page
                         this.loadTable(1);
                         window.scrollTo({ top: 0, behavior: 'smooth' });
+                        console.log(`Per page changed to: ${newPerPage}`);
                     }
                 });
             }
@@ -2674,25 +3666,35 @@ class TableHelper {
     }
 
     /**
-     * What an empty date box means.
-     *
-     * The original forced both boxes to today whenever they were blank, so a
-     * screen could never show "everything". That is right for a dashboard,
-     * whose figures are always about some period, and wrong for a list of what
-     * the shop stocks. So it is a choice now - dateRange.emptyMeans: 'all'
-     * (the default, leave the boxes alone) or 'today'.
+     * Ensures date range filters are set to today's date if they exist but are not set
      */
     _ensureDateRangeFilters() {
         const { filters } = this.config;
-        if (!filters.dateRange || filters.dateRange.emptyMeans !== 'today') return;
+        if (filters.dateRange) {
+            const todayBS = this._getTodayBS();
+            const { fromId = 'from-datepicker', toId = 'to-datepicker' } = filters.dateRange;
 
-        const today = this._getTodayDate();
-        const { fromId = 'from-datepicker', toId = 'to-datepicker' } = filters.dateRange;
+            // Check if date range elements exist and are empty
+            const fromEl = document.getElementById(fromId);
+            const toEl = document.getElementById(toId);
 
-        [fromId, toId].forEach((id) => {
-            const el = document.getElementById(id);
-            if (el && !el.value) this._setDateInput(el, today);
-        });
+            if (fromEl && !fromEl.value) {
+                fromEl.value = todayBS;
+            }
+            if (toEl && !toEl.value) {
+                toEl.value = todayBS;
+            }
+
+            // Also update jQuery if it's available
+            if (typeof $ !== 'undefined') {
+                if (fromEl && !$(`#${fromId}`).val()) {
+                    $(`#${fromId}`).val(todayBS);
+                }
+                if (toEl && !$(`#${toId}`).val()) {
+                    $(`#${toId}`).val(todayBS);
+                }
+            }
+        }
     }
 
     /**
@@ -2807,15 +3809,6 @@ class TableHelper {
         }
     }
 
-    /** Fill {field} placeholders in an action's url from the row. */
-    _resolveUrl(url, rowData) {
-        let out = url;
-        Object.keys(rowData || {}).forEach((key) => {
-            out = out.replace(`{${key}}`, rowData[key]);
-        });
-        return out;
-    }
-
     /**
      * Handle action button click
      */
@@ -2857,11 +3850,14 @@ class TableHelper {
             this._openModal(modal, rowData);
         }
 
-        // Handle URL navigation. A plain url action is already an <a href>
-        // and the browser follows it, so this is only for the ones that also
-        // carry a confirm or an onClick and therefore had to stay buttons.
-        if (url && button.tagName !== 'A') {
-            window.location.href = this._resolveUrl(url, rowData);
+        // Handle URL navigation
+        if (url) {
+            // Replace placeholders in URL with row data
+            let finalUrl = url;
+            Object.keys(rowData || {}).forEach(key => {
+                finalUrl = finalUrl.replace(`{${key}}`, rowData[key]);
+            });
+            window.location.href = finalUrl;
         }
 
         // Handle custom action from config (check both properties)
@@ -2922,17 +3918,12 @@ class TableHelper {
 
     clearFilters() {
         const { filters } = this.config;
+        const todayBS = this._getTodayBS();
 
         if (filters.dateRange) {
-            // Clear empties the boxes unless the screen has said an empty box
-            // means today. The original always reset to today, which quietly
-            // narrowed a list that had been showing everything.
-            const clearTo = filters.dateRange.emptyMeans === 'today' ? this._getTodayDate() : '';
             const { fromId = 'from-datepicker', toId = 'to-datepicker' } = filters.dateRange;
-
-            [fromId, toId].forEach((id) => {
-                this._setDateInput(document.getElementById(id), clearTo);
-            });
+            $(`#${fromId}`).val(todayBS);
+            $(`#${toId}`).val(todayBS);
         }
 
         const resetFilter = (filter) => {
@@ -3245,10 +4236,7 @@ class TableHelper {
         // Build totals API URL with same filters
         const totalsUrl = this._buildTotalsUrl();
 
-        fetch(totalsUrl, {
-            credentials: 'same-origin',
-            headers: { 'X-Requested-With': 'XMLHttpRequest', Accept: 'application/json' },
-        })
+        fetch(totalsUrl)
             .then(response => response.json())
             .then(result => {
                 if (result.success && result.totals) {
@@ -3314,7 +4302,7 @@ class TableHelper {
 
         let html = `<td colspan="${cols}" style="text-align: center; padding: 15px;">
             <span style="color: #0d6efd; font-weight: 600;">
-                <i class="bx bx-loader-alt"></i> Loading totals&hellip;
+                <i class="bi bi-hourglass-split"></i> Loading totals...
             </span>
         </td>`;
 
@@ -3414,3 +4402,403 @@ class TableHelper {
     }
 }
 window.TableHelper = TableHelper;
+```
+
+---
+
+## Appendix B — full source: `gridtable.css`
+
+Save as `public/assets/css/custom/gridtable.css`. Optional — this is the house look only;
+all layout/sticky/mobile CSS is injected by the JS itself. Remember it is scoped to the
+literal id `#table-gridjs` (see [§15.2](#152-gridtablecss--the-house-look-optional)).
+
+```css
+.text-red {
+  color: red;
+}
+
+#table-gridjs {
+  overflow-x: auto !important;
+}
+
+#table-gridjs table {
+  width: 100% !important;
+  border-collapse: collapse !important;
+  font-size: 14px !important;
+  table-layout: auto !important;
+  white-space: nowrap !important;
+  border: 1px solid #e2e8f0 !important;
+}
+
+#table-gridjs th {
+  background-color: #f1f5f9 !important;
+  color: #1a3a6b !important;
+  font-weight: 700 !important;
+  font-size: 14px !important;
+  text-align: left !important;
+  padding: 8px 12px !important;
+  white-space: nowrap !important;
+  border: 1px solid #e2e8f0 !important;
+}
+
+#table-gridjs td {
+  color: #334155 !important;
+  font-size: 14px !important;
+  padding: 6px 12px !important;
+  text-align: left !important;
+  vertical-align: middle !important;
+  white-space: nowrap !important;
+  border: 1px solid #e2e8f0 !important;
+}
+
+.gridjs-td.gridjs-message.gridjs-notfound {
+  text-align: left !important;
+  padding-left: 14px !important;
+  color: #334155;
+}
+
+#table-gridjs tbody tr:nth-child(even) td {
+  background-color: #f8fafc !important;
+}
+
+/* ── Pagination ── */
+.pagination .page-link {
+  border-color: #e2e8f0 !important;
+  color: #334155 !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  padding: 5px 12px !important;
+  border-radius: 6px !important;
+  margin: 0 2px !important;
+  transition: background 0.15s, color 0.15s, border-color 0.15s !important;
+}
+.pagination .page-link:hover {
+  background: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+  color: #1a3a6b !important;
+}
+.pagination .page-item.active .page-link {
+  background: #1a3a6b !important;
+  border-color: #1a3a6b !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 6px rgba(26, 58, 107, 0.3) !important;
+}
+.pagination .page-item.disabled .page-link {
+  color: #94a3b8 !important;
+  background: transparent !important;
+  border-color: #e2e8f0 !important;
+}
+
+/* Rows per page label */
+.form-label {
+  color: #475569 !important;
+  font-size: 13px !important;
+}
+
+/* Showing X to Y of Z */
+.text-muted small {
+  color: #64748b !important;
+  font-size: 12px !important;
+}
+
+/* ── Column filter inputs (generated by TableHelper) ── */
+#table-gridjs th input.form-control,
+#table-gridjs th select.form-select {
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 4px !important;
+  background: #ffffff !important;
+  font-size: 12px !important;
+  padding: 4px 7px !important;
+  height: auto !important;
+  box-shadow: none !important;
+  color: #334155 !important;
+  font-weight: 400 !important;
+  width: 100% !important;
+}
+#table-gridjs th input.form-control:focus,
+#table-gridjs th select.form-select:focus {
+  border-color: #2862b8 !important;
+  outline: none !important;
+  box-shadow: 0 0 0 2px rgba(40, 98, 184, 0.12) !important;
+  background: #ffffff !important;
+}
+#table-gridjs th input.form-control::placeholder {
+  color: #64748b !important;
+  font-size: 12px !important;
+}
+/* chat message style */
+.chat-modal-body {
+  background: #fff;
+  padding: 20px;
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.chat-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.chat-row {
+  display: flex;
+  width: 100%;
+}
+
+.chat-row.left {
+  justify-content: flex-start;
+}
+
+.chat-row.right {
+  justify-content: flex-end;
+}
+
+.chat-bubble {
+  max-width: 70%;
+  padding: 12px 16px;
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.customer-bubble {
+  background: #f1f3f5;
+  color: #000;
+}
+
+.system-bubble {
+  background: #0d6efd;
+  color: #fff;
+}
+
+.chat-sender {
+  font-weight: 600;
+  font-size: 12px;
+  margin-bottom: 6px;
+  opacity: 0.9;
+}
+
+.chat-text {
+  font-size: 14px;
+  font-weight: 500;
+}
+.chat-icon {
+  font-size: 25px;
+  color: #007bff;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+}
+.text-green {
+  color: green;
+}
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+.loading-overlay .spinner-border {
+  width: 3rem;
+  height: 3rem;
+}
+
+.loading-overlay p {
+  color: white;
+  font-weight: 500;
+}
+.status-approved {
+  background-color: #d4edda;
+  color: #155724;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.status-pending {
+  background-color: #fff3cd;
+  color: #856404;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.status-rejected {
+  background-color: #f8d7da;
+  color: #721c24;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.status-cancel {
+  background-color: #f8d7da;
+  color: #721c24;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.status-updated {
+  color: rgb(18, 179, 18) !important;
+}
+
+.refund-updated {
+  color: rgb(18, 179, 18) !important;
+  text-decoration: underline;
+}
+
+.followup-link {
+  color: green;
+  text-decoration: underline;
+}
+
+/* Txn Status > Passenger name. Without this the link falls back to the global
+   `a` colour (--bs-link-color-rgb = 102,151,118), which renders green. */
+.passenger-link {
+  color: blue;
+}
+
+.status-set-successful {
+  color: red !important;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.refund-status {
+  color: red !important;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.status-paid {
+  color: green;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.status-unpaid {
+  color: red;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.status-received {
+  color: green;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.status-notReceived {
+  color: red;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.feedback {
+  text-decoration: underline;
+  color: rgb(9, 130, 9);
+}
+
+.rating {
+  direction: rtl;
+  unicode-bidi: bidi-override;
+  display: inline-flex;
+  gap: 0.2rem;
+}
+
+.rating input {
+  display: none;
+}
+
+.rating label {
+  font-size: 1.6rem;
+  color: #ccc;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.rating input:checked ~ label {
+  color: #44b1ff;
+}
+
+.rating label:hover,
+.rating label:hover ~ label {
+  color: #44b1ff;
+}
+
+.text-secondary-green {
+  color: green;
+}
+
+#ticketDetailModal .table-responsive {
+  max-height: none !important;
+  overflow-y: visible !important;
+}
+
+#ticketDetailsGrid .gridjs-wrapper {
+  overflow-y: visible !important;
+}
+
+#ticketDetailsGrid .gridjs-tbody {
+  overflow-y: visible !important;
+}
+
+#ticketDetailsGrid td {
+  padding: 6px 9px !important;
+}
+
+.bus-name-link {
+  color: blue;
+  text-decoration: none;
+}
+
+.bus-name-link:hover {
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* Selected row styling - sticky and highlighted */
+#table-gridjs tbody tr.table-row-selected {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 10 !important;
+  background-color: #e3f2fd !important;
+  /* Light blue background */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+}
+
+#table-gridjs tbody tr.table-row-selected td {
+  background-color: #e3f2fd !important;
+  border-color: #90caf9 !important;
+  font-weight: 500 !important;
+}
+
+/* Hover effect for rows */
+#table-gridjs tbody tr:not(.table-row-selected):hover {
+  background-color: #f5f5f5 !important;
+  cursor: pointer;
+}
+
+#table-gridjs tbody tr:not(.table-row-selected):hover td {
+  background-color: #f5f5f5 !important;
+}
+
+/* Ensure selected row stays visible even on even rows */
+#table-gridjs tbody tr.table-row-selected:nth-child(even) td {
+  background-color: #e3f2fd !important;
+}
+```

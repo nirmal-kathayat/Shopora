@@ -1,7 +1,7 @@
 @extends("layouts.app")
 
 @section("style")
-<link href="{{asset('assets/plugins/datatable/css/dataTables.bootstrap5.min.css')}}" rel="stylesheet" />
+<link href="{{asset('assets/css/gridtable.css')}}?v=1" rel="stylesheet" />
 <style>
     .cat-thumb { width: 56px; height: 42px; border-radius: 8px; object-fit: cover; background: #f3f6fb; }
     .cat-thumb-empty { display: flex; align-items: center; justify-content: center; color: #9ca3af; font-size: 18px; }
@@ -42,21 +42,9 @@
 
         <div class="card">
             <div class="card-body">
-                <div class="table-responsive">
-                    <table id="categoryTable" class="table table-striped table-bordered" style="width:100%">
-                        <thead>
-                            <tr>
-                                <th>Order</th>
-                                <th>Image</th>
-                                <th>Name</th>
-                                <th>Slug</th>
-                                <th>Items</th>
-                                <th>Status</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                    </table>
-                </div>
+                {{-- TableHelper renders the whole table in here: header,
+                     filter row, body, pager and the search box above it. --}}
+                <div id="category-grid" class="shopora-grid"></div>
             </div>
         </div>
     </div>
@@ -64,75 +52,125 @@
 @endsection
 
 @section("script")
-<script src="{{asset('assets/plugins/datatable/js/jquery.dataTables.min.js')}}"></script>
-<script src="{{asset('assets/plugins/datatable/js/dataTables.bootstrap5.min.js')}}"></script>
+<script src="{{asset('assets/js/table-helper.js')}}?v=1"></script>
 <script>
+    let table;
+
     $(document).ready(function() {
-        const esc = (v) => $('<div>').text(v == null ? '' : v).html();
+        const esc = TableHelper.escape;
+        const editUrl = "{{ route('admin.category.edit', ['id' => ':id']) }}";
 
-        const table = $('#categoryTable').DataTable({
-            processing: true,
-            serverSide: true,
-            ajax: "{{ route('admin.category') }}",
-            order: [],
+        table = new TableHelper({
+            containerId: 'category-grid',
+            apiUrl: "{{ route('admin.category') }}",
+            perPage: 10,
+            pagination: true,
+            // Aisles are read and edited one at a time - no select column.
+            enableCheckbox: false,
+            emptyMessage: 'No categories match this search',
+
             columns: [
-                { data: 'sort_order', name: 'sort_order', searchable: false,
-                  render: (data) => `<span class="text-muted">${Number(data)}</span>` },
-                { data: 'image_url', name: 'image', orderable: false, searchable: false,
-                  render: (data) => data
-                    ? `<img src="${data}" class="cat-thumb" alt="">`
-                    : `<div class="cat-thumb cat-thumb-empty"><i class="bx bx-image"></i></div>` },
-                { data: 'title', name: 'title', render: (data) => `<span class="fw-semibold">${esc(data)}</span>` },
-                { data: 'slug', name: 'slug', render: (data) => `<code class="small">${esc(data)}</code>` },
-                { data: 'inventory_items_count', name: 'inventory_items_count', orderable: false, searchable: false,
-                  render: (data) => `<span class="badge bg-light text-dark">${Number(data)}</span>` },
-                { data: 'status', name: 'status', orderable: false, searchable: false,
-                  render: (data) => Number(data)
-                    ? '<span class="badge bg-success">Active</span>'
-                    : '<span class="badge bg-secondary">Inactive</span>' },
                 {
-                    data: 'action', name: 'action', orderable: false, searchable: false,
-                    render: (data, type, full) => {
-                        const editUrl = "{{route('admin.category.edit', ['id' => ':id'])}}".replace(':id', full.id);
-                        const del = `<a class="btn btn-danger deleteAction btn-sm" href="javascript:void(0)" data-id="${full.id}" data-items="${Number(full.inventory_items_count)}"><i class="bx bx-trash"></i></a>`;
-                        const edit = `<a class="btn btn-primary btn-sm" href="${editUrl}"><i class="bx bx-edit"></i></a>`;
-                        return `<div class="d-flex gap-sm">${edit} ${del}</div>`;
-                    }
+                    name: 'Order',
+                    field: 'sort_order',
+                    width: '80px',
+                    align: 'center',
+                    render: (row) => `<span class="text-muted">${Number(row.sort_order)}</span>`
+                },
+                {
+                    name: 'Image',
+                    field: 'image_url',
+                    width: '80px',
+                    render: (row) => row.image_url
+                        ? `<img src="${esc(row.image_url)}" class="cat-thumb" alt="">`
+                        : `<div class="cat-thumb cat-thumb-empty"><i class="bx bx-image"></i></div>`
+                },
+                {
+                    name: 'Name',
+                    field: 'title',
+                    render: (row) => `<span class="fw-semibold">${esc(row.title)}</span>`
+                },
+                {
+                    name: 'Slug',
+                    field: 'slug',
+                    render: (row) => `<code class="small">${esc(row.slug)}</code>`
+                },
+                {
+                    name: 'Items',
+                    field: 'inventory_items_count',
+                    align: 'center',
+                    render: (row) => `<span class="badge bg-light text-dark">${Number(row.inventory_items_count)}</span>`
+                },
+                {
+                    name: 'Status',
+                    field: 'status',
+                    align: 'center',
+                    render: (row) => Number(row.status)
+                        ? '<span class="badge bg-success">Active</span>'
+                        : '<span class="badge bg-secondary">Inactive</span>'
+                },
+                {
+                    name: 'Action',
+                    type: 'actions',
+                    actions: [
+                        { type: 'edit', title: 'Edit', showLabel: false, url: editUrl.replace(':id', '{id}') },
+                        {
+                            type: 'delete',
+                            title: 'Delete',
+                            showLabel: false,
+                            onClick: (row) => confirmDelete(row)
+                        }
+                    ]
                 }
-            ]
-        });
+            ],
 
-        $('#categoryTable').on('click', '.deleteAction', function(e) {
-            e.preventDefault();
-            const id = $(this).data('id');
-            const items = Number($(this).data('items'));
+            enableSortColumns: ['sort_order', 'title', 'slug', 'inventory_items_count', 'status'],
 
-            // Deleting a category with items would cascade the inventory away,
-            // so stop the shop before it happens rather than after.
-            if (items > 0) {
-                shoporaToast.info(`This category still has ${items} inventory item(s). Move or remove them first.`, 'Not allowed');
-                return;
-            }
+            // No filter bar above this table - a shop has a handful of aisles.
+            // The header row and the search box are how you find one.
+            filters: {
+                autoGenerateColumnFilters: false,
+                columnFilters: [
+                    { field: 'title', type: 'text', param: 'title', placeholder: 'Name' },
+                    { field: 'slug', type: 'text', param: 'slug', placeholder: 'Slug' }
+                ]
+            },
 
-            const deleteUrl = "{{ route('admin.category.delete', ['id' => ':id']) }}".replace(':id', id);
-            Swal.fire({
-                title: 'Are you sure?',
-                text: "You won't be able to revert this!",
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#3085d6',
-                cancelButtonColor: '#d33',
-                confirmButtonText: 'Yes, delete it!'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    $.ajax({
-                        url: deleteUrl, type: 'GET', data: { "_token": "{{ csrf_token() }}" },
-                        success: () => { shoporaToast.success('The category has been deleted.', 'Deleted!'); table.ajax.reload(null, false); },
-                        error: (xhr) => shoporaToast.error((xhr.responseJSON && xhr.responseJSON.message) || 'Something went wrong.', 'Error!')
-                    });
-                }
-            });
+            search: { placeholder: 'Search category name or slug...' }
         });
     });
+
+    function confirmDelete(row) {
+        const items = Number(row.inventory_items_count || 0);
+
+        // Deleting a category with items would cascade the inventory away,
+        // so stop the shop before it happens rather than after.
+        if (items > 0) {
+            shoporaToast.info(`This category still has ${items} inventory item(s). Move or remove them first.`, 'Not allowed');
+            return;
+        }
+
+        const deleteUrl = "{{ route('admin.category.delete', ['id' => ':id']) }}".replace(':id', row.id);
+
+        Swal.fire({
+            title: 'Are you sure?',
+            text: "You won't be able to revert this!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Yes, delete it!'
+        }).then((result) => {
+            if (!result.isConfirmed) return;
+
+            $.get(deleteUrl, { "_token": "{{ csrf_token() }}" })
+                .done(() => {
+                    shoporaToast.success('The category has been deleted.', 'Deleted!');
+                    table.refresh();
+                })
+                .fail((xhr) => shoporaToast.error(
+                    (xhr.responseJSON && xhr.responseJSON.message) || 'Something went wrong.', 'Error!'));
+        });
+    }
 </script>
 @endsection

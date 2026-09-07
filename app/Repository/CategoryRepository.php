@@ -27,14 +27,51 @@ class CategoryRepository
             ->get();
     }
 
-    /** The admin listing, with how many items sit in each category. */
-    public function getCategoriesForListing()
+    /**
+     * The admin listing, with how many items sit in each category.
+     *
+     * Sort order is the shop's own arrangement of its aisles, so that is what
+     * the list opens on; anything else is the reader asking a question.
+     */
+    public function getCategoriesForListing(array $options = [])
     {
-        return $this->query->newQuery()
+        $query = $this->query->newQuery()
             ->select(['id', 'title', 'slug', 'icon', 'image', 'status', 'sort_order', 'updated_at'])
-            ->withCount('inventoryItems')
-            ->orderBy('sort_order')
-            ->orderBy('id');
+            ->withCount('inventoryItems');
+
+        // Header-row filters: one box per column, each its own LIKE.
+        foreach (['title', 'slug'] as $column) {
+            $value = trim((string) ($options[$column] ?? ''));
+            if ($value !== '') {
+                $query->where($column, 'like', '%' . $value . '%');
+            }
+        }
+
+        $search = trim((string) ($options['search'] ?? ''));
+        if ($search !== '') {
+            $query->where(function ($q) use ($search) {
+                $like = '%' . $search . '%';
+                $q->where('title', 'like', $like)->orWhere('slug', 'like', $like);
+            });
+        }
+
+        return $this->sortListing($query, $options['sort_field'] ?? null, $options['sort_direction'] ?? null);
+    }
+
+    /**
+     * Order the listing. By column name only - the field arrives in a query
+     * string, and a column name is not something to take on trust.
+     */
+    private function sortListing($query, $field, $direction)
+    {
+        $sortable = ['sort_order', 'title', 'slug', 'status', 'inventory_items_count'];
+        $dir = strtolower((string) $direction) === 'asc' ? 'asc' : 'desc';
+
+        if (! in_array($field, $sortable, true)) {
+            return $query->orderBy('sort_order')->orderBy('id');
+        }
+
+        return $query->orderBy($field, $dir);
     }
 
     /** Active categories with their item counts, for the storefront. */
