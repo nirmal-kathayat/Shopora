@@ -87,7 +87,7 @@ class ShopOrderNotification extends Notification
             // is deciding whether to get up, and that needs the amount.
             'body' => $this->who() . ' · Rs. ' . number_format($this->total, 2)
                 . ' · ' . $this->how(),
-            'note' => $copy['body'],
+            'meta' => $this->order->code,
             'order_id' => $this->order->id,
             'order_code' => $this->order->code,
             'status' => $this->order->status,

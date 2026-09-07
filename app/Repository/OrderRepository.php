@@ -151,7 +151,14 @@ class OrderRepository
      */
     public function releaseStock(Sales $order): void
     {
+        // A mass delete fires no model events, so the items whose stock this
+        // just put back have to be named before the rows naming them are gone.
+        $items = InventoryStock::where('sales_id', $order->id)
+            ->pluck('inventory_item_id');
+
         InventoryStock::where('sales_id', $order->id)->delete();
+
+        app(StockAlertRepository::class)->checkLater($items);
     }
 
     /**

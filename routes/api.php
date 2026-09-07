@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\ProductReviewController;
+use App\Http\Controllers\Api\StockAlertController;
 use App\Http\Controllers\Api\WishlistController;
 use Illuminate\Support\Facades\Route;
 
@@ -99,6 +100,13 @@ Route::prefix('wishlist')->middleware(['auth:sanctum', 'abilities:customer'])->g
     Route::get('/', [WishlistController::class, 'index']);
     Route::post('/', [WishlistController::class, 'store']);
     Route::delete('{productId}', [WishlistController::class, 'destroy'])->whereNumber('productId');
+});
+
+// Who is waiting for something to come back - the "Notify me" button.
+Route::prefix('stock-alerts')->middleware(['auth:sanctum', 'abilities:customer'])->group(function () {
+    Route::get('/', [StockAlertController::class, 'index']);
+    Route::post('{productId}', [StockAlertController::class, 'store'])->whereNumber('productId');
+    Route::delete('{productId}', [StockAlertController::class, 'destroy'])->whereNumber('productId');
 });
 
 // The public catalogue.

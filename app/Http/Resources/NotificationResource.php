@@ -25,6 +25,10 @@ class NotificationResource extends JsonResource
             'title' => $data['title'] ?? 'Update',
             'body' => $data['body'] ?? null,
             'url' => $data['url'] ?? null,
+            // A short trailing line, shown after the timestamp: which order,
+            // how many are waiting, how many stars. What it says depends on
+            // the message; that it is one short line does not.
+            'meta' => $data['meta'] ?? ($data['order_code'] ?? null),
             'order_code' => $data['order_code'] ?? null,
             'status' => $data['status'] ?? null,
             'amount' => $data['amount'] ?? null,

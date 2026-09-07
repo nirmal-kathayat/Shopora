@@ -1177,7 +1177,7 @@
                         <div class="shopora-panel-card">
                             <div class="shopora-chart-head">
                                 <h3 class="shopora-panel-title mb-0">Low Stock Items</h3>
-                                <span class="shopora-chart-sub">Items at or below the {{ 10 }}-unit reorder level</span>
+                                <span class="shopora-chart-sub">Items at or below the {{ config('shopora.reorder_level') }}-unit reorder level</span>
                             </div>
                             <div class="shopora-panel-table-wrap">
                                 <table class="shopora-panel-table">

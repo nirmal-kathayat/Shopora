@@ -11,7 +11,16 @@ use Carbon\Carbon;
 
 class DashboardRepository
 {
-    private const LOW_STOCK_THRESHOLD = 10;
+    /**
+     * At or below this many units, an item is a stock alert.
+     *
+     * Comes from config so the dashboard card and the header bell cannot end
+     * up telling the shop two different reorder levels.
+     */
+    private static function lowStockThreshold(): int
+    {
+        return StockAlertRepository::reorderLevel();
+    }
 
     public function getFilteredData($filterType = null, $fromDate = null, $toDate = null)
     {
@@ -702,7 +711,7 @@ class DashboardRepository
                 'inventory_items.title',
                 DB::raw('COALESCE(stock.net_qty, 0) as net_qty')
             )
-            ->whereRaw('COALESCE(stock.net_qty, 0) <= ?', [self::LOW_STOCK_THRESHOLD])
+            ->whereRaw('COALESCE(stock.net_qty, 0) <= ?', [self::lowStockThreshold()])
             ->orderByRaw('COALESCE(stock.net_qty, 0) ASC')
             ->orderBy('inventory_items.title');
 
@@ -764,7 +773,7 @@ class DashboardRepository
             ->leftJoinSub($this->stockNetQtySubquery(), 'stock', function ($join) {
                 $join->on('stock.inventory_item_id', '=', 'inventory_items.id');
             })
-            ->whereRaw('COALESCE(stock.net_qty, 0) <= ?', [self::LOW_STOCK_THRESHOLD])
+            ->whereRaw('COALESCE(stock.net_qty, 0) <= ?', [self::lowStockThreshold()])
             ->count();
     }
 

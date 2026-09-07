@@ -4,10 +4,13 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ProductReviewResource;
+use App\Models\Admin;
 use App\Models\InventoryItem;
 use App\Models\ProductReview;
+use App\Notifications\ReviewNotification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Notification;
 
 class ProductReviewController extends Controller
 {
@@ -55,7 +58,9 @@ class ProductReviewController extends Controller
         $review = ProductReview::create($data + [
             'inventory_item_id' => $id,
             'customer_id' => $request->user()->id,
-        ])->load('customer:id,name');
+        ])->load('customer:id,name', 'inventoryItem:id,title');
+
+        $this->tellShop($review);
 
         $reviews = ProductReview::where('inventory_item_id', $id)->with('customer:id,name')->latest()->get();
 
@@ -63,6 +68,23 @@ class ProductReviewController extends Controller
             'review' => new ProductReviewResource($review),
             'summary' => $this->summary($reviews),
         ], 201);
+    }
+
+    /**
+     * Put the review in front of the shop.
+     *
+     * There is no approval step - a review is on the product page the moment
+     * it is written - so this is the only thing that makes sure somebody at
+     * the shop has read it. A one-star complaint nobody answers is worse than
+     * one that is answered the same day.
+     */
+    private function tellShop(ProductReview $review): void
+    {
+        $staff = Admin::where('status', 1)->get();
+
+        if ($staff->isNotEmpty()) {
+            Notification::send($staff, new ReviewNotification($review));
+        }
     }
 
     /**

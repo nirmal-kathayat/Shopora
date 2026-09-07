@@ -98,9 +98,16 @@ class PurchaseInventoryRepository
                 'vat_amount' => $data['vat_amount'] ?? null,
             ]);
 
-            // Delete existing items and stocks
+            // Delete existing items and stocks. An item dropped from the bill
+            // is not written back below, so its stock falls with nothing to
+            // fire a model event - name them all before the rows go.
+            $wasStocking = InventoryStock::where('purchase_inventory_id', $id)
+                ->pluck('inventory_item_id');
+
             PurchaseInventoryItem::where('purchase_inventory_id', $id)->delete();
             InventoryStock::where('purchase_inventory_id', $id)->delete();
+
+            app(StockAlertRepository::class)->checkLater($wasStocking);
 
             // Create new purchase inventory items
             foreach ($data['inventory_items'] as $item) {
@@ -135,9 +142,15 @@ class PurchaseInventoryRepository
 
             $purchaseInventory = $this->query->findOrFail($id);
 
-            // Delete related items and stocks
+            // Delete related items and stocks - see update() on why the items
+            // are named before their rows are removed.
+            $wasStocking = InventoryStock::where('purchase_inventory_id', $id)
+                ->pluck('inventory_item_id');
+
             PurchaseInventoryItem::where('purchase_inventory_id', $id)->delete();
             InventoryStock::where('purchase_inventory_id', $id)->delete();
+
+            app(StockAlertRepository::class)->checkLater($wasStocking);
 
             // Delete main purchase inventory record
             $purchaseInventory->delete();

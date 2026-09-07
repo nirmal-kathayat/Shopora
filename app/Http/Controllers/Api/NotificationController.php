@@ -37,7 +37,13 @@ class NotificationController extends Controller
         // One row more than asked for: if it comes back, there is another page,
         // which is cheaper than counting every notification the customer owns.
         $rows = $customer->notifications()
-            ->latest()
+            // created_at is second-precision, so two notifications written in
+            // the same second tie - and an unstable sort under skip/take is
+            // what makes "Load more" repeat a row or step over one. The id is
+            // a random uuid, meaningless as an order but a total one, which is
+            // all the tie-break has to be.
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
             ->skip(($page - 1) * $perPage)
             ->take($perPage + 1)
             ->get();

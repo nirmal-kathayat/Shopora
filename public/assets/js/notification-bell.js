@@ -21,6 +21,10 @@
         payment_received: ['bx-wallet', 'is-paid'],
         payment_failed: ['bx-x-circle', 'is-failed'],
         customer_cancelled: ['bx-user-x', 'is-cancelled'],
+        stock_out: ['bx-package', 'is-failed'],
+        stock_low: ['bx-error', 'is-cancelled'],
+        review_posted: ['bx-star', 'is-placed'],
+        review_poor: ['bx-message-alt-x', 'is-failed'],
     };
 
     var cfg = window.SHOPORA_BELL;
@@ -114,9 +118,10 @@
         open.type = 'button';
         open.appendChild(el('span', 'shopora-bell-title', item.title || 'Update'));
         if (item.body) open.appendChild(el('span', 'shopora-bell-text', item.body));
-        // "just now · ORD-2026-0097" - which order, on the line that has room
+        // "just now · ORD-2026-0097", "just now · 5 waiting", "just now · ★★☆☆☆
+        // Wireless Mouse" - whatever the message's own trailing line is.
         var meta = when(item.created_at);
-        if (item.order_code) meta = meta ? meta + ' · ' + item.order_code : item.order_code;
+        if (item.meta) meta = meta ? meta + ' · ' + item.meta : item.meta;
         open.appendChild(el('span', 'shopora-bell-when', meta));
         open.addEventListener('click', function () { openItem(item); });
         li.appendChild(open);
@@ -138,7 +143,7 @@
         if (!append) list.textContent = '';
 
         if (!items.length && !append) {
-            list.appendChild(el('li', 'shopora-bell-empty', 'Nothing new. Orders will show up here.'));
+            list.appendChild(el('li', 'shopora-bell-empty', 'Nothing new. Orders, stock and reviews show up here.'));
             return;
         }
 
@@ -205,7 +210,7 @@
             .catch(function () { load(1); });
 
         if (!list.children.length) {
-            list.appendChild(el('li', 'shopora-bell-empty', 'Nothing new. Orders will show up here.'));
+            list.appendChild(el('li', 'shopora-bell-empty', 'Nothing new. Orders, stock and reviews show up here.'));
         }
     }
 
