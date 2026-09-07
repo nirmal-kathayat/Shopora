@@ -647,8 +647,19 @@ class TableHelper {
                 gap: 6px;
             }
 
+            /* Each button centres its own contents. An icon-only button holds
+               a single inline-block <i> and nothing else, and depending on the
+               page that produced no line box at all - the button collapsed to
+               its padding and the icon spilled out of it. As a flex box the
+               height comes from the icon, which is what it should have been
+               either way. */
             .th-actions > .btn,
             .th-actions > a.btn {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                gap: 5px;
+                min-height: 32px;
                 border-radius: 6px;
             }
 

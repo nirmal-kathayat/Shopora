@@ -521,8 +521,14 @@
             resetPurchaseInventoryModal();
         });
 
-        $(document).on('click', '.editPurchaseInventory', function () {
-            const id = $(this).data('id');
+        /**
+         * Load one bill into this modal and open it.
+         *
+         * Named on window because the list is a TableHelper now: its action
+         * buttons stop the click from reaching document, so the delegated
+         * handler below can no longer be the only way in. Both routes run this.
+         */
+        window.openPurchaseInventoryForEdit = function (id) {
             if (!id) {
                 return;
             }
@@ -541,6 +547,10 @@
                     shoporaToast.error('Unable to load purchase inventory details.', 'Error!');
                 }
             });
+        };
+
+        $(document).on('click', '.editPurchaseInventory', function () {
+            window.openPurchaseInventoryForEdit($(this).data('id'));
         });
 
         $(document).on('select2:open', '#purchaseInventoryItemsContainer .purchase-select2', function () {

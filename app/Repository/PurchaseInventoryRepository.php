@@ -16,15 +16,85 @@ class PurchaseInventoryRepository
         $this->query = $query;
     }
 
-    public function getPurchaseInventory()
+    /**
+     * The purchase bill listing.
+     *
+     * The date range works on bill_date - the date on the vendor's bill, not
+     * when it was typed in. Left empty it means every bill, because this is
+     * the list you go through looking for one.
+     */
+    public function getPurchaseInventory(array $options = [])
     {
-        return $this->query
+        $query = $this->query
             ->select(
                 'purchase_inventory.id',
                 'purchase_inventory.vendor as vendor_name',
                 'purchase_inventory.bill_date as purchase_date',
                 'purchase_inventory.vat_amount',
-            )->orderBy('purchase_inventory.id', 'desc');
+            );
+
+        if ($from = $this->parseDate($options['start_date'] ?? null)) {
+            $query->whereDate('purchase_inventory.bill_date', '>=', $from);
+        }
+
+        if ($to = $this->parseDate($options['end_date'] ?? null)) {
+            $query->whereDate('purchase_inventory.bill_date', '<=', $to);
+        }
+
+        // The header-row box under Vendor Name.
+        $vendor = trim((string) ($options['vendor_name'] ?? ''));
+        if ($vendor !== '') {
+            $query->where('purchase_inventory.vendor', 'like', '%' . $vendor . '%');
+        }
+
+        $search = trim((string) ($options['search'] ?? ''));
+        if ($search !== '') {
+            $like = '%' . $search . '%';
+            $query->where(function ($q) use ($like) {
+                $q->where('purchase_inventory.vendor', 'like', $like)
+                    ->orWhere('purchase_inventory.pan_number', 'like', $like)
+                    ->orWhere('purchase_inventory.address', 'like', $like);
+            });
+        }
+
+        return $this->sortListing($query, $options['sort_field'] ?? null, $options['sort_direction'] ?? null);
+    }
+
+    /**
+     * Order the listing. By column name only - the field arrives in a query
+     * string, and a column name is not something to take on trust.
+     */
+    private function sortListing($query, $field, $direction)
+    {
+        $sortable = [
+            'vendor_name' => 'purchase_inventory.vendor',
+            'purchase_date' => 'purchase_inventory.bill_date',
+        ];
+
+        $column = $sortable[$field] ?? null;
+        if (! $column) {
+            return $query->orderBy('purchase_inventory.id', 'desc');
+        }
+
+        return $query->orderBy($column, strtolower((string) $direction) === 'asc' ? 'asc' : 'desc');
+    }
+
+    /**
+     * A Y-m-d from the picker. A blank box, a half-typed date or anything
+     * hand-edited into the query string means no filter rather than an error -
+     * a list that will not draw is worse than one that ignores a bad date.
+     */
+    private function parseDate($date): ?Carbon
+    {
+        if (! is_string($date) || trim($date) === '') {
+            return null;
+        }
+
+        try {
+            return Carbon::createFromFormat('Y-m-d', trim($date));
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     public function store(array $data)

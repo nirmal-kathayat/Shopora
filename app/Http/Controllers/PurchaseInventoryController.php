@@ -18,21 +18,51 @@ class PurchaseInventoryController extends Controller
         $this->categoryRepo = $categoryRepo;
     }
 
+    /**
+     * The screen, and the JSON behind its table.
+     *
+     * A TableHelper, so the envelope is { success, data, total }. Its date
+     * range is sent as start_date / end_date - those names are fixed in the
+     * component - and works on the date on the vendor's bill.
+     */
     public function index()
     {
         try {
-            if (request()->ajax()) {
-                $data = $this->purchaseInventoryRepo->getPurchaseInventory();
-                return DataTables::of($data)
-                    ->addIndexColumn()
-                    ->rawColumns([])
-                    ->make(true);
+            if (! request()->ajax()) {
+                return view('purchaseInventory.index', [
+                    'inventories' => $this->inventoryItemRepo->getInventoryTitle(),
+                    'categories' => $this->categoryRepo->getCategory(),
+                ]);
             }
-            $inventories = $this->inventoryItemRepo->getInventoryTitle();
-            $categories = $this->categoryRepo->getCategory();
 
-            return view('purchaseInventory.index', compact('inventories', 'categories'));
-        } catch (\Exception $e) {
+            $perPage = min(max((int) request()->input('per_page', 10), 1), 100);
+            $page = max((int) request()->input('page', 1), 1);
+
+            $rows = $this->purchaseInventoryRepo->getPurchaseInventory([
+                'start_date' => request()->input('start_date'),
+                'end_date' => request()->input('end_date'),
+                'vendor_name' => request()->input('vendor_name'),
+                'search' => request()->input('search'),
+                'sort_field' => request()->input('sort_field'),
+                'sort_direction' => request()->input('sort_direction'),
+            ])->paginate($perPage, ['*'], 'page', $page);
+
+            return response()->json([
+                'success' => true,
+                'data' => $rows->items(),
+                'total' => $rows->total(),
+            ]);
+        } catch (\Throwable $e) {
+            \Log::error('Purchase inventory list failed: ' . $e->getMessage());
+
+            if (request()->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'title' => 'Could not load',
+                    'message' => 'The purchase list could not be loaded.',
+                ]);
+            }
+
             return redirect()->back()->with(['message' => 'Something went wrong!', 'type' => 'error']);
         }
     }

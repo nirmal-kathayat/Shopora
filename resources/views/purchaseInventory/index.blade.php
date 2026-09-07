@@ -1,33 +1,9 @@
 @extends("layouts.app")
 
 @section("style")
-<link href="{{asset('assets/plugins/datatable/css/dataTables.bootstrap5.min.css')}}" rel="stylesheet" />
-<style>
-    /* Action button wrapper */
-    .action-btn-group {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        justify-content: center;
-        white-space: nowrap;
-    }
-
-    /* Individual buttons */
-    .action-btn {
-        width: 34px;
-        height: 34px;
-        padding: 0;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 6px;
-    }
-
-    /* Icon size */
-    .action-btn i {
-        font-size: 16px;
-    }
-</style>
+<link href="{{asset('assets/css/gridtable.css')}}?v=1" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<link href="{{ asset('assets/css/date-filter.css') }}?v=1" rel="stylesheet" />
 
 @endsection
 
@@ -56,20 +32,32 @@
         </div>
         <!--end breadcrumb-->
         <hr />
+
+        {{-- The range works on the date on the vendor's bill. It opens empty -
+             every bill - because this is the list you go through looking for
+             one, and hiding older bills on arrival would defeat that. --}}
+        <div class="shopora-date-filter">
+            <div class="date-field">
+                <label for="fromDate">From Date</label>
+                <div class="date-input-wrap">
+                    <input type="text" id="fromDate" class="date-picker" placeholder="Select From Date" readonly />
+                    <i class='bx bx-calendar cal-icon'></i>
+                </div>
+            </div>
+            <div class="date-field">
+                <label for="toDate">To Date</label>
+                <div class="date-input-wrap">
+                    <input type="text" id="toDate" class="date-picker" placeholder="Select To Date" readonly />
+                    <i class='bx bx-calendar cal-icon'></i>
+                </div>
+            </div>
+            <button type="button" class="btn-clear-filter" id="clearFilters">Clear</button>
+        </div>
+
         <div class="card">
             <div class="card-body">
-                <div class="table-responsive">
-                    <table id="purchaseInventoryTable" class="table table-striped table-bordered" style="width:100%">
-                        <thead>
-                            <tr>
-                                <th>S.no</th>
-                                <th>Vendor Name</th>
-                                <th>Bill Date</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                    </table>
-                </div>
+                {{-- TableHelper renders the whole table in here. --}}
+                <div id="purchase-grid" class="shopora-grid"></div>
             </div>
         </div>
     </div>
@@ -101,197 +89,183 @@
 </div>
 
 @section("script")
-<script src="{{asset('assets/plugins/datatable/js/jquery.dataTables.min.js')}}"></script>
-<script src="{{asset('assets/plugins/datatable/js/dataTables.bootstrap5.min.js')}}"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="{{asset('assets/js/table-helper.js')}}?v=1"></script>
 <script>
+    let table;
+
     $(document).ready(function() {
-        var table = $('#purchaseInventoryTable').DataTable({
-            processing: true,
-            serverSide: true,
-            ajax: {
-                url: "{{ route('admin.purchaseInventory') }}",
-                error: function(xhr) {
-                    console.error('Purchase inventory table load failed:', xhr.responseText || xhr.statusText);
-                }
-            },
-            pageLength: 25,
-            columns: [{
-                    data: 'id',
-                    name: 'id',
-                    searchable: false,
-                    render: function(data, type, full, meta) {
-                        return full?.DT_RowIndex
-                    }
-                },
+        table = new TableHelper({
+            containerId: 'purchase-grid',
+            apiUrl: "{{ route('admin.purchaseInventory') }}",
+            perPage: 10,
+            pagination: true,
+            enableCheckbox: false,
+            emptyMessage: 'No purchase bills match these filters',
+
+            columns: [
+                { name: 'S.no', isSerialNo: true, width: '64px', align: 'center' },
+                { name: 'Vendor Name', field: 'vendor_name' },
+                { name: 'Bill Date', field: 'purchase_date' },
                 {
-                    data: 'vendor_name',
-                    name: 'vendor',
-                    orderable: false,
-                },
-                {
-                    data: 'purchase_date',
-                    name: 'bill_date',
-                    orderable: false,
-                },
-                {
-                    data: 'action',
-                    name: 'action',
-                    orderable: false,
-                    searchable: false,
-                    render: function(data, type, full, meta) {
-                        var viewButton = '<a class="btn-primary btn-sm action-btn view-bill-btn" title="View" href="javascript:void(0)" data-id="' + full.id + '"><i class="bx bx-show"></i></a>';
-                        var editButton = '<button type="button" class="btn-primary btn-sm action-btn editPurchaseInventory" title="Edit" data-id="' + full.id + '"><i class="bx bx-edit"></i></button>';
-                        var deleteButton = '<a class="btn-danger btn-sm action-btn deleteAction" title="Delete" href="javascript:void(0)" data-id="' + full.id + '"><i class="bx bx-trash"></i></a>';
-                        return `<div class="action-btn-group">${viewButton}${editButton}${deleteButton}</div>`;
-                    }
+                    name: 'Action',
+                    type: 'actions',
+                    actions: [
+                        {
+                            type: 'view',
+                            title: 'View bill',
+                            showLabel: false,
+                            onClick: (row) => loadPurchaseBill(row.id)
+                        },
+                        {
+                            type: 'edit',
+                            title: 'Edit',
+                            showLabel: false,
+                            onClick: (row) => window.openPurchaseInventoryForEdit(row.id)
+                        },
+                        {
+                            type: 'delete',
+                            title: 'Delete',
+                            showLabel: false,
+                            onClick: (row) => confirmDelete(row.id)
+                        }
+                    ]
                 }
             ],
-            initComplete: function(settings, json) {
-                console.log(json);
-            }
+
+            enableSortColumns: ['vendor_name', 'purchase_date'],
+
+            filters: {
+                // emptyMeans stays 'all' - a blank box is every bill.
+                dateRange: { fromId: 'fromDate', toId: 'toDate' },
+                autoReload: ['#fromDate', '#toDate'],
+                autoGenerateColumnFilters: false,
+                columnFilters: [
+                    { field: 'vendor_name', type: 'text', param: 'vendor_name', placeholder: 'Vendor' }
+                ]
+            },
+
+            search: { placeholder: 'Search vendor, PAN or address...' }
         });
 
         window.purchaseInventoryDataTable = table;
+    });
 
-        // delete action
-        $('#purchaseInventoryTable').on('click', '.deleteAction', function(e) {
-            e.preventDefault();
-            var inventoryId = $(this).data('id');
-            var deleteUrl = "{{route('admin.purchaseInventory.delete',['id'=>':id'])}}".replace(':id', inventoryId);
+    function confirmDelete(id) {
+        const deleteUrl = "{{ route('admin.purchaseInventory.delete', ['id' => ':id']) }}".replace(':id', id);
 
-            Swal.fire({
-                title: 'Are you sure?',
-                text: "You won't be able to revert this!",
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: 'btn btn-success',
-                cancelButtonColor: '#d33',
-                confirmButtonText: 'Yes, delete it!'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    $.ajax({
-                        url: deleteUrl,
-                        type: 'GET',
-                        data: {
-                            "_token": "{{ csrf_token() }}",
-                        },
-                        success: function(response) {
-                            shoporaToast.success('The purchase inventory has been deleted.', 'Deleted!');
-                            $('#purchaseInventoryTable').DataTable().ajax.reload();
-                        },
-                        error: function(xhr) {
-                            shoporaToast.error('There was an error deleting the inventory.', 'Error!');
-                        }
-                    });
+        Swal.fire({
+            title: 'Are you sure?',
+            text: "You won't be able to revert this!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: 'btn btn-success',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Yes, delete it!'
+        }).then((result) => {
+            if (!result.isConfirmed) return;
+
+            $.get(deleteUrl, { "_token": "{{ csrf_token() }}" })
+                .done(() => {
+                    shoporaToast.success('The purchase inventory has been deleted.', 'Deleted!');
+                    table.refresh();
+                })
+                .fail(() => shoporaToast.error('There was an error deleting the inventory.', 'Error!'));
+        });
+    }
+
+    /** Fetch one purchase bill and show it in the bill modal. */
+    function loadPurchaseBill(purchaseId) {
+        const url = "{{ route('admin.purchaseInventory.view', ['id' => ':id']) }}".replace(':id', purchaseId);
+
+        $.get(url)
+            .done(function (response) {
+                $('#billContent').html(generateBillHtml(response));
+                const billModalEl = document.getElementById('purchaseBillModal');
+                if (billModalEl && window.bootstrap) {
+                    bootstrap.Modal.getOrCreateInstance(billModalEl).show();
                 }
+            })
+            .fail(function () {
+                shoporaToast.error('Unable to load bill details.', 'Error!');
             });
+    }
+
+    /** The bill itself: vendor, its lines, and what it came to. */
+    function generateBillHtml(data) {
+        const esc = TableHelper.escape;
+        let itemsHtml = '';
+        let totalTaxable = 0;
+
+        (data.items || []).forEach(function (item) {
+            const totalAmount = item.qty * item.rate;
+            totalTaxable += totalAmount;
+            itemsHtml += `
+                <tr>
+                    <td>${esc(item.inventory_item ? item.inventory_item.title : 'N/A')}</td>
+                    <td class="text-end">${Number(item.qty)}</td>
+                    <td class="text-end">${parseFloat(item.rate).toFixed(2)}</td>
+                    <td class="text-end">${totalAmount.toFixed(2)}</td>
+                </tr>
+            `;
         });
 
-        // View bill button click handler
-        $('#purchaseInventoryTable').on('click', '.view-bill-btn', function(e) {
-            e.preventDefault();
-            var purchaseId = $(this).data('id');
-            loadPurchaseBill(purchaseId);
-        });
+        const vatAmount = parseFloat(data.vat_amount) || 0;
+        const amountAfterVat = totalTaxable + vatAmount;
 
-        // Function to load purchase bill
-        function loadPurchaseBill(purchaseId) {
-            $.ajax({
-                url: "{{route('admin.purchaseInventory.view', ['id' => ':id'])}}".replace(':id', purchaseId),
-                type: 'GET',
-                success: function(response) {
-                    var billHtml = generateBillHtml(response);
-                    $('#billContent').html(billHtml);
-                    const billModalEl = document.getElementById('purchaseBillModal');
-                    if (billModalEl && window.bootstrap) {
-                        bootstrap.Modal.getOrCreateInstance(billModalEl).show();
-                    }
-                },
-                error: function(xhr) {
-                    shoporaToast.error('Unable to load bill details.', 'Error!');
-                }
-            });
-        }
-
-        // Function to generate bill HTML
-        function generateBillHtml(data) {
-            var itemsHtml = '';
-            var totalTaxable = 0;
-
-            if (data.items && data.items.length > 0) {
-                data.items.forEach(function(item) {
-                    var totalAmount = item.qty * item.rate;
-                    totalTaxable += totalAmount;
-                    itemsHtml += `
-                        <tr>
-                            <td>${item.inventory_item ? item.inventory_item.title : 'N/A'}</td>
-                            <td class="text-end">${item.qty}</td>
-                            <td class="text-end">${parseFloat(item.rate).toFixed(2)}</td>
-                            <td class="text-end">${totalAmount.toFixed(2)}</td>
-                        </tr>
-                    `;
-                });
-            }
-
-            var vatAmount = parseFloat(data.vat_amount) || 0;
-            var amountAfterVat = totalTaxable + vatAmount;
-
-            return `
-                <div class="bill-container" style="padding: 20px;">
-                    <div class="bill-details mb-4">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <p><strong>Vendor:</strong> ${data.vendor || 'N/A'}</p>
-                                <p><strong>Bill Date:</strong> ${data.bill_date ? new Date(data.bill_date).toISOString().split('T')[0] : 'N/A'}</p>
-                                <p><strong>Address:</strong> ${data.address || 'N/A'}</p>
-                            </div>
-                            <div class="col-md-6">
-                                <p><strong>PAN Number:</strong> ${data.pan_number || 'N/A'}</p>
-                                <p><strong>Bill No:</strong> #${data.id}</p>
-                            </div>
+        return `
+            <div class="bill-container" style="padding: 20px;">
+                <div class="bill-details mb-4">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Vendor:</strong> ${esc(data.vendor || 'N/A')}</p>
+                            <p><strong>Bill Date:</strong> ${esc(data.bill_date ? String(data.bill_date).slice(0, 10) : 'N/A')}</p>
+                            <p><strong>Address:</strong> ${esc(data.address || 'N/A')}</p>
                         </div>
-                    </div>
-
-                    <div class="bill-items mb-4">
-                        <table class="table table-bordered">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Item Description</th>
-                                    <th class="text-end">Qty</th>
-                                    <th class="text-end">Rate</th>
-                                    <th class="text-end">Total Amount</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${itemsHtml}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <div class="bill-summary">
-                        <div class="row">
-                            <div class="col-md-8"></div>
-                            <div class="col-md-4">
-                                <table class="table table-sm">
-                                    <tr>
-                                        <td><strong>Total Taxable Amount:</strong></td>
-                                        <td class="text-end">${totalTaxable.toFixed(2)}</td>
-                                    </tr>
-                                    <tr>
-                                        <td><strong>VAT Amount:</strong></td>
-                                        <td class="text-end">${vatAmount.toFixed(2)}</td>
-                                    </tr>
-                                    <tr class="table-primary">
-                                        <td><strong>Amount After VAT:</strong></td>
-                                        <td class="text-end"><strong>${amountAfterVat.toFixed(2)}</strong></td>
-                                    </tr>
-                                </table>
-                            </div>
+                        <div class="col-md-6">
+                            <p><strong>PAN Number:</strong> ${esc(data.pan_number || 'N/A')}</p>
+                            <p><strong>Bill No:</strong> #${Number(data.id)}</p>
                         </div>
                     </div>
                 </div>
-            `;
-        }
-    });
+
+                <div class="bill-items mb-4">
+                    <table class="table table-bordered">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Item Description</th>
+                                <th class="text-end">Qty</th>
+                                <th class="text-end">Rate</th>
+                                <th class="text-end">Total Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>${itemsHtml}</tbody>
+                    </table>
+                </div>
+
+                <div class="bill-summary">
+                    <div class="row">
+                        <div class="col-md-8"></div>
+                        <div class="col-md-4">
+                            <table class="table table-sm">
+                                <tr>
+                                    <td><strong>Total Taxable Amount:</strong></td>
+                                    <td class="text-end">${totalTaxable.toFixed(2)}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>VAT Amount:</strong></td>
+                                    <td class="text-end">${vatAmount.toFixed(2)}</td>
+                                </tr>
+                                <tr class="table-primary">
+                                    <td><strong>Amount After VAT:</strong></td>
+                                    <td class="text-end"><strong>${amountAfterVat.toFixed(2)}</strong></td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
 </script>
 @endsection
