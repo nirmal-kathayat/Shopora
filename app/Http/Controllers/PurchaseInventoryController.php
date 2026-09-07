@@ -187,26 +187,51 @@ class PurchaseInventoryController extends Controller
         }
     }
 
+    /**
+     * One item's history: what came in, and what went out.
+     *
+     * Two TableHelpers on the page, so one endpoint answers both and `type`
+     * says which. Envelope is { success, data, total } either way.
+     */
     public function viewRecords($id)
     {
         try {
-            if (request()->ajax()) {
-                $type = request()->get('type');
-
-                if ($type === 'purchase') {
-                    $records = $this->purchaseInventoryRepo->getPurchaseRecords($id);
-                } else if ($type === 'sales') {
-                    $records = $this->purchaseInventoryRepo->getSalesRecords($id);
-                }
-
-                return DataTables::of($records)
-                    ->addIndexColumn()
-                    ->rawColumns([])
-                    ->make(true);
+            if (! request()->ajax()) {
+                return view('storeRecords.view', [
+                    'id' => $id,
+                    'item' => DB::table('inventory_items')->where('id', $id)->value('title'),
+                ]);
             }
 
-            return view('storeRecords.view', ['id' => $id]);
-        } catch (\Exception $e) {
+            $options = [
+                'search' => request()->input('search'),
+                'sort_field' => request()->input('sort_field'),
+                'sort_direction' => request()->input('sort_direction'),
+            ];
+
+            $query = request()->input('type') === 'sales'
+                ? $this->purchaseInventoryRepo->getSalesRecords($id, $options)
+                : $this->purchaseInventoryRepo->getPurchaseRecords($id, $options);
+
+            $perPage = min(max((int) request()->input('per_page', 10), 1), 100);
+            $page = max((int) request()->input('page', 1), 1);
+
+            return response()->json([
+                'success' => true,
+                'data' => $query->skip(($page - 1) * $perPage)->take($perPage)->get(),
+                'total' => $query->getCountForPagination(),
+            ]);
+        } catch (\Throwable $e) {
+            \Log::error('Store record view failed: ' . $e->getMessage());
+
+            if (request()->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'title' => 'Could not load',
+                    'message' => 'These records could not be loaded.',
+                ]);
+            }
+
             return redirect()->back()->with(['type' => 'error', 'message' => 'Something went wrong!']);
         }
     }

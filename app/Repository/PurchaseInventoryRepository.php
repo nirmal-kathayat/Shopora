@@ -244,32 +244,72 @@ class PurchaseInventoryRepository
         return $query->orderBy($column, strtolower((string) $direction) === 'asc' ? 'asc' : 'desc');
     }
 
-    public function getPurchaseRecords($inventoryItemId)
+    /** Every purchase line for one item. Returns the query, so it can be paged. */
+    public function getPurchaseRecords($inventoryItemId, array $options = [])
     {
-        return DB::table('purchase_inventory_items')
+        $query = DB::table('purchase_inventory_items')
             ->join('purchase_inventory', 'purchase_inventory.id', '=', 'purchase_inventory_items.purchase_inventory_id')
             ->join('inventory_items', 'inventory_items.id', '=', 'purchase_inventory_items.inventory_item_id')
             ->where('purchase_inventory_items.inventory_item_id', $inventoryItemId)
             ->select(
                 'inventory_items.title as inventory_title',
+                'purchase_inventory.vendor',
                 'purchase_inventory.bill_date as purchase_date',
                 'purchase_inventory_items.rate',
                 'purchase_inventory_items.qty'
-            )
-            ->get();
+            );
+
+        $search = trim((string) ($options['search'] ?? ''));
+        if ($search !== '') {
+            $query->where('purchase_inventory.vendor', 'like', '%' . $search . '%');
+        }
+
+        $sortable = [
+            'purchase_date' => 'purchase_inventory.bill_date',
+            'vendor' => 'purchase_inventory.vendor',
+            'rate' => 'purchase_inventory_items.rate',
+            'qty' => 'purchase_inventory_items.qty',
+        ];
+
+        return $this->orderRecords($query, $sortable, $options, 'purchase_inventory.bill_date');
     }
 
-    public function getSalesRecords($inventoryItemId)
+    /** Every unit this item went out on. Returns the query, so it can be paged. */
+    public function getSalesRecords($inventoryItemId, array $options = [])
     {
-        return DB::table('inventory_stocks')
+        $query = DB::table('inventory_stocks')
             ->join('inventory_items', 'inventory_items.id', '=', 'inventory_stocks.inventory_item_id')
             ->where('inventory_stocks.inventory_item_id', $inventoryItemId)
-            ->where('inventory_stocks.sales_id', '!=', null)
+            ->whereNotNull('inventory_stocks.sales_id')
             ->select(
                 'inventory_items.title as inventory_title',
+                'inventory_stocks.sales_id',
                 'inventory_stocks.qty',
                 'inventory_stocks.created_at'
-            )->orderBy('created_at', 'desc')
-            ->get();
+            );
+
+        $sortable = [
+            'qty' => 'inventory_stocks.qty',
+            'created_at' => 'inventory_stocks.created_at',
+        ];
+
+        return $this->orderRecords($query, $sortable, $options, 'inventory_stocks.created_at');
+    }
+
+    /**
+     * Order one of the record listings.
+     *
+     * By column name only - the field arrives in a query string, and a column
+     * name is not something to take on trust.
+     */
+    private function orderRecords($query, array $sortable, array $options, string $fallback)
+    {
+        $column = $sortable[$options['sort_field'] ?? null] ?? null;
+
+        if (! $column) {
+            return $query->orderByDesc($fallback);
+        }
+
+        return $query->orderBy($column, strtolower((string) ($options['sort_direction'] ?? '')) === 'asc' ? 'asc' : 'desc');
     }
 }

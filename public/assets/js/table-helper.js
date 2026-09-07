@@ -23,9 +23,11 @@
    - The two fetches send same-origin credentials and X-Requested-With.
    - The running console.log commentary is gone.
 
-   Known limit, unchanged from the original: the class assumes ONE table per
-   page. #applyFilters, #clearFilters, #select-all-checkbox and the sort click
-   handler are not namespaced per instance. Two on one page will interfere.
+   Two tables on one page: the sort handler, the select-all checkbox and the
+   totals row are namespaced by containerId here, which the original was not -
+   a click on one table's header ran every instance's handler. #applyFilters
+   and #clearFilters are still shared, so give a page with two tables at most
+   one filter bar.
 */
 /**
  * TableHelper - Vanilla JS table builder with AJAX, filtering, and pagination
@@ -1424,7 +1426,7 @@ class TableHelper {
                 if (this._isCheckboxEnabled()) {
                     if (rowIdx === 0) {
                         cellsHtml += `<th style="width: 40px; text-align: center;" rowspan="${headerRows.length}">
-                            <input type="checkbox" id="select-all-checkbox" class="form-check-input" title="Select all rows">
+                            <input type="checkbox" id="${this.config.containerId}-select-all" class="form-check-input" title="Select all rows">
                         </th>`;
                     }
                     // rowIdx > 0: checkbox column is covered by rowspan from row 0, no extra cell
@@ -1454,7 +1456,7 @@ class TableHelper {
             let headerCells = '';
             if (this._isCheckboxEnabled()) {
                 headerCells += `<th style="width: 40px; text-align: center;">
-                    <input type="checkbox" id="select-all-checkbox" class="form-check-input" title="Select all rows">
+                    <input type="checkbox" id="${this.config.containerId}-select-all" class="form-check-input" title="Select all rows">
                 </th>`;
             }
             headerCells += columns.map((col, colIndex) => {
@@ -1526,11 +1528,13 @@ class TableHelper {
      * Initialize column sorting functionality
      */
     initColumnSorting() {
-        // Clear existing event listeners
-        $('.sortable-header').off('click.tableHelper');
+        // Delegated on document, but scoped to this table's own container and
+        // its own event namespace. Unscoped, a click on one table's header ran
+        // every instance's handler and cleared every other table's indicators.
+        const ns = `click.tableHelper-${this.config.containerId}`;
+        const within = `#${this.config.containerId} .sortable-header`;
 
-        // Add click event for sortable headers
-        $(document).on('click.tableHelper', '.sortable-header', (e) => {
+        $(document).off(ns).on(ns, within, (e) => {
             const $header = $(e.currentTarget);
             const field = $header.data('field');
 
@@ -1547,8 +1551,9 @@ class TableHelper {
                 sortDirection = '';
             }
 
-            // Update indicators for all headers
-            $('.sortable-header .sort-indicator').removeClass('sort-asc sort-desc');
+            // Only this table's headers.
+            $(`#${this.config.containerId} .sortable-header .sort-indicator`)
+                .removeClass('sort-asc sort-desc');
             if (sortDirection) {
                 $header.find('.sort-indicator').first().addClass(`sort-${sortDirection}`);
             }
@@ -2634,7 +2639,7 @@ class TableHelper {
         document.addEventListener('keyup', this._shiftKeyHandler);
 
         // Select all checkbox
-        const selectAllCheckbox = container.querySelector('#select-all-checkbox');
+        const selectAllCheckbox = container.querySelector(`#${this.config.containerId}-select-all`);
         if (selectAllCheckbox) {
             selectAllCheckbox.addEventListener('change', (e) => {
                 if (e.target.checked) {
@@ -2992,7 +2997,7 @@ class TableHelper {
         this.sortDirection = null;
 
         // Clear sort indicators in the UI
-        $('.sort-indicator').removeClass('sort-asc sort-desc');
+        $(`#${this.config.containerId} .sort-indicator`).removeClass('sort-asc sort-desc');
 
         // Clear cached totals
         this.totalsCached = null;
@@ -3133,7 +3138,7 @@ class TableHelper {
         });
 
         // Update select-all checkbox
-        const selectAllCheckbox = container.querySelector('#select-all-checkbox');
+        const selectAllCheckbox = container.querySelector(`#${this.config.containerId}-select-all`);
         if (selectAllCheckbox && this.gridData.length > 0) {
             const allSelected = this.gridData.every((row, rowIndex) => {
                 const rowId = this._getRowId(row, rowIndex);
@@ -3338,7 +3343,7 @@ class TableHelper {
 
         const loadingRow = document.createElement('tr');
         loadingRow.className = 'table-totals-row totals-loading';
-        loadingRow.id = 'table-totals-row-loading';
+        loadingRow.id = `${this.config.containerId}-totals-loading`;
 
         let html = `<td colspan="${cols}" style="text-align: center; padding: 15px;">
             <span style="color: #0d6efd; font-weight: 600;">
@@ -3360,9 +3365,9 @@ class TableHelper {
 
         // Remove loading row and any existing totals row (guards against duplicate TOTAL rows
         // if two totals fetches resolve, e.g. from overlapping reloads).
-        const loadingRow = document.getElementById('table-totals-row-loading');
+        const loadingRow = document.getElementById(`${this.config.containerId}-totals-loading`);
         if (loadingRow) loadingRow.remove();
-        const existingTotalsRow = document.getElementById('table-totals-row');
+        const existingTotalsRow = document.getElementById(`${this.config.containerId}-totals`);
         if (existingTotalsRow) existingTotalsRow.remove();
 
         const tbody = table.querySelector('tbody');
@@ -3372,7 +3377,7 @@ class TableHelper {
         // Build totals row
         const totalsRow = document.createElement('tr');
         totalsRow.className = 'table-totals-row';
-        totalsRow.id = 'table-totals-row';
+        totalsRow.id = `${this.config.containerId}-totals`;
 
         let cells = '';
 
@@ -3424,8 +3429,8 @@ class TableHelper {
      * Remove totals row from table
      */
     _removeTotalsRow() {
-        const totalsRow = document.getElementById('table-totals-row');
-        const loadingRow = document.getElementById('table-totals-row-loading');
+        const totalsRow = document.getElementById(`${this.config.containerId}-totals`);
+        const loadingRow = document.getElementById(`${this.config.containerId}-totals-loading`);
 
         if (totalsRow) totalsRow.remove();
         if (loadingRow) loadingRow.remove();
