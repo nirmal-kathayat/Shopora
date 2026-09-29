@@ -321,6 +321,18 @@
         height: 64px;
     }
 
+    /* the header avatar when the admin has no profile photo */
+    .topbar .shopora-user-initial {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        background: #008cff;
+        color: #fff;
+        font-size: 18px;
+        font-weight: 600;
+    }
+
     .topbar .shopora-profile-btn .shopora-profile-caret {
         transition: transform 0.2s ease;
         color: #6c757d;

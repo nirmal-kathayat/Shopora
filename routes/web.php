@@ -182,6 +182,8 @@ Route::group(['prefix' => 'admin'], function () {
     Route::get('/profile', [ProfileController::class, 'show'])->name('admin.profile');
     Route::post('/profile', [ProfileController::class, 'update'])->name('admin.profile.update');
     Route::post('/profile/password', [ProfileController::class, 'updatePassword'])->name('admin.profile.password');
+    Route::post('/profile/photo', [ProfileController::class, 'updatePhoto'])->name('admin.profile.photo');
+    Route::post('/profile/photo/remove', [ProfileController::class, 'removePhoto'])->name('admin.profile.photo.remove');
     // user
     Route::group(['prefix' => 'user'], function () {
         Route::get('/', [UserController::class, 'index'])->name('admin.user');

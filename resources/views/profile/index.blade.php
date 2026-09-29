@@ -77,6 +77,31 @@
         display: block;
     }
 
+    .shopora-profile-avatar.is-initial {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #008cff;
+        color: #fff;
+        font-size: 36px;
+        font-weight: 600;
+    }
+
+    .shopora-avatar-remove {
+        border: 0;
+        background: transparent;
+        padding: 0;
+        margin-top: 6px;
+        font-size: 12px;
+        color: #6b7280;
+        text-decoration: underline;
+        cursor: pointer;
+    }
+
+    .shopora-avatar-remove:hover {
+        color: #dc2626;
+    }
+
     .shopora-avatar-cam {
         position: absolute;
         right: 0;
@@ -92,8 +117,13 @@
         justify-content: center;
         font-size: 14px;
         padding: 0;
-        cursor: default;
+        margin: 0;
+        cursor: pointer;
         line-height: 1;
+    }
+
+    .shopora-avatar-cam:hover {
+        background: #0077db;
     }
 
     .shopora-profile-hero-meta h2 {
@@ -343,15 +373,34 @@
         <h1 class="shopora-profile-heading">My Profile</h1>
 
         <div class="shopora-profile-hero">
-            <div class="shopora-avatar-wrap">
-                <img src="{{ asset('assets/images/avatars/user-img.png') }}" alt="Profile" class="shopora-profile-avatar" id="profileAvatarPreview">
-                <button type="button" class="shopora-avatar-cam" title="Profile photo upload coming soon" aria-label="Change photo">
-                    <i class="bx bx-camera"></i>
-                </button>
+            <div class="text-center">
+                <div class="shopora-avatar-wrap">
+                    @if($user->avatarUrl())
+                        <img src="{{ $user->avatarUrl() }}" alt="{{ $user->name }}" class="shopora-profile-avatar">
+                    @else
+                        <span class="shopora-profile-avatar is-initial" aria-hidden="true">{{ $user->initial() }}</span>
+                    @endif
+                    {{-- Choosing a file uploads it straight away; there is nothing else to fill in. --}}
+                    <form method="POST" action="{{ route('admin.profile.photo') }}" enctype="multipart/form-data" id="profilePhotoForm">
+                        @csrf
+                        <label for="profilePhotoInput" class="shopora-avatar-cam" title="Change photo">
+                            <i class="bx bx-camera"></i>
+                        </label>
+                        <input type="file" name="photo" id="profilePhotoInput" class="d-none"
+                               accept="image/png,image/jpeg,image/webp">
+                    </form>
+                </div>
+                @if($user->avatarUrl())
+                    <form method="POST" action="{{ route('admin.profile.photo.remove') }}">
+                        @csrf
+                        <button type="submit" class="shopora-avatar-remove">Remove photo</button>
+                    </form>
+                @endif
             </div>
             <div class="shopora-profile-hero-meta">
                 <h2 id="profileDisplayName">{{ $user->name }}</h2>
                 <p class="sub">{{ '@' . $user->username }} · {{ $user->email }}</p>
+                @error('photo')<div class="shopora-field-error">{{ $message }}</div>@enderror
                 <div class="shopora-role-badges">
                     @forelse($roleNames as $roleName)
                         <span class="shopora-role-badge">{{ $roleName }}</span>
@@ -500,6 +549,12 @@
 
 @section("script")
 <script>
+    document.getElementById('profilePhotoInput').addEventListener('change', function () {
+        if (this.files && this.files[0]) {
+            this.form.submit();
+        }
+    });
+
     document.querySelectorAll('.shopora-pass-toggle').forEach(function(btn) {
         btn.addEventListener('click', function() {
             var input = document.getElementById(btn.getAttribute('data-target'));

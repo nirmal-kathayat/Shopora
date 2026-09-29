@@ -54,9 +54,14 @@
                         id="shoporaProfileDropdown"
                         aria-expanded="false"
                         aria-haspopup="true">
-                    <img src="{{ asset('assets/images/avatars/user-img.png') }}" class="user-img" alt="user avatar">
+                    @php($headerAdmin = \Auth::guard('admin')->user())
+                    @if($headerAdmin->avatarUrl())
+                        <img src="{{ $headerAdmin->avatarUrl() }}" class="user-img" alt="{{ $headerAdmin->name }}" style="object-fit:cover;">
+                    @else
+                        <span class="user-img shopora-user-initial" aria-hidden="true">{{ $headerAdmin->initial() }}</span>
+                    @endif
                     <span class="user-info">
-                        <span class="user-name mb-0 d-block">{{ \Auth::guard('admin')->user()->name }}</span>
+                        <span class="user-name mb-0 d-block">{{ $headerAdmin->name }}</span>
                     </span>
                     <i class="bx bx-chevron-down fs-5 shopora-profile-caret"></i>
                 </button>

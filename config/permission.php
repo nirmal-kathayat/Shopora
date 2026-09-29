@@ -19,6 +19,8 @@ return [
         'admin/notifications/{id}',
         // same reason: the invoice preview is on the allow list too
         'admin/invoice/viewInvoice/{id}',
+        'admin/profile/photo',
+        'admin/profile/photo/remove',
     ],
     "allow" => [
         "login",
@@ -34,6 +36,10 @@ return [
         "admin.notifications.read",
         "admin.notifications.readAll",
         "admin.notifications.destroy",
+        // an admin's own profile photo - like the bell, it only ever touches
+        // the signed-in admin
+        "admin.profile.photo",
+        "admin.profile.photo.remove",
         "authentication-signup",
     ],
     'guard' => 'admin',

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Repository\AdminPhotoRepository;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -10,6 +11,10 @@ use IAnanta\UserManagement\Models\Admin;
 
 class ProfileController extends Controller
 {
+    public function __construct(private AdminPhotoRepository $photoRepo)
+    {
+    }
+
     public function show()
     {
         $user = Auth::guard('admin')->user();
@@ -45,6 +50,32 @@ class ProfileController extends Controller
         return redirect()
             ->route('admin.profile')
             ->with(['message' => 'Profile updated successfully', 'type' => 'success']);
+    }
+
+    public function updatePhoto(Request $request)
+    {
+        $request->validate([
+            // No SVG: it is served from public/ and can carry script.
+            'photo' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+        ], [
+            'photo.uploaded' => 'The photo must be 2 MB or smaller.',
+            'photo.max' => 'The photo must be 2 MB or smaller.',
+        ]);
+
+        $this->photoRepo->replace(Auth::guard('admin')->user(), $request->file('photo'));
+
+        return redirect()
+            ->route('admin.profile')
+            ->with(['message' => 'Profile photo updated', 'type' => 'success']);
+    }
+
+    public function removePhoto()
+    {
+        $this->photoRepo->remove(Auth::guard('admin')->user());
+
+        return redirect()
+            ->route('admin.profile')
+            ->with(['message' => 'Profile photo removed', 'type' => 'success']);
     }
 
     public function updatePassword(Request $request)

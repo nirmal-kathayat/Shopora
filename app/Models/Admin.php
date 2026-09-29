@@ -18,6 +18,18 @@ class Admin extends VendorAdmin
      */
     use Notifiable;
 
+    /** The profile photo's URL, or null when the header should show the initial instead. */
+    public function avatarUrl(): ?string
+    {
+        return inventoryItemImageUrl($this->image);
+    }
+
+    /** First letter of the admin's name, for the avatar when there is no photo. */
+    public function initial(): string
+    {
+        return mb_strtoupper(mb_substr(trim((string) ($this->name ?: $this->username)), 0, 1)) ?: '?';
+    }
+
     public function allViewPermissions()
     {
         if (static::$allViewPermissions === null) {
