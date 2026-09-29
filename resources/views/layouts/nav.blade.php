@@ -362,6 +362,20 @@
         object-fit: contain;
     }
 
+    /* stands in for the logo until the shop uploads one (Settings > Bill Header) */
+    .shopora-sidebar .sidebar-header .logo-placeholder {
+        line-height: 36px;
+        color: #2563eb;
+        font-size: 22px;
+        font-weight: 700;
+    }
+
+    .shopora-sidebar .sidebar-header .logo-mini.logo-placeholder {
+        line-height: 30px;
+        font-size: 10px;
+        text-align: center;
+    }
+
     /* ===== Collapsed (toggled) sidebar — desktop only ===== */
     @media screen and (min-width: 1025px) {
 
@@ -484,12 +498,17 @@
     <div class="sidebar-header">
         <div class="d-flex align-items-center flex-grow-1" style="min-width: 0;">
             <a href="{{ route('admin.dashboard') }}" class="d-flex align-items-center text-decoration-none">
-                <img src="{{ asset('assets/images/shopora.png') }}"
-                     class="logo-icon"
-                     alt="Shopora">
-                <img src="{{ asset('assets/images/favicon-32x32.png') }}"
-                     class="logo-mini"
-                     alt="Shopora">
+                @if($shopBrand['logo_url'])
+                    <img src="{{ $shopBrand['logo_url'] }}"
+                         class="logo-icon"
+                         alt="{{ $shopBrand['name'] }}">
+                    <img src="{{ $shopBrand['logo_url'] }}"
+                         class="logo-mini"
+                         alt="{{ $shopBrand['name'] }}">
+                @else
+                    <span class="logo-icon logo-placeholder" title="{{ $shopBrand['name'] }}">LOGO</span>
+                    <span class="logo-mini logo-placeholder" title="{{ $shopBrand['name'] }}">LOGO</span>
+                @endif
             </a>
         </div>
         <div class="toggle-icon"><i class='bx bx-arrow-to-left'></i></div>

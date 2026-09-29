@@ -68,14 +68,25 @@ class StoreSetting extends Model
             'pan' => null,
             'phone' => null,
             'footer_note' => 'Thank you for shopping with us.',
+            'logo' => null,
         ];
     }
 
-    /** Blank strings are stored as null, so the bill can simply skip the line. */
+    /**
+     * Blank strings are stored as null, so the bill can simply skip the line.
+     * The logo is a filename under public/image and is only touched when
+     * $fields carries a 'logo' key - saving the text fields keeps it.
+     */
     public static function saveInvoiceHeader(array $fields): void
     {
         $clean = [];
         foreach (self::defaultInvoiceHeader() as $key => $default) {
+            if ($key === 'logo') {
+                $clean['logo'] = array_key_exists('logo', $fields)
+                    ? $fields['logo']
+                    : self::invoiceHeader()['logo'];
+                continue;
+            }
             $value = trim((string) ($fields[$key] ?? ''));
             $clean[$key] = $value === '' ? null : $value;
         }
@@ -84,6 +95,22 @@ class StoreSetting extends Model
         $clean['name'] = $clean['name'] ?: self::defaultInvoiceHeader()['name'];
 
         static::set(self::INVOICE_HEADER, $clean);
+    }
+
+    /**
+     * Who the admin panel says it belongs to: the bill header's shop name and
+     * logo, reused on the sidebar and sign-in page so a shop rebrands the
+     * whole system from one form. logo_url is null until a logo is uploaded;
+     * the views then show a "LOGO" placeholder rather than another brand's.
+     */
+    public static function shopBrand(): array
+    {
+        $header = self::invoiceHeader();
+
+        return [
+            'name' => $header['name'],
+            'logo_url' => $header['logo'] ? inventoryItemImageUrl($header['logo']) : null,
+        ];
     }
 
     public static function defaultTrustBadges(): array

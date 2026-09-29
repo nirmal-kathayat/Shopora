@@ -8,7 +8,7 @@
     <link href="{{ asset('assets/css/bootstrap.min.css') }}" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="{{ asset('assets/css/icons.css') }}" rel="stylesheet">
-    <title>Shopora Login</title>
+    <title>{{ $shopBrand['name'] }} Login</title>
     <style>
         :root {
             --brand: #2563eb;
@@ -120,6 +120,14 @@
             max-width: 320px;
             object-fit: contain;
             margin-bottom: 26px;
+        }
+
+        /* stands in for the logo until the shop uploads one */
+        .brand-logo.logo-placeholder {
+            line-height: 84px;
+            color: var(--brand);
+            font-size: 40px;
+            font-weight: 700;
         }
 
         .login-card {
@@ -365,6 +373,11 @@
                 height: 64px;
             }
 
+            .brand-logo.logo-placeholder {
+                line-height: 64px;
+                font-size: 32px;
+            }
+
             .features {
                 grid-template-columns: 1fr;
                 gap: 14px;
@@ -471,7 +484,11 @@
     </div>
 
     <div class="page">
-        <img class="brand-logo" src="{{ asset('assets/images/shopora.png') }}" alt="Shopora" />
+        @if($shopBrand['logo_url'])
+            <img class="brand-logo" src="{{ $shopBrand['logo_url'] }}" alt="{{ $shopBrand['name'] }}" />
+        @else
+            <div class="brand-logo logo-placeholder" title="{{ $shopBrand['name'] }}">LOGO</div>
+        @endif
 
         <div class="login-card">
             <div class="shield">
@@ -486,7 +503,7 @@
             </div>
 
             <h1>Welcome back!</h1>
-            <p class="sub">Sign in to access your Shopora inventory &amp; POS system</p>
+            <p class="sub">Sign in to access your {{ $shopBrand['name'] }} inventory &amp; POS system</p>
 
             <form action="{{ route('loginProcess') }}" method="post" id="loginForm">
                 @csrf
@@ -553,7 +570,7 @@
             </div>
         </div>
 
-        <p class="footer-copy">© {{ date('Y') }} Shopora. All rights reserved.</p>
+        <p class="footer-copy">© {{ date('Y') }} {{ $shopBrand['name'] }}. All rights reserved.</p>
     </div>
 
     <script src="{{ asset('assets/js/jquery.min.js') }}"></script>

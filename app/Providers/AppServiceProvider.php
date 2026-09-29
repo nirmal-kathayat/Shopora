@@ -5,7 +5,9 @@ namespace App\Providers;
 use App\Services\Payments\EsewaPaymentService;
 use App\Services\Payments\PaymentGateways;
 use App\Services\Payments\StripePaymentService;
+use App\Models\StoreSetting;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Sanctum\PersonalAccessToken;
 use Laravel\Sanctum\Sanctum;
@@ -40,6 +42,12 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Schema::defaultStringLength(191);
+
+        // The shop's name and logo from Settings > Bill Header, wherever the
+        // admin panel shows who it belongs to.
+        View::composer(['layouts.app', 'layouts.nav', 'auth.signin'], function ($view) {
+            $view->with('shopBrand', StoreSetting::shopBrand());
+        });
 
         $this->enforceIdleTimeoutOnApiTokens();
     }

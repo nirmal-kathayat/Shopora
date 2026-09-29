@@ -29,7 +29,7 @@
     <link rel="stylesheet" href="{{asset('assets/plugins/sweetalert2/sweetalert2.min.css')}}">
     <link rel="stylesheet" href="{{asset('assets/css/semi-dark.css')}}" />
     <link rel="stylesheet" href="{{asset('assets/css/header-colors.css')}}" />
-    <title>Shopora</title>
+    <title>{{ $shopBrand['name'] }}</title>
 </head>
 
 <body>

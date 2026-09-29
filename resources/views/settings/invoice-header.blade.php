@@ -23,9 +23,11 @@
                         <h5 class="mb-1">Bill header</h5>
                         <p class="text-muted mb-4">
                             Printed at the top of every bill — counter sales and online orders alike.
+                            The shop name and logo also appear on the admin sidebar and sign-in page.
                         </p>
 
-                        <form action="{{ route('admin.settings.invoiceHeader.update') }}" method="POST">
+                        <form action="{{ route('admin.settings.invoiceHeader.update') }}" method="POST"
+                              enctype="multipart/form-data">
                             @csrf
 
                             <div class="mb-3">
@@ -33,6 +35,39 @@
                                 <input type="text" class="form-control @error('name') is-invalid @enderror"
                                        id="name" name="name" value="{{ old('name', $header['name']) }}" required>
                                 @error('name')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            </div>
+
+                            <div class="row mb-3 align-items-start">
+                                <div class="col-md-8">
+                                    <label for="logo" class="form-label">Logo</label>
+                                    <input type="file" class="form-control @error('logo') is-invalid @enderror"
+                                           id="logo" name="logo" accept="image/png,image/jpeg,image/webp">
+                                    <div class="form-text">
+                                        Shown on the sidebar and sign-in page. A wide PNG with a transparent
+                                        background works best. Up to 1 MB. Leave empty to keep the current logo;
+                                        with none uploaded, a "LOGO" placeholder is shown.
+                                    </div>
+                                    @error('logo')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label d-block">Current</label>
+                                    <img src="{{ $brand['logo_url'] }}" alt="{{ $brand['name'] }}" id="logoPreview"
+                                         class="{{ $brand['logo_url'] ? '' : 'd-none' }}"
+                                         style="max-height:48px;max-width:100%;object-fit:contain;">
+                                    @unless($brand['logo_url'])
+                                        <span id="logoPlaceholder" class="d-inline-block fw-bold"
+                                              style="line-height:40px;font-size:22px;color:#2563eb;">LOGO</span>
+                                    @endunless
+                                    @if($brand['logo_url'])
+                                        <div class="form-check mt-2">
+                                            <input class="form-check-input" type="checkbox" name="remove_logo"
+                                                   value="1" id="remove_logo">
+                                            <label class="form-check-label small" for="remove_logo">
+                                                Remove the logo
+                                            </label>
+                                        </div>
+                                    @endif
+                                </div>
                             </div>
 
                             <div class="mb-3">
@@ -101,6 +136,21 @@
         </div>
     </div>
 </div>
+@endsection
+
+@section("script")
+<script>
+    // Show the chosen file straight away, before it is saved.
+    document.getElementById('logo').addEventListener('change', function () {
+        if (this.files && this.files[0]) {
+            var preview = document.getElementById('logoPreview');
+            preview.src = URL.createObjectURL(this.files[0]);
+            preview.classList.remove('d-none');
+            var placeholder = document.getElementById('logoPlaceholder');
+            if (placeholder) placeholder.classList.add('d-none');
+        }
+    });
+</script>
 @endsection
 
 @section("style")
