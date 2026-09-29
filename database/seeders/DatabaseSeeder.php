@@ -10,7 +10,6 @@ class DatabaseSeeder extends Seeder
     /**
      * Seed the application's database.
      */
-    public $adminPassword = '$2y$10$JcmAHe5eUZ2rS0jU1GWr/.xhwCnh2RU13qwjTPcqfmtZXjZxcryPO';
     public function run(): void
     {
         // admin seeder
@@ -18,7 +17,7 @@ class DatabaseSeeder extends Seeder
             [
                 'id' => '1',
                 'username' => 'superadmin',
-                'password' => $this->adminPassword,
+                'password' => bcrypt('superadmin'),
                 'email' => 'superadmin@gmail.com',
                 'name' => 'Super Admin',
                 'created_at' => date('Y-m-d H:i:s')
